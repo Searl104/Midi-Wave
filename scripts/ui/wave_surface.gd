@@ -30,6 +30,7 @@ extends Control
 ##         ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
 ##         middle-click / Delete = remove note (or the selection) · middle-drag = pan
+##         M = mute / unmute the selection or hovered note (keeps the mode; pulses still fire)
 ##         ctrl + right-drag on empty space = box select; Esc clears it
 ##
 ## Selection: dragging a selected note moves the whole group (snapping applies to the note
@@ -184,6 +185,7 @@ func load_notes() -> void:
 			used[saved] = false             # each saved id is used once
 		n.slot = clampi(int(d.get("slot", 0)), 0, 9)
 		n.range = maxf(float(d.get("range", 0.0)), 0.0)
+		n.muted = bool(d.get("muted", false))
 		n.snap_note = str(d.get("snap_note", ""))
 		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
@@ -226,7 +228,7 @@ func save_notes() -> void:
 			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown_beats": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
-			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot, "range": n.range,
+			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot, "range": n.range, "muted": n.muted,
 		})
 	Settings.notes = out
 	Settings.queue_save()
@@ -414,7 +416,9 @@ func hover_text(n: Dictionary) -> String:
 	if n.mode == Mode.NOTE_PULSE:
 		text += " · pulse"
 	elif n.mode == Mode.PULSE:
-		text += " · pulse, muted"
+		text += " · pulse only"
+	if n.muted:
+		text += " · muted"
 	if n.mod == "toggle":
 		text += " · toggle %s" % ("on" if n.mod_on else "off")
 		if n.mod_on != n.mod_start:
@@ -446,6 +450,31 @@ func select_in_rect(screen_rect: Rect2, add: bool = false) -> void:
 	for n in notes:
 		if r.has_point(note_screen_pos(n)):
 			selection[n.id] = true
+
+
+## M: mute the selection (or the hovered note). If any of them is unmuted they all mute,
+## otherwise they all unmute. Muting keeps the mode: a muted pulser still pulses.
+func toggle_mute() -> int:
+	var ids: Array = []
+	if not selection.is_empty():
+		ids = selection.keys()
+	elif _hover_id != -1:
+		ids = [_hover_id]
+	if ids.is_empty():
+		return 0
+	var mute := false
+	for id in ids:
+		if not get_note(id).get("muted", true):
+			mute = true
+	for id in ids:
+		var n := get_note(id)
+		if n.is_empty():
+			continue
+		n.muted = mute
+		if mute:
+			_silence(n)
+	save_notes()
+	return ids.size()
 
 
 func clear_selection() -> void:
@@ -480,7 +509,7 @@ func copy_selection() -> int:
 			"off": n.pos - centre, "emit_off": n.emit - centre, "attached": n.attached,
 			"note": n.note, "channel": n.channel, "mode": n.mode,
 			"pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
-			"mod": n.mod, "mod_start": n.mod_start, "slot": n.slot, "range": n.range,
+			"mod": n.mod, "mod_start": n.mod_start, "slot": n.slot, "range": n.range, "muted": n.muted,
 		})
 	return _clipboard.size()
 
@@ -504,6 +533,7 @@ func paste_at(screen_pos: Vector2) -> int:
 		n.mod_on = c.mod_start
 		n.slot = c.slot
 		n.range = c.range
+		n.muted = c.muted
 		selection[id] = true
 	save_notes()
 	return _clipboard.size()
@@ -592,6 +622,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"slot": 0,                          # keypad trigger slot 1-9, 0 = none
 		"hold_next": 0,                     # next refire time while its slot key is held
 		"range": 0.0,                       # own wave reach in world units (0 = global Reach)
+		"muted": false,                     # M: no sound; the mode (and any pulse) is kept
 	})
 	return id
 
@@ -743,7 +774,7 @@ func _trigger(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
 
 
 func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
-	if n.mode != Mode.PULSE:
+	if n.mode != Mode.PULSE and not n.muted:
 		_play(n, amp, now)
 	if n.mode == Mode.NOTE or now < n.ready_at:
 		return
@@ -1409,7 +1440,7 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	var p := note_screen_pos(n)
 	var col := Palette.channel_color(n.channel)
 	var f: float = n.flash
-	var muted: bool = n.mode == Mode.PULSE
+	var muted: bool = n.mode == Mode.PULSE or n.muted
 
 	if f > 0.0:
 		draw_circle(p, NOTE_RADIUS + 16.0 * f, Color(col, 0.18 * f))

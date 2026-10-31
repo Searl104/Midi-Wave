@@ -130,6 +130,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if key.ctrl_pressed:
 				surface.save_state()
 				get_viewport().set_input_as_handled()
+		KEY_M:
+			if not key.ctrl_pressed:
+				surface.toggle_mute()
+				get_viewport().set_input_as_handled()
 		KEY_C:
 			if key.ctrl_pressed:
 				surface.copy_selection()

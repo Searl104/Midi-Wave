@@ -144,6 +144,7 @@ func _build() -> void:
 		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
+		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
 		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
 		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
 		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
