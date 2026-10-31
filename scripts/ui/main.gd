@@ -5,7 +5,8 @@ extends Control
 const DIGIT_WINDOW_MS := 600   ## time allowed for the second digit of a channel number
 const PAN_SPEED := 700.0       ## px per second for arrow-key panning
 
-const COOLDOWNS := [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.75, 1.0, 1.5, 2.0]
+const COOLDOWNS := [0.125, 1.0 / 6.0, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]   ## beats
+const COOLDOWN_LABELS := ["⅛", "⅙", "¼", "⅓", "½", "⅔", "¾", "1", "1½", "2", "3", "4"]
 const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
 const MODE_LABELS := ["Note", "N+Pulse", "Pulse"]
 
@@ -316,16 +317,16 @@ func _rebuild_pulse_items() -> void:
 	if n.is_empty():
 		return
 	radial.outer_items = []
-	for c in COOLDOWNS:
-		var label := ("%.2f" % c).rstrip("0").rstrip(".") + "s"   # 0.1s, 0.15s, 1s, 1.5s
-		radial.outer_items.append({"id": c, "label": label, "color": Palette.YELLOW,
+	for i in COOLDOWNS.size():
+		var c: float = COOLDOWNS[i]
+		radial.outer_items.append({"id": c, "label": COOLDOWN_LABELS[i], "color": Palette.YELLOW,
 				"selected": absf(n.cooldown - c) < 0.001})
 	radial.inner_items = []
 	for s in PULSE_STRENGTHS:
 		radial.inner_items.append({"id": s, "label": "%d%%" % roundi(s * 100), "color": Palette.RED,
 				"selected": absf(n.pulse_strength - s) < 0.001})
 	radial.center_item = {"id": "mode", "label": MODE_LABELS[n.mode], "color": Palette.channel_color(n.channel)}
-	radial.title = "Pulse · cooldown (outer) · strength (inner)"
+	radial.title = "Pulse · cooldown in beats (outer) · strength (inner)"
 	radial.subtitle = "Centre: Note → Note + Pulse → Pulse only"
 	radial.refresh()
 

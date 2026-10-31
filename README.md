@@ -14,7 +14,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12) · Esc: cancel |
 | Alt-click a note | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only |
-| Ctrl-right-click a note | Pulse ring: cooldown (outer), emit strength (inner), mode (centre) |
+| Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4 (outer), emit strength (inner), mode (centre) |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note |
@@ -30,7 +30,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 ### Pulsers
 
 A pulsing note sends out its own wave when a wave hits it, at its own fixed strength,
-at most once per cooldown (minimum 0.1 s). It is never triggered by its own wave, so two
+at most once per cooldown. Cooldowns are in beats (⅛ beat to 4 beats), so they follow the tempo. It is never triggered by its own wave, so two
 pulsers can keep a loop going until you stop it (Space). A pulser starts ready to fire.
 Its emitter starts on the note; drag the diamond to start its waves somewhere else, and it
 stays put when you move the note. An emitter on top of another note fires that note instantly.

@@ -14,7 +14,8 @@ extends Control
 ##   NOTE        plays its note when a wave hits it
 ##   NOTE_PULSE  plays its note and emits a new wave from its emitter
 ##   PULSE       silent; only emits
-## A pulsing note emits at its own fixed strength, at most once per cooldown, and never
+## A pulsing note emits at its own fixed strength, at most once per cooldown (in beats, so
+## it follows the tempo; at least an eighth of a beat), and never
 ## reacts to waves it emitted itself. Its emitter starts on the note (attached); dragging
 ## the emitter handle detaches it to a fixed spot on the surface.
 ##
@@ -53,9 +54,9 @@ const HANDLE_RADIUS := 7.0
 const DRAG_THRESHOLD := 6.0
 const MIN_AMPLITUDE := 0.01
 const SPLASH_TIME := 0.6
-const MIN_COOLDOWN := 0.1
+const MIN_COOLDOWN := 0.125       ## beats (an eighth of a beat)
 const DEFAULT_PULSE_STRENGTH := 0.8
-const DEFAULT_COOLDOWN := 0.5
+const DEFAULT_COOLDOWN := 1.0      ## beats
 const SNAP_DISTANCE := 12.0     ## screen px within which a dragged item snaps to a ring
 const EDGE_INSET := 16.0
 const MOD_RING := 10.0          ## modifier ring radius beyond NOTE_RADIUS
@@ -173,7 +174,13 @@ func load_notes() -> void:
 		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
 		n.pulse_strength = clampf(float(d.get("pulse_strength", DEFAULT_PULSE_STRENGTH)), 0.05, 1.0)
-		n.cooldown = maxf(float(d.get("cooldown", DEFAULT_COOLDOWN)), MIN_COOLDOWN)
+		# Cooldowns are in beats (tempo-locked). Older saves stored seconds: convert at the saved tempo.
+		var cd := DEFAULT_COOLDOWN
+		if d.has("cooldown_beats"):
+			cd = float(d["cooldown_beats"])
+		elif d.has("cooldown"):
+			cd = float(d["cooldown"]) * Settings.bpm / 60.0
+		n.cooldown = maxf(cd, MIN_COOLDOWN)
 		n.attached = bool(d.get("attached", true))
 		n.emit = Vector2(float(d.get("ex", p.x)), float(d.get("ey", p.y)))
 		n.mod = str(d.get("mod", ""))
@@ -202,7 +209,7 @@ func save_notes() -> void:
 	for n in notes:
 		out.append({
 			"x": n.pos.x, "y": n.pos.y, "note": n.note, "channel": n.channel,
-			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
+			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown_beats": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
 			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot,
@@ -260,13 +267,14 @@ func set_note_mode(id: int, mode: int) -> void:
 	save_notes()
 
 
+## Pulse strength (0-1) and cooldown in beats (tempo-locked, at least MIN_COOLDOWN).
 func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 	var n := get_note(id)
 	if n.is_empty():
 		return
 	n.pulse_strength = clampf(strength, 0.05, 1.0)
 	n.cooldown = maxf(cooldown, MIN_COOLDOWN)
-	n.ready_at = mini(n.ready_at, clock_usec + int(n.cooldown * 1_000_000.0))
+	n.ready_at = mini(n.ready_at, clock_usec + cooldown_usec(n))
 	save_notes()
 
 
@@ -316,7 +324,12 @@ func press_slot(slot: int) -> void:
 	trigger_slot(slot)
 	for n in notes:
 		if n.slot == slot and n.mode != Mode.NOTE:
-			n.hold_next = clock_usec + int(n.cooldown * 1_000_000.0)
+			n.hold_next = clock_usec + cooldown_usec(n)
+
+
+## A note's cooldown in microseconds at the current tempo.
+func cooldown_usec(n: Dictionary) -> int:
+	return int(n.cooldown * 60.0 / maxf(Settings.bpm, 1.0) * 1_000_000.0)
 
 
 func release_slot(slot: int) -> void:
@@ -568,7 +581,7 @@ func step(delta: float) -> void:
 	if not held_slots.is_empty():
 		for n in notes.duplicate():
 			if held_slots.has(n.slot) and n.mode != Mode.NOTE and now >= n.hold_next:
-				n.hold_next = now + int(n.cooldown * 1_000_000.0)
+				n.hold_next = now + cooldown_usec(n)
 				trigger_note(n.id)
 
 	for n in notes:
@@ -618,7 +631,7 @@ func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
 		skipped_pulses += 1          # surface full: skip this beat, stay ready
 		return
 	spawned.append(_make_wave(emitter_world_pos(n), n.pulse_strength, n.id))
-	n.ready_at = now + int(n.cooldown * 1_000_000.0)
+	n.ready_at = now + cooldown_usec(n)
 	n.pulse_flash = 1.0
 
 
@@ -1147,7 +1160,7 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 		var ring_r := NOTE_RADIUS + 5.0
 		var ready := 1.0
 		if now < n.ready_at:
-			ready = 1.0 - float(n.ready_at - now) / (n.cooldown * 1_000_000.0)
+			ready = 1.0 - float(n.ready_at - now) / float(maxi(cooldown_usec(n), 1))
 		var pf: float = n.pulse_flash
 		draw_arc(p, ring_r, 0.0, TAU, 48, Color(1, 1, 1, 0.08), 2.0, true)
 		draw_arc(p, ring_r, -PI / 2.0, -PI / 2.0 + TAU * clampf(ready, 0.0, 1.0), 48,
