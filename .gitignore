@@ -1,0 +1,18 @@
+# Godot
+.godot/
+*.translation
+/android/
+
+# Native build
+native/godot-cpp/
+native/rtmidi/
+native/**/*.o
+native/**/*.os
+native/**/*.obj
+native/.sconsign*.dblite
+addons/midi_out/bin/
+
+# OS
+.DS_Store
+Thumbs.db
+build/

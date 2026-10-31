@@ -1,0 +1,216 @@
+class_name OptionsPanel
+extends PanelContainer
+## Slide-in options: MIDI output, wave settings, scale, note tools.
+
+signal clear_notes_requested
+signal reset_layout_requested
+
+const WIDTH := 330.0
+
+var _ports: OptionButton
+var _port_status: Label
+
+
+func _ready() -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/glass.gdshader")
+	mat.set_shader_parameter("opacity", 0.78)
+	material = mat
+	anchor_left = 1.0
+	anchor_right = 1.0
+	anchor_top = 0.0
+	anchor_bottom = 1.0
+	offset_left = -WIDTH - 16.0
+	offset_right = -16.0
+	offset_top = 16.0
+	offset_bottom = -16.0
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	_build()
+	hide()
+	Midi.port_changed.connect(func(_n: String) -> void: _update_port_status())
+
+
+func toggle() -> void:
+	if visible:
+		hide()
+	else:
+		refresh_ports()
+		show()
+
+
+func _build() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+	var pad := MarginContainer.new()
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_right", 14)
+	scroll.add_child(pad)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 8)
+	pad.add_child(box)
+
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	var title := Label.new()
+	title.text = "Options"
+	title.add_theme_font_size_override("font_size", 20)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	head.add_child(_button("Close", hide))
+
+	_section(box, "MIDI OUTPUT", Palette.BLUE)
+	_ports = OptionButton.new()
+	_ports.clip_text = true
+	_ports.fit_to_longest_item = false
+	_ports.item_selected.connect(_on_port_selected)
+	box.add_child(_ports)
+	var port_row := HBoxContainer.new()
+	box.add_child(port_row)
+	_port_status = Label.new()
+	_port_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_port_status.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_port_status.add_theme_font_size_override("font_size", 12)
+	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	port_row.add_child(_port_status)
+	port_row.add_child(_button("Refresh", refresh_ports))
+	port_row.add_child(_button("Panic", Midi.panic))
+
+	_section(box, "WAVE", Palette.RED)
+	_slider(box, "Strength", "wave_strength", 0.1, 1.0, 0.01, func(v: float) -> String: return "%d%%" % roundi(v * 100))
+	_slider(box, "Speed", "wave_speed", 80.0, 1600.0, 10.0, func(v: float) -> String: return "%d px/s" % v)
+	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String: return "%d px" % v)
+	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
+		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
+	_slider(box, "Note length", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)
+
+	_section(box, "SCALE", Palette.YELLOW)
+	var scale_row := HBoxContainer.new()
+	box.add_child(scale_row)
+	var root := OptionButton.new()
+	for n in Scales.ROOT_NAMES:
+		root.add_item(n)
+	root.select(Settings.root_note)
+	root.item_selected.connect(func(i: int) -> void: Settings.set_value("root_note", i))
+	scale_row.add_child(root)
+	var scale := OptionButton.new()
+	scale.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var names := Scales.names()
+	for n in names:
+		scale.add_item(n)
+	scale.select(maxi(0, names.find(Settings.scale_name)))
+	scale.item_selected.connect(func(i: int) -> void: Settings.set_value("scale_name", names[i]))
+	scale_row.add_child(scale)
+	box.add_child(_hint("Changing the scale snaps every note to it."))
+
+	_section(box, "NOTES", Palette.TEXT_DIM)
+	var notes_row := HBoxContainer.new()
+	box.add_child(notes_row)
+	notes_row.add_child(_button("Clear all", func() -> void: clear_notes_requested.emit()))
+	notes_row.add_child(_button("Default layout", func() -> void: reset_layout_requested.emit()))
+
+	_section(box, "CONTROLS", Palette.TEXT_DIM)
+	box.add_child(_hint(
+		"Click: send a wave\n" +
+		"Drag a note: move it\n" +
+		"Right-click: set pitch (on empty space: place a note)\n" +
+		"Alt-click: set MIDI channel\n" +
+		"Shift-click: place a note with the last pitch\n" +
+		"Middle-click or Delete: remove the hovered note\n" +
+		"Mouse wheel in the pitch ring: change octave\n" +
+		"Tab: options · Esc: close menus"))
+
+
+func refresh_ports() -> void:
+	_ports.clear()
+	if not Midi.has_native_backend():
+		_ports.add_item("MIDI extension not loaded")
+		_ports.disabled = true
+	else:
+		var names := Midi.list_ports()
+		if names.is_empty():
+			_ports.add_item("No MIDI outputs found")
+			_ports.disabled = true
+		else:
+			_ports.disabled = false
+			for n in names:
+				_ports.add_item(n)
+			_ports.select(names.find(Settings.midi_port) if Midi.is_open() else -1)
+	_update_port_status()
+
+
+func _on_port_selected(index: int) -> void:
+	if Midi.open_port(index):
+		Settings.set_value("midi_port", Midi.current_port_name())
+
+
+func _update_port_status() -> void:
+	if Midi.is_open():
+		_port_status.text = "Sending to " + Midi.current_port_name()
+	elif Midi.has_native_backend():
+		_port_status.text = "No port open. Pick one above (e.g. your loopMIDI port)."
+	else:
+		_port_status.text = "Log-only mode."
+
+
+# --- Builders -----------------------------------------------------------------------
+
+func _section(box: VBoxContainer, text: String, col: Color) -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 6
+	box.add_child(gap)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	var dot := ColorRect.new()
+	dot.color = col
+	dot.custom_minimum_size = Vector2(3, 14)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dot)
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 11)
+	l.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	row.add_child(l)
+
+
+func _slider(box: VBoxContainer, label: String, key: String, min_v: float, max_v: float,
+		step: float, fmt: Callable) -> void:
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var name_l := Label.new()
+	name_l.text = label
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_l)
+	var val_l := Label.new()
+	val_l.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	row.add_child(val_l)
+	var s := HSlider.new()
+	s.min_value = min_v
+	s.max_value = max_v
+	s.step = step
+	s.value = Settings.get(key)
+	s.focus_mode = Control.FOCUS_NONE
+	val_l.text = fmt.call(s.value)
+	s.value_changed.connect(func(v: float) -> void:
+		val_l.text = fmt.call(v)
+		Settings.set_value(key, v))
+	box.add_child(s)
+
+
+func _button(text: String, on_press: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(on_press)
+	return b
+
+
+func _hint(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	l.add_theme_font_size_override("font_size", 12)
+	return l

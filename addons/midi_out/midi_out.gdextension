@@ -1,0 +1,16 @@
+[configuration]
+
+entry_symbol = "midi_out_library_init"
+compatibility_minimum = "4.3"
+reloadable = false
+
+[libraries]
+
+linux.debug.x86_64 = "res://addons/midi_out/bin/libmidiout.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://addons/midi_out/bin/libmidiout.linux.template_release.x86_64.so"
+linux.debug.arm64 = "res://addons/midi_out/bin/libmidiout.linux.template_debug.arm64.so"
+linux.release.arm64 = "res://addons/midi_out/bin/libmidiout.linux.template_release.arm64.so"
+macos.debug = "res://addons/midi_out/bin/libmidiout.macos.template_debug.universal.dylib"
+macos.release = "res://addons/midi_out/bin/libmidiout.macos.template_release.universal.dylib"
+windows.debug.x86_64 = "res://addons/midi_out/bin/libmidiout.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/midi_out/bin/libmidiout.windows.template_release.x86_64.dll"

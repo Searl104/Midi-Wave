@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+# Builds addons/midi_out/bin/libmidiout.<platform>.<target>.<arch>.<ext>
+# Run ./setup.sh (or setup.ps1) once first to fetch godot-cpp and RtMidi.
+
+# RtMidi uses C++ exceptions; godot-cpp disables them by default.
+ARGUMENTS.setdefault("disable_exceptions", "no")
+
+env = SConscript("godot-cpp/SConstruct")
+
+env.Append(CPPPATH=["src/", "rtmidi/"])
+sources = Glob("src/*.cpp") + ["rtmidi/RtMidi.cpp"]
+
+platform = env["platform"]
+if platform == "linux":
+    env.Append(CPPDEFINES=["__LINUX_ALSA__"], LIBS=["asound", "pthread"])
+elif platform == "macos":
+    env.Append(
+        CPPDEFINES=["__MACOSX_CORE__"],
+        LINKFLAGS=["-framework", "CoreMIDI", "-framework", "CoreAudio", "-framework", "CoreFoundation"],
+    )
+elif platform == "windows":
+    env.Append(CPPDEFINES=["__WINDOWS_MM__"], LIBS=["winmm"])
+else:
+    print("Warning: no RtMidi backend configured for platform '%s'; using the dummy API." % platform)
+    env.Append(CPPDEFINES=["__RTMIDI_DUMMY__"])
+
+library = env.SharedLibrary(
+    "../addons/midi_out/bin/libmidiout{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+    source=sources,
+)
+Default(library)
