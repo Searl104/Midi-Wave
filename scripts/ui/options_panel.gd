@@ -140,8 +140,10 @@ func _build() -> void:
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
 		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
-		"While dragging: snaps to timing rings · hold Shift to place freely\n" +
-		"Space: stop all waves · Tab: options"))
+		"While dragging: touch another note or emitter to snap to its rings (touch again to drop it) · Shift places freely\n" +
+		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
+		"Ctrl+S: save state · Space: stop and return to the save state\n" +
+		"Tab: options"))
 
 
 func refresh_ports() -> void:

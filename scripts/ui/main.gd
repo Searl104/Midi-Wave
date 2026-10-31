@@ -44,6 +44,7 @@ func _ready() -> void:
 	surface.pitch_menu_requested.connect(_open_pitch_menu)
 	surface.channel_menu_requested.connect(_open_channel_menu)
 	surface.pulse_menu_requested.connect(_open_pulse_menu)
+	surface.modifier_menu_requested.connect(_open_modifier_menu)
 
 	_build_hud()
 
@@ -99,8 +100,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			options.toggle()
 			get_viewport().set_input_as_handled()
 		KEY_SPACE:
-			surface.stop_all_waves()
+			surface.stop()
 			get_viewport().set_input_as_handled()
+		KEY_S:
+			if key.ctrl_pressed:
+				surface.save_state()
+				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()
@@ -142,11 +147,18 @@ func _build_hud() -> void:
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(status_label)
 
+	var save := Button.new()
+	save.text = "Save state"
+	save.tooltip_text = "Make every toggle's current state its start state (Ctrl+S)"
+	save.focus_mode = Control.FOCUS_NONE
+	save.pressed.connect(func() -> void: surface.save_state())
+	top.add_child(save)
+
 	var stop := Button.new()
-	stop.text = "Stop waves"
-	stop.tooltip_text = "Clear every wave on the surface (Space)"
+	stop.text = "Stop"
+	stop.tooltip_text = "Clear every wave and return to the save state (Space)"
 	stop.focus_mode = Control.FOCUS_NONE
-	stop.pressed.connect(func() -> void: surface.stop_all_waves())
+	stop.pressed.connect(func() -> void: surface.stop())
 	top.add_child(stop)
 
 	var gear := Button.new()
@@ -156,7 +168,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Middle-drag / arrows: pan  ·  Space: stop  ·  Tab: options"
+	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Shift-right-click: modifier  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: options"
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -289,6 +301,38 @@ func _rebuild_pulse_items() -> void:
 	radial.refresh()
 
 
+# --- Modifier menu ----------------------------------------------------------------------------
+
+## Outer ring = modifier (None / Toggle); inner ring = the toggle's state (On / Off),
+## which sets both its current and its start state.
+func _open_modifier_menu(note_id: int, at: Vector2) -> void:
+	_menu_note = note_id
+	radial.set_meta("mode", "modifier")
+	_rebuild_modifier_items()
+	radial.open(at)
+
+
+func _rebuild_modifier_items() -> void:
+	var n := surface.get_note(_menu_note)
+	if n.is_empty():
+		return
+	var col := Palette.channel_color(n.channel)
+	radial.outer_items = [
+		{"id": "", "label": "None", "color": Palette.TEXT_DIM, "selected": n.mod == ""},
+		{"id": "toggle", "label": "Toggle", "color": col, "selected": n.mod == "toggle"},
+	]
+	radial.inner_items = []
+	if n.mod == "toggle":
+		radial.inner_items = [
+			{"id": true, "label": "On", "color": col, "selected": n.mod_on},
+			{"id": false, "label": "Off", "color": Palette.TEXT_DIM, "selected": not n.mod_on},
+		]
+	radial.center_item = {}
+	radial.title = "Modifier"
+	radial.subtitle = "Toggle: plays every other hit · inner ring sets its start state" if n.mod == "toggle" else "Toggle: plays every other hit"
+	radial.refresh()
+
+
 # --- Radial results ---------------------------------------------------------------------------
 
 func _on_radial_outer(id: Variant) -> void:
@@ -308,6 +352,8 @@ func _on_radial_outer(id: Variant) -> void:
 			var n := surface.get_note(_menu_note)
 			if not n.is_empty():
 				Midi.play_note(n.note, 90, 0.25, ch)
+		"modifier":
+			surface.set_modifier(_menu_note, id)
 		"pulse":
 			var n := surface.get_note(_menu_note)
 			if n.is_empty():
@@ -319,6 +365,9 @@ func _on_radial_outer(id: Variant) -> void:
 
 func _on_radial_inner(id: Variant) -> void:
 	match radial.get_meta("mode", ""):
+		"modifier":
+			surface.set_modifier_state(_menu_note, id)
+			_rebuild_modifier_items()
 		"pitch":
 			_set_menu_octave(id)
 		"pulse":

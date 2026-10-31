@@ -23,11 +23,21 @@ extends Control
 ## Mouse:  click = wave · drag note = move · drag emitter handle = place emitter
 ##         right-click (hold / tap) = pitch radial · alt-click = channel radial
 ##         ctrl-click = cycle mode · ctrl-right-click = pulse radial
-##         shift-click = new note · middle-click / Delete = remove note · middle-drag = pan
+##         shift-click = new note · shift-right-click = modifier radial
+##         middle-click / Delete = remove note · middle-drag = pan
+##
+## Modifier ring (one per note). "toggle": on each trigger the note acts on its current
+## state, then flips; off silences both its sound and its pulse. Each toggle has a start
+## state (set by the user, or by Save state); Stop returns every toggle to it.
+##
+## Touch to snap: while dragging, the held object shows its own rings; touching another
+## object toggles that object's snap rings. The held item snaps only to touched objects.
+## Touched objects reset on drop.
 
 signal pitch_menu_requested(note_id: int, at: Vector2)    # note_id -1 = place a new note at `at`
 signal channel_menu_requested(note_id: int, at: Vector2)
 signal pulse_menu_requested(note_id: int, at: Vector2)
+signal modifier_menu_requested(note_id: int, at: Vector2)
 signal notes_changed
 
 enum Mode { NOTE, NOTE_PULSE, PULSE }
@@ -43,6 +53,8 @@ const DEFAULT_PULSE_STRENGTH := 0.8
 const DEFAULT_COOLDOWN := 0.5
 const SNAP_DISTANCE := 12.0     ## px within which a dragged item snaps to a ring
 const EDGE_INSET := 16.0
+const MOD_RING := 10.0          ## modifier ring radius beyond NOTE_RADIUS
+const MODIFIERS := ["toggle"]
 
 const FRACTIONS := {
 	"1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/6": "⅙", "5/6": "⅚",
@@ -78,6 +90,9 @@ var _mouse_pos := Vector2.ZERO
 var _mouse_in := false
 var _glow_tex: GradientTexture2D
 var _glow_curve := -1.0          # falloff curve the glow texture was built for
+var _touched: Dictionary = {}     # object keys ("n<id>" / "e<id>") toggled as snap targets this drag
+var _overlapping: Dictionary = {} # object keys the held item overlaps right now
+var touch_flashes: Array = []     # {pos: Vector2 (world), t: float}
 
 
 func _ready() -> void:
@@ -135,6 +150,11 @@ func load_notes() -> void:
 		n.cooldown = maxf(float(d.get("cooldown", DEFAULT_COOLDOWN)), MIN_COOLDOWN)
 		n.attached = bool(d.get("attached", true))
 		n.emit = Vector2(float(d.get("ex", p.x)), float(d.get("ey", p.y)))
+		n.mod = str(d.get("mod", ""))
+		if not MODIFIERS.has(n.mod):
+			n.mod = ""
+		n.mod_start = bool(d.get("mod_start", true))
+		n.mod_on = n.mod_start
 	if notes.is_empty():
 		seed_default_layout()
 
@@ -158,6 +178,7 @@ func save_notes() -> void:
 			"x": n.pos.x, "y": n.pos.y, "note": n.note, "channel": n.channel,
 			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
+			"mod": n.mod, "mod_start": n.mod_start,
 		})
 	Settings.notes = out
 	Settings.queue_save()
@@ -222,6 +243,59 @@ func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 	save_notes()
 
 
+## Attaches a modifier ("" removes it). A new toggle starts on.
+func set_modifier(id: int, kind: String) -> void:
+	var n := get_note(id)
+	if n.is_empty() or (kind != "" and not MODIFIERS.has(kind)):
+		return
+	n.mod = kind
+	n.mod_on = true
+	n.mod_start = true
+	save_notes()
+
+
+## A state the user sets is the note's intended start state: sets current and start.
+func set_modifier_state(id: int, on: bool) -> void:
+	var n := get_note(id)
+	if n.is_empty() or n.mod == "":
+		return
+	n.mod_on = on
+	n.mod_start = on
+	n.mod_flip = 1.0
+	save_notes()
+
+
+## Save state: every modifier's current state becomes its start state.
+func save_state() -> void:
+	for n in notes:
+		if n.mod != "":
+			n.mod_start = n.mod_on
+	save_notes()
+
+
+## Stop: clear all waves, return every modifier to its start state and every pulser to ready.
+func stop() -> void:
+	waves.clear()
+	for n in notes:
+		n.mod_on = n.mod_start
+		n.ready_at = 0
+		n.dim_flash = 0.0
+
+
+## Tooltip text for a note: pitch, channel and modifier state.
+func hover_text(n: Dictionary) -> String:
+	var text := "%s · ch %d" % [MidiMessage.note_name(n.note), n.channel + 1]
+	if n.mode == Mode.NOTE_PULSE:
+		text += " · pulse"
+	elif n.mode == Mode.PULSE:
+		text += " · pulse, muted"
+	if n.mod == "toggle":
+		text += " · toggle %s" % ("on" if n.mod_on else "off")
+		if n.mod_on != n.mod_start:
+			text += ", starts %s" % ("on" if n.mod_start else "off")
+	return text
+
+
 func remove_note(id: int) -> void:
 	for i in notes.size():
 		if notes[i].id == id:
@@ -263,7 +337,8 @@ func emitter_screen_pos(n: Dictionary) -> Vector2:
 ## Where the draggable emitter handle is drawn: on the rim while attached.
 func handle_screen_pos(n: Dictionary) -> Vector2:
 	if n.attached:
-		return note_screen_pos(n) + Vector2(1, -1).normalized() * (NOTE_RADIUS + 9.0)
+		var out := NOTE_RADIUS + (MOD_RING + 8.0 if n.mod != "" else 9.0)
+		return note_screen_pos(n) + Vector2(1, -1).normalized() * out
 	return to_screen(n.emit)
 
 
@@ -295,6 +370,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"mode": Mode.NOTE, "pulse_strength": DEFAULT_PULSE_STRENGTH, "cooldown": DEFAULT_COOLDOWN,
 		"ready_at": 0, "pulse_flash": 0.0,
 		"attached": true, "emit": world_pos,
+		"mod": "", "mod_on": true, "mod_start": true, "mod_flip": 0.0, "dim_flash": 0.0,
 	})
 	return id
 
@@ -375,7 +451,7 @@ func step(delta: float) -> void:
 				w.hits[n.id] = true
 				var amp := amplitude(w.strength, d)
 				if amp >= MIN_AMPLITUDE:
-					_on_hit(n, amp, now, spawned)
+					_trigger(n, amp, now, spawned)
 		i += 1
 	waves.append_array(spawned)
 
@@ -385,6 +461,16 @@ func step(delta: float) -> void:
 			n.playing = false
 		n.flash = maxf(0.0, n.flash - delta * 2.5)
 		n.pulse_flash = maxf(0.0, n.pulse_flash - delta * 3.0)
+		n.mod_flip = maxf(0.0, n.mod_flip - delta * 4.0)
+		n.dim_flash = maxf(0.0, n.dim_flash - delta * 3.0)
+
+	var f := 0
+	while f < touch_flashes.size():
+		touch_flashes[f].t += delta
+		if touch_flashes[f].t >= 0.35:
+			touch_flashes.remove_at(f)
+		else:
+			f += 1
 
 	var s := 0
 	while s < splashes.size():
@@ -393,6 +479,18 @@ func step(delta: float) -> void:
 			splashes.remove_at(s)
 		else:
 			s += 1
+
+
+## A wave reached note `n`. The modifier decides whether it acts on this hit.
+func _trigger(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
+	if n.mod == "toggle":
+		var active: bool = n.mod_on
+		n.mod_on = not n.mod_on
+		n.mod_flip = 1.0
+		if not active:
+			n.dim_flash = 1.0       # silenced: no sound, no pulse
+			return
+	_on_hit(n, amp, now, spawned)
 
 
 func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
@@ -431,35 +529,37 @@ func ring_step() -> float:
 	return Settings.beat_spacing / maxf(float(Settings.divisions), 1.0)
 
 
-## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
-## "emitter") to world point `p`. Returns {pos, centres, readout, loop, snapped}.
-func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool) -> Dictionary:
-	# Rings centre on every other object within reach of the dragged point: other notes,
-	# and other pulsers' detached emitters. So notes can be spaced to each other in time
-	# whether or not anything pulses yet.
-	var reach := Settings.wave_range
-	var pairs: Array = []      # [static point, owning note id]
+## Every object a held item can touch, keyed "n<id>" (a note) or "e<id>" (a detached
+## emitter), with its world position. The held note and its own emitter are left out.
+func touch_targets(exclude_id: int) -> Dictionary:
+	var out := {}
 	for m in notes:
-		if m.id == n.id:
+		if m.id == exclude_id:
 			continue
-		if p.distance_to(m.pos) < reach:
-			pairs.append([m.pos, m.id])
-		if m.mode != Mode.NOTE and not m.attached and p.distance_to(m.emit) < reach:
-			pairs.append([m.emit, m.id])
-	var centres: Array = []
-	for pr in pairs:
-		centres.append(pr[0])
+		out["n%d" % m.id] = m.pos
+		if m.mode != Mode.NOTE and not m.attached:
+			out["e%d" % m.id] = m.emit
+	return out
+
+
+## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
+## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
+## Returns {pos, centres, readout, loop, snapped, ref_point}; centres[0] is the held item.
+func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
+	var reach := Settings.wave_range
+	var targets := touch_targets(n.id)
+	var pairs: Array = []      # [world point, owning note id]
+	for key in touched:
+		if targets.has(key):
+			pairs.append([targets[key], int(key.substr(1))])
 
 	var step_px := ring_step()
 	var best: Array = []
 	var best_fix := INF
-	var nearest: Array = []
-	var nearest_d := INF
 	for pr in pairs:
 		var d := p.distance_to(pr[0])
-		if d < nearest_d:
-			nearest_d = d
-			nearest = pr
+		if d >= reach:
+			continue
 		var target := roundf(d / step_px) * step_px
 		if target < step_px * 0.5:
 			continue
@@ -470,14 +570,29 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool) -> Dictio
 
 	var out_pos := p
 	var snapped := false
-	var ref: Array = nearest
+	var ref: Array = []
 	if not free and not best.is_empty() and best_fix <= SNAP_DISTANCE:
 		var a: Vector2 = best[0]
 		var dir := (p - a).normalized() if p.distance_to(a) > 0.001 else Vector2.RIGHT
 		out_pos = a + dir * roundf(p.distance_to(a) / step_px) * step_px
 		snapped = true
 		ref = best
+	else:
+		# Not snapped: measure to the nearest touched object, else the nearest object in reach.
+		var pool: Array = pairs.duplicate()
+		if pool.is_empty():
+			for key in targets:
+				pool.append([targets[key], int(key.substr(1))])
+		var nearest_d := reach
+		for pr in pool:
+			var d := p.distance_to(pr[0])
+			if d < nearest_d:
+				nearest_d = d
+				ref = pr
 
+	var centres: Array = [out_pos]
+	for pr in pairs:
+		centres.append(pr[0])
 	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
 			"ref_point": ref[0] if not ref.is_empty() else null}
 	if not ref.is_empty():
@@ -571,12 +686,39 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 	var n := get_note(_press_id)
 	if n.is_empty():
 		return
-	drag_info = compute_drag(n, _press_kind, to_world(screen_pos), free)
+	var p := to_world(screen_pos)
+	_update_touches(n, p)
+	drag_info = compute_drag(n, _press_kind, p, free, _touched)
 	if _press_kind == "emitter":
 		n.attached = false
 		n.emit = drag_info.pos
 	else:
 		n.pos = drag_info.pos
+
+
+## The held item touching another object toggles that object's snap rings. A toggle
+## happens when an overlap begins, so touch and move off; touching again toggles back.
+func _update_touches(n: Dictionary, p: Vector2) -> void:
+	var now_over := _overlaps_at(n, p)
+	for key in now_over:
+		if not _overlapping.has(key):
+			if _touched.has(key):
+				_touched.erase(key)
+			else:
+				_touched[key] = true
+			touch_flashes.append({"pos": now_over[key], "t": 0.0})
+	_overlapping = now_over
+
+
+func _overlaps_at(n: Dictionary, p: Vector2) -> Dictionary:
+	var held_r := HANDLE_RADIUS if _press_kind == "emitter" else NOTE_RADIUS
+	var out := {}
+	var targets := touch_targets(n.id)
+	for key in targets:
+		var other_r := NOTE_RADIUS if key.begins_with("n") else HANDLE_RADIUS
+		if p.distance_to(targets[key]) < held_r + other_r:
+			out[key] = targets[key]
+	return out
 
 
 func _handle_button(mb: InputEventMouseButton) -> void:
@@ -609,6 +751,9 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				if mb.ctrl_pressed:
 					if hit != -1:
 						pulse_menu_requested.emit(hit, pos)
+				elif mb.shift_pressed:
+					if hit != -1:
+						modifier_menu_requested.emit(hit, pos)
 				elif mb.alt_pressed:
 					if hit != -1:
 						channel_menu_requested.emit(hit, pos)
@@ -634,6 +779,10 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	_press_kind = kind
 	_press_pos = pos
 	_dragging = false
+	_touched = {}
+	var n := get_note(id)
+	# Whatever the held item already overlaps at the start doesn't count as a touch.
+	_overlapping = _overlaps_at(n, n.pos if kind == "note" else emitter_world_pos(n)) if not n.is_empty() else {}
 
 
 func _end_press() -> void:
@@ -651,6 +800,8 @@ func _end_press() -> void:
 	_press_kind = ""
 	_dragging = false
 	drag_info = {}
+	_touched = {}
+	_overlapping = {}
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -706,7 +857,12 @@ func _draw() -> void:
 			_draw_edge_marker(n)
 
 	if not drag_info.is_empty():
+		_draw_touches()
 		_draw_readout(font)
+	elif _hover_id != -1 and _press_id == -1 and not _pan_active:
+		var hn := get_note(_hover_id)
+		if not hn.is_empty():
+			_draw_tooltip(hn, font)
 
 
 ## Faint glow under the cursor showing how far a wave from here reaches and how it fades:
@@ -762,7 +918,8 @@ func _draw_rings() -> void:
 		var centre_w: Vector2 = c
 		var centre := to_screen(centre_w)
 		# The set being measured against draws at full strength; the others softer.
-		var weight := 1.0 if (focus != null and centre_w.is_equal_approx(focus)) else 0.45
+		var is_held: bool = centre_w == drag_info.centres[0]
+		var weight := 1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.55
 		for k in range(1, count + 1):
 			var r := k * step_px
 			var fade := (1.0 - r / Settings.wave_range) * weight
@@ -780,6 +937,31 @@ func _draw_rings() -> void:
 	if not dragged.is_empty() and drag_info.snapped:
 		var at := to_screen(drag_info.pos)
 		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.3), 0.6), 1.0, true)
+
+
+## Touched objects get a highlight ring; a touch shows a brief flash.
+func _draw_touches() -> void:
+	var targets := touch_targets(_press_id)
+	for key in _touched:
+		if targets.has(key):
+			var r := (NOTE_RADIUS if key.begins_with("n") else HANDLE_RADIUS) + 8.0
+			draw_arc(to_screen(targets[key]), r, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.4), 0.85), 2.0, true)
+	for tf in touch_flashes:
+		var k: float = tf.t / 0.35
+		draw_arc(to_screen(tf.pos), NOTE_RADIUS + 6.0 + 22.0 * k, 0.0, TAU, 40, Color(1, 1, 1, 0.5 * (1.0 - k)), 2.0, true)
+
+
+func _draw_tooltip(n: Dictionary, font: Font) -> void:
+	var text := hover_text(n)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 30.0
+	var at := note_screen_pos(n) + Vector2(NOTE_RADIUS + 18.0, -NOTE_RADIUS - 26.0)
+	at.x = clampf(at.x, 8.0, size.x - w - 8.0)
+	at.y = clampf(at.y, 8.0, size.y - 30.0)
+	var box := Rect2(at, Vector2(w, 24))
+	draw_rect(box, Color(Palette.GLASS, 0.94))
+	draw_rect(box, Color(1, 1, 1, 0.12), false, 1.0)
+	draw_circle(at + Vector2(12, 12), 4.0, Palette.channel_color(n.channel))
+	draw_string(font, at + Vector2(22, 16), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Palette.TEXT)
 
 
 func _draw_readout(font: Font) -> void:
@@ -849,14 +1031,60 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 
 	if n.id == _hover_id:
 		draw_arc(p, NOTE_RADIUS + (12.0 if n.mode != Mode.NOTE else 5.0), 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.0, true)
-	var label_col := Palette.TEXT_DIM if muted else Palette.TEXT
+	var toggled_off: bool = n.mod == "toggle" and not n.mod_on
+	var label_col := Palette.TEXT_DIM if (muted or toggled_off) else Palette.TEXT
 	draw_string(font, p + Vector2(-NOTE_RADIUS, 5.0), MidiMessage.note_name(n.note),
 			HORIZONTAL_ALIGNMENT_CENTER, NOTE_RADIUS * 2.0, 13, label_col)
-	var sub := "ch %d" % (n.channel + 1)
-	if n.mode == Mode.PULSE:
-		sub = "muted · ch %d" % (n.channel + 1)
-	draw_string(font, p + Vector2(-NOTE_RADIUS * 2.0, NOTE_RADIUS + 17.0), sub,
-			HORIZONTAL_ALIGNMENT_CENTER, NOTE_RADIUS * 4.0, 10, Color(col, 0.7))
+	if n.dim_flash > 0.0:
+		draw_circle(p, NOTE_RADIUS + 4.0, Color(1, 1, 1, 0.12 * n.dim_flash))     # a silenced hit
+	if n.mod != "":
+		_draw_modifier(n, p, col)
+
+
+## Modifier ring and its tab (the tab hangs off the bottom of the ring, with the icon).
+## Toggle icon = ripple: a dot with ripples spreading out when on, still water when off.
+func _draw_modifier(n: Dictionary, p: Vector2, col: Color) -> void:
+	var on: bool = n.mod_on
+	var flip: float = n.mod_flip
+	var ring_r := NOTE_RADIUS + MOD_RING + 2.0 * flip
+	draw_arc(p, ring_r, 0.0, TAU, 56, Color(col, (1.0 if on else 0.35) * (1.0 - 0.3 * flip) + 0.3 * flip), 1.0 + flip, true)
+
+	var c := p + Vector2(0, NOTE_RADIUS + MOD_RING + 4.0)        # tab centre
+	var tab := Rect2(c - Vector2(12, 7), Vector2(24, 14))
+	_draw_round_rect(tab, 4.5, Color(0.075, 0.08, 0.11, 1.0), Color(col, 1.0 if on else 0.55))
+	var ink := col if on else Palette.TEXT_DIM
+	draw_circle(c, 1.6, ink)
+	if on:
+		var grow := 1.0 + 0.6 * flip
+		draw_arc(c, 3.5 * grow, -0.9, 0.9, 10, Color(ink, 1.0), 1.0, true)
+		draw_arc(c, 3.5 * grow, PI - 0.9, PI + 0.9, 10, Color(ink, 1.0), 1.0, true)
+		draw_arc(c, 6.0 * grow, -0.75, 0.75, 12, Color(ink, 0.6), 1.0, true)
+		draw_arc(c, 6.0 * grow, PI - 0.75, PI + 0.75, 12, Color(ink, 0.6), 1.0, true)
+	else:
+		draw_line(c + Vector2(3.5, 0), c + Vector2(7.5, 0), ink, 1.0, true)
+		draw_line(c - Vector2(3.5, 0), c - Vector2(7.5, 0), ink, 1.0, true)
+	if n.mod_on != n.mod_start:
+		# Start-state dot: filled = starts on, hollow = starts off.
+		var dot := tab.position + Vector2(tab.size.x - 1.0, 1.0)
+		draw_circle(dot, 3.2, Palette.BG)
+		if n.mod_start:
+			draw_circle(dot, 2.3, col)
+		else:
+			draw_arc(dot, 2.0, 0.0, TAU, 12, Palette.TEXT_DIM, 1.0, true)
+
+
+var _tab_box: StyleBoxFlat
+
+func _draw_round_rect(r: Rect2, radius: float, fill: Color, border: Color) -> void:
+	if _tab_box == null:
+		_tab_box = StyleBoxFlat.new()
+	var sb := _tab_box
+	sb.bg_color = fill
+	sb.border_color = border
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(int(radius))
+	sb.anti_aliasing = true
+	draw_style_box(sb, r)
 
 
 func _draw_handle(at: Vector2, col: Color, hovered: bool) -> void:

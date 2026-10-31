@@ -19,8 +19,10 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| While dragging a note or emitter | Timing rings show; it snaps to the nearest ring (hold Shift to place freely) |
-| Space | Stop all waves |
+| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it); touches reset on drop. Shift places freely |
+| Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
+| Ctrl+S or Save state | Make every toggle's current state its start state |
+| Space or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
 | Tab or O | Options · Esc closes menus |
 
 ### Pulsers
@@ -32,13 +34,22 @@ Its emitter starts on the note; drag the diamond to start its waves somewhere el
 stays put when you move the note. An emitter on top of another note fires that note instantly.
 The surface holds 64 waves; when it is full, pulsers skip a beat instead of removing waves.
 
+### Modifier ring: toggle
+
+A note can carry one modifier. The toggle switches the note off and on each time it is
+triggered, so it plays every other hit; off silences both its sound and its pulse. A thin ring
+in the channel colour shows it, with a tab underneath: ripples spreading out = on, still water
+= off. A dot on the tab shows the start state when it differs. Any state you set by hand is the
+note's start state; Save state copies all current states to their start states, and Stop returns
+everything to them. Hover a note for its pitch, channel and toggle state.
+
 ### Timing rings and tempo
 
 Wave speed is locked to tempo: a wave travels one *beat spacing* per beat, so speed =
 beat spacing × BPM / 60. Changing BPM speeds every wave up or down but keeps the layout in
-time; changing beat spacing moves the rings. While you drag a note or emitter, rings appear
-around the wave sources that matter (bars brightest, beats bright, divisions faded) and the
-dragged item snaps to the nearest ring. A readout shows the delay in beats and ms, and the
+time; changing beat spacing moves the rings. While you drag a note or emitter it shows its own rings
+(bars brightest, beats bright, divisions faded); touching another note or emitter toggles that
+object's rings on, and the dragged item snaps only to touched objects. A readout shows the delay in beats and ms, and the
 loop period when two pulsers reach each other.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
