@@ -417,6 +417,12 @@ func stop() -> void:
 		n.dim_flash = 0.0
 
 
+## Alpha of a hollow note's centre dot: bright unless muted (pulse-only pulsers are always
+## hollow, so the dot is what shows their mute state).
+func center_dot_alpha(n: Dictionary) -> float:
+	return 0.18 if n.muted else 0.9
+
+
 ## Pulse-only pulsers play no note, so they hide their pitch (it is kept for switching back).
 func shows_pitch(n: Dictionary) -> bool:
 	return n.mode != Mode.PULSE
@@ -1464,7 +1470,8 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	draw_circle(p, NOTE_RADIUS + 3.0, Color(0, 0, 0, 0.35))                                   # shadow
 	if muted:
 		draw_circle(p, NOTE_RADIUS, Color(Palette.BG, 0.9))                                    # hollow
-		draw_circle(p, NOTE_RADIUS * 0.35, Color(col, 0.18))
+		# Centre dot doubles as the mute indicator: bright on an unmuted pulse-only pulser.
+		draw_circle(p, NOTE_RADIUS * 0.35, Color(col, center_dot_alpha(n)))
 	else:
 		draw_circle(p, NOTE_RADIUS, Palette.GLASS.lerp(col, 0.12 + f * 0.35))                  # body
 		draw_arc(p, NOTE_RADIUS - 6.0, PI * 1.05, PI * 1.6, 18, Color(1, 1, 1, 0.22), 2.0, true)  # highlight
