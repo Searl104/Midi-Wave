@@ -417,13 +417,20 @@ func stop() -> void:
 		n.dim_flash = 0.0
 
 
+## Pulse-only pulsers play no note, so they hide their pitch (it is kept for switching back).
+func shows_pitch(n: Dictionary) -> bool:
+	return n.mode != Mode.PULSE
+
+
 ## Tooltip text for a note: pitch, channel and modifier state.
 func hover_text(n: Dictionary) -> String:
-	var text := "%s · ch %d" % [MidiMessage.note_name(n.note), n.channel + 1]
+	var text: String
+	if shows_pitch(n):
+		text = "%s · ch %d" % [MidiMessage.note_name(n.note), n.channel + 1]
+	else:
+		text = "pulse only · ch %d" % (n.channel + 1)
 	if n.mode == Mode.NOTE_PULSE:
 		text += " · pulse"
-	elif n.mode == Mode.PULSE:
-		text += " · pulse only"
 	if n.mode != Mode.NOTE and is_retrigger(n):
 		text += " · retrigger"
 	if n.muted:
@@ -1481,8 +1488,9 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 		draw_arc(p, NOTE_RADIUS + (12.0 if n.mode != Mode.NOTE else 5.0), 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.0, true)
 	var toggled_off: bool = n.mod == "toggle" and not n.mod_on
 	var label_col := Palette.TEXT_DIM if (muted or toggled_off) else Palette.TEXT
-	draw_string(font, p + Vector2(-NOTE_RADIUS, 5.0), MidiMessage.note_name(n.note),
-			HORIZONTAL_ALIGNMENT_CENTER, NOTE_RADIUS * 2.0, 13, label_col)
+	if shows_pitch(n):
+		draw_string(font, p + Vector2(-NOTE_RADIUS, 5.0), MidiMessage.note_name(n.note),
+				HORIZONTAL_ALIGNMENT_CENTER, NOTE_RADIUS * 2.0, 13, label_col)
 	if n.dim_flash > 0.0:
 		draw_circle(p, NOTE_RADIUS + 4.0, Color(1, 1, 1, 0.12 * n.dim_flash))     # a silenced hit
 	if n.mod != "":
