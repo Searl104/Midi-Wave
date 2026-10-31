@@ -79,7 +79,8 @@ func _build() -> void:
 
 	_section(box, "TIMING", Palette.ACCENT)
 	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
-	_slider(box, "Beat spacing", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String: return "%d px" % v)
+	_slider(box, "Beat spacing (zoom)", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String:
+		return "%d px · %d%%" % [v, roundi(v / Settings.BEAT_UNIT * 100.0)])
 	var div_row := HBoxContainer.new()
 	box.add_child(div_row)
 	var div_label := Label.new()
@@ -93,11 +94,12 @@ func _build() -> void:
 	div_pick.select(maxi(0, Settings.DIVISION_OPTIONS.find(Settings.divisions)))
 	div_pick.item_selected.connect(func(i: int) -> void: Settings.set_value("divisions", Settings.DIVISION_OPTIONS[i]))
 	div_row.add_child(div_pick)
-	box.add_child(_hint("Waves travel one beat spacing per beat, so the layout stays in time at any tempo. Timing rings appear while you drag."))
+	box.add_child(_hint("Beat spacing zooms the canvas: distances scale, icons stay the same size, and timing doesn't change. Waves cross one beat of space per beat, so the layout stays in time at any tempo."))
 
 	_section(box, "WAVE", Palette.RED)
 	_slider(box, "Strength", "wave_strength", 0.1, 1.0, 0.01, func(v: float) -> String: return "%d%%" % roundi(v * 100))
-	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String: return "%d px" % v)
+	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String:
+		return "%.1f beats" % (v / Settings.BEAT_UNIT))
 	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
 		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
 	_slider(box, "Note length", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)

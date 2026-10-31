@@ -2,7 +2,9 @@ class_name WaveSurface
 extends Control
 ## The liquid surface. Owns waves and notes, does hit detection, sends MIDI, draws both.
 ##
-## Everything lives in world pixels; the window shows the part starting at `view_offset`.
+## Everything lives in world units (Settings.BEAT_UNIT per beat); the window shows the part
+## starting at `view_offset`, scaled by the zoom (beat spacing / BEAT_UNIT). Icons (notes,
+## rings, tabs, handles, labels) are drawn at a fixed screen size whatever the zoom.
 ## A faint glow under the cursor shows a wave's reach and fade; pulser emitters show a faint
 ## ring at their reach.
 ## The canvas is unbounded and pans (middle-drag, arrow keys); there is no zoom.
@@ -51,7 +53,7 @@ const SPLASH_TIME := 0.6
 const MIN_COOLDOWN := 0.1
 const DEFAULT_PULSE_STRENGTH := 0.8
 const DEFAULT_COOLDOWN := 0.5
-const SNAP_DISTANCE := 12.0     ## px within which a dragged item snaps to a ring
+const SNAP_DISTANCE := 12.0     ## screen px within which a dragged item snaps to a ring
 const EDGE_INSET := 16.0
 const MOD_RING := 10.0          ## modifier ring radius beyond NOTE_RADIUS
 const MODIFIERS := ["toggle"]
@@ -66,6 +68,7 @@ var notes: Array = []      # see _add(); pos / emit in world px
 var splashes: Array = []   # {pos: Vector2 (world), t: float, color: Color, strength: float}
 
 var view_offset := Vector2.ZERO   ## world position of the window's top-left corner
+var _zoom := 1.0                  ## zoom the view was last laid out at (to zoom about the centre)
 
 var last_pitch := 60
 var last_channel := 0
@@ -99,24 +102,29 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
 	view_offset = Settings.view_offset
+	_zoom = Settings.zoom()
 	load_notes()
 	Settings.changed.connect(_on_setting_changed)
 
 
 # --- Coordinates and view ------------------------------------------------------------------
 
+func z() -> float:
+	return Settings.zoom()
+
+
 func to_world(screen_pos: Vector2) -> Vector2:
-	return screen_pos + view_offset
+	return screen_pos / z() + view_offset
 
 
 func to_screen(world_pos: Vector2) -> Vector2:
-	return world_pos - view_offset
+	return (world_pos - view_offset) * z()
 
 
 func pan_by(screen_delta: Vector2) -> void:
 	if screen_delta == Vector2.ZERO:
 		return
-	view_offset += screen_delta
+	view_offset += screen_delta / z()
 	Settings.view_offset = view_offset
 	Settings.queue_save()
 
@@ -130,7 +138,7 @@ func frame_notes() -> void:
 		box = box.expand(n.pos)
 		if not n.attached:
 			box = box.expand(n.emit)
-	pan_by(box.get_center() - size / 2.0 - view_offset)
+	pan_by((box.get_center() - view_offset) * z() - size / 2.0)
 
 
 func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
@@ -163,11 +171,11 @@ func seed_default_layout() -> void:
 	var pitches := Scales.octave_notes(4, Settings.root_note, Settings.scale_name)
 	pitches.append_array(Scales.octave_notes(5, Settings.root_note, Settings.scale_name).slice(0, 3))
 	var view := size if size.x > 64.0 else Vector2(1280, 800)
-	var centre := view_offset + view / 2.0
+	var centre := to_world(view / 2.0)
 	var count := pitches.size()
 	for i in count:
 		var a := -PI / 2.0 + TAU * i / count
-		_add(centre + Vector2(cos(a) * view.x * 0.26, sin(a) * view.y * 0.32), pitches[i], 0)
+		_add(centre + Vector2(cos(a) * view.x * 0.26, sin(a) * view.y * 0.32) / z(), pitches[i], 0)
 	save_notes()
 
 
@@ -376,6 +384,12 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 
 
 func _on_setting_changed(key: String) -> void:
+	if key == "beat_spacing":
+		# Zoom about the centre of the window.
+		var centre := view_offset + size / (2.0 * _zoom)
+		_zoom = z()
+		view_offset = centre - size / (2.0 * _zoom)
+		Settings.view_offset = view_offset
 	if key == "root_note" or key == "scale_name":
 		for n in notes:
 			var q := Scales.quantize(n.note, Settings.root_note, Settings.scale_name)
@@ -415,7 +429,7 @@ func shader_waves() -> PackedVector4Array:
 	for i in mini(waves.size(), MAX_WAVES):
 		var w: Dictionary = waves[i]
 		var o := to_screen(w.origin)
-		out[i] = Vector4(o.x, o.y, w.r, amplitude(w.strength, w.r) * _fade_in(w.r))
+		out[i] = Vector4(o.x, o.y, w.r * z(), amplitude(w.strength, w.r) * _fade_in(w.r))
 	return out
 
 
@@ -526,7 +540,7 @@ func _silence(n: Dictionary) -> void:
 # --- Timing rings and snapping -----------------------------------------------------------
 
 func ring_step() -> float:
-	return Settings.beat_spacing / maxf(float(Settings.divisions), 1.0)
+	return Settings.BEAT_UNIT / maxf(float(Settings.divisions), 1.0)
 
 
 ## Every object a held item can touch, keyed "n<id>" (a note) or "e<id>" (a detached
@@ -571,7 +585,7 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	var out_pos := p
 	var snapped := false
 	var ref: Array = []
-	if not free and not best.is_empty() and best_fix <= SNAP_DISTANCE:
+	if not free and not best.is_empty() and best_fix <= SNAP_DISTANCE / z():
 		var a: Vector2 = best[0]
 		var dir := (p - a).normalized() if p.distance_to(a) > 0.001 else Vector2.RIGHT
 		out_pos = a + dir * roundf(p.distance_to(a) / step_px) * step_px
@@ -597,7 +611,7 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 			"ref_point": ref[0] if not ref.is_empty() else null}
 	if not ref.is_empty():
 		var d := out_pos.distance_to(ref[0])
-		info.readout = "%s · %d ms" % [format_beats(d / Settings.beat_spacing), roundi(d / Settings.wave_speed * 1000.0)]
+		info.readout = "%s · %d ms" % [format_beats(d / Settings.BEAT_UNIT), roundi(d / Settings.wave_speed * 1000.0)]
 		info.loop = _loop_text(n, kind, out_pos, get_note(ref[1]))
 	elif free:
 		info.readout = "free"
@@ -614,7 +628,7 @@ func _loop_text(n: Dictionary, kind: String, p: Vector2, m: Dictionary) -> Strin
 	var back := emitter_world_pos(m).distance_to(n_pos)
 	if there >= Settings.wave_range or back >= Settings.wave_range:
 		return ""
-	return "loop " + format_beats((there + back) / Settings.beat_spacing)
+	return "loop " + format_beats((there + back) / Settings.BEAT_UNIT)
 
 
 ## "1 ¾ beats", "½ beat", "2 beats"; off-grid values read "≈ 1.37 beats".
@@ -716,7 +730,7 @@ func _overlaps_at(n: Dictionary, p: Vector2) -> Dictionary:
 	var targets := touch_targets(n.id)
 	for key in targets:
 		var other_r := NOTE_RADIUS if key.begins_with("n") else HANDLE_RADIUS
-		if p.distance_to(targets[key]) < held_r + other_r:
+		if p.distance_to(targets[key]) < (held_r + other_r) / z():
 			out[key] = targets[key]
 	return out
 
@@ -790,7 +804,7 @@ func _end_press() -> void:
 		var n := get_note(_press_id)
 		if not n.is_empty():
 			if _dragging:
-				if _press_kind == "emitter" and n.emit.distance_to(n.pos) <= NOTE_RADIUS:
+				if _press_kind == "emitter" and n.emit.distance_to(n.pos) <= NOTE_RADIUS / z():
 					n.attached = true        # dropped back on its own note: re-attach
 					n.emit = n.pos
 				save_notes()
@@ -836,9 +850,10 @@ func _draw() -> void:
 		var o := to_screen(w.origin)
 		var a := amplitude(w.strength, w.r) * _fade_in(w.r)
 		var ring_col := Palette.ACCENT if w.source == -1 else Palette.YELLOW
-		draw_arc(o, w.r, 0.0, TAU, 160, Color(ring_col, a * 0.7), 2.0, true)
-		if w.r > 14.0:
-			draw_arc(o, w.r - 12.0, 0.0, TAU, 160, Color(1, 1, 1, a * 0.12), 1.0, true)
+		var sr: float = w.r * z()
+		draw_arc(o, sr, 0.0, TAU, 160, Color(ring_col, a * 0.7), 2.0, true)
+		if sr > 14.0:
+			draw_arc(o, sr - 12.0, 0.0, TAU, 160, Color(1, 1, 1, a * 0.12), 1.0, true)
 
 	for sp in splashes:
 		var k: float = sp.t / SPLASH_TIME
@@ -868,7 +883,7 @@ func _draw() -> void:
 ## Faint glow under the cursor showing how far a wave from here reaches and how it fades:
 ## brightness follows the wave's amplitude (strength x falloff curve) out to its reach.
 func _draw_reach_glow(at: Vector2) -> void:
-	var reach := Settings.wave_range
+	var reach := Settings.wave_range * z()
 	draw_texture_rect(_reach_texture(), Rect2(at - Vector2(reach, reach), Vector2(reach, reach) * 2.0),
 			false, Color(1, 1, 1, 0.2 * Settings.wave_strength))
 	draw_arc(at, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.ACCENT, 0.10), 1.0, true)
@@ -898,7 +913,7 @@ func _reach_texture() -> GradientTexture2D:
 
 ## Every pulser's emitter shows a faint ring at its reach, where its waves fade to 0.
 func _draw_limit_rings() -> void:
-	var reach := Settings.wave_range
+	var reach := Settings.wave_range * z()
 	var view := Rect2(Vector2.ZERO, size).grow(reach)
 	for n in notes:
 		if n.mode == Mode.NOTE:
@@ -921,8 +936,8 @@ func _draw_rings() -> void:
 		var is_held: bool = centre_w == drag_info.centres[0]
 		var weight := 1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.55
 		for k in range(1, count + 1):
-			var r := k * step_px
-			var fade := (1.0 - r / Settings.wave_range) * weight
+			var r := k * step_px * z()
+			var fade := (1.0 - k * step_px / Settings.wave_range) * weight
 			var col: Color
 			var width := 1.0
 			if k % (div * 4) == 0:

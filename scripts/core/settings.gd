@@ -5,7 +5,8 @@ extends Node
 signal changed(key: String)
 
 const PATH := "user://settings.cfg"
-const LAYOUT_VERSION := 2       ## 1 = positions normalized to the window, 2 = world pixels
+const LAYOUT_VERSION := 3       ## 1 = fractions of the window, 2 = screen px, 3 = world units
+const BEAT_UNIT := 200.0        ## world units per beat; beat spacing / BEAT_UNIT = zoom
 const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version-1 layouts
 const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
@@ -15,24 +16,30 @@ const KEYS := [
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
 var bpm := 120.0                ## tempo; wave speed follows it
-var beat_spacing := 210.0       ## px a wave travels in one beat (timing ring spacing)
+var beat_spacing := 200.0       ## on-screen px per beat: the canvas zoom (timing is unchanged)
 var divisions := 4              ## faded division rings per beat
-var wave_range := 900.0         ## px at which the wave reaches 0
+var wave_range := 900.0         ## world units at which the wave reaches 0 (BEAT_UNIT per beat)
 var falloff_curve := 1.6        ## 1 = linear, higher = drops faster near the source
 var note_length := 0.35         ## seconds a triggered note is held
 var root_note := 0              ## 0-11, C = 0
 var scale_name := "Minor Pentatonic"
 var midi_port := ""             ## last opened output port, reopened on launch
-var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world px
+var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
 
-## Wave speed in px/s, locked to tempo. Setting it changes beat spacing at the current BPM.
+## Wave speed in world units per second, locked to tempo: one beat of space per beat.
+## Setting it sets the tempo.
 var wave_speed: float:
 	get:
-		return beat_spacing * bpm / 60.0
+		return BEAT_UNIT * bpm / 60.0
 	set(value):
-		beat_spacing = value * 60.0 / maxf(bpm, 1.0)
+		bpm = value * 60.0 / BEAT_UNIT
+
+
+## Canvas zoom: on-screen px per world unit. Icons are drawn at a fixed size regardless.
+func zoom() -> float:
+	return beat_spacing / BEAT_UNIT
 
 var _save_timer: Timer
 
@@ -72,6 +79,8 @@ func load_settings() -> void:
 			set(key, cfg.get_value("app", key))
 	if not cfg.has_section_key("app", "layout_version"):
 		_migrate_v1(cfg)
+	if layout_version < 3:
+		_migrate_v2()
 	if not Scales.SCALES.has(scale_name):
 		scale_name = "Minor Pentatonic"
 	if not DIVISION_OPTIONS.has(divisions):
@@ -80,14 +89,28 @@ func load_settings() -> void:
 
 ## Version 1 stored positions as fractions of the window and wave speed in px/s.
 func _migrate_v1(cfg: ConfigFile) -> void:
-	if cfg.has_section_key("app", "wave_speed"):
-		wave_speed = float(cfg.get_value("app", "wave_speed"))   # -> beat_spacing at the default BPM
+	# Version 1 had no tempo: one beat was its wave speed (default 420 px/s) x 60 / 120 BPM.
+	beat_spacing = float(cfg.get_value("app", "wave_speed", 420.0)) * 60.0 / maxf(bpm, 1.0)
 	for d in notes:
 		d["x"] = float(d.get("x", 0.5)) * LEGACY_SIZE.x
 		d["y"] = float(d.get("y", 0.5)) * LEGACY_SIZE.y
 		if d.has("ex"):
 			d["ex"] = float(d["ex"]) * LEGACY_SIZE.x
 			d["ey"] = float(d["ey"]) * LEGACY_SIZE.y
+	layout_version = 2
+	queue_save()
+
+
+## Version 2 stored positions in screen px, with one beat = beat_spacing px. Version 3 stores
+## world units (one beat = BEAT_UNIT); beat spacing is now only the zoom, so the layout looks
+## the same and keeps its timing.
+func _migrate_v2() -> void:
+	var k := BEAT_UNIT / maxf(beat_spacing, 1.0)
+	for d in notes:
+		for key in ["x", "y", "ex", "ey"]:
+			if d.has(key):
+				d[key] = float(d[key]) * k
+	view_offset *= k
 	layout_version = LAYOUT_VERSION
 	queue_save()
 

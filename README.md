@@ -43,18 +43,19 @@ in the channel colour shows it, with a tab underneath: ripples spreading out = o
 note's start state; Save state copies all current states to their start states, and Stop returns
 everything to them. Hover a note for its pitch, channel and toggle state.
 
-### Timing rings and tempo
+### Timing rings, tempo and zoom
 
-Wave speed is locked to tempo: a wave travels one *beat spacing* per beat, so speed =
-beat spacing × BPM / 60. Changing BPM speeds every wave up or down but keeps the layout in
-time; changing beat spacing moves the rings. While you drag a note or emitter it shows its own rings
-(bars brightest, beats bright, divisions faded); touching another note or emitter toggles that
-object's rings on, and the dragged item snaps only to touched objects. A readout shows the delay in beats and ms, and the
-loop period when two pulsers reach each other.
+Positions live in world units where one beat of space is 200 units, and waves cross one beat
+of space per beat, so the layout stays in time at any tempo. **Beat spacing** is the zoom: it
+sets how many screen pixels one beat takes up. Distances, waves, reach, rings and the reach glow
+scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
+size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
+its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
+toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px).
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
-Options: MIDI output port (remembered and reopened on launch), tempo, beat spacing, divisions per beat,
+Options: MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
 wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
 Changing the scale snaps every note to it. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
@@ -103,6 +104,6 @@ Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extensio
 
 ## How the wave works
 
-A wave's radius grows at *speed* = beat spacing × BPM / 60 (pulser waves too). Its amplitude at distance *d* is
+A wave's radius grows at *speed* = 200 world units × BPM / 60 (one beat of space per beat; pulser waves too). Distances below are in world units. Its amplitude at distance *d* is
 `strength × (1 − d / reach) ^ curve`, reaching 0 at *reach*. When the ring passes a note, the note plays
 once per wave at velocity `amplitude × 127`, and turns off after *note length*.
