@@ -2,6 +2,12 @@ extends Control
 ## Root of MIDI Wave: builds the water, surface, HUD, radial menu and options,
 ## and wires the radial menus to note editing.
 
+const DIGIT_WINDOW_MS := 600   ## time allowed for the second digit of a channel number
+
+const COOLDOWNS := [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.75, 1.0, 1.5, 2.0]
+const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
+const MODE_LABELS := ["Note", "N+Pulse", "Pulse"]
+
 var water: ColorRect
 var surface: WaveSurface
 var radial: RadialMenu
@@ -12,6 +18,10 @@ var hint_label: Label
 var _menu_note := -1          # note being edited, -1 = placing a new one
 var _menu_pos := Vector2.ZERO
 var _menu_octave := 4
+var _menu_channel := 0
+var _menu_pitch := -1         # pitch the menu opened with (the note's current pitch)
+var _digit_first := -1        # first digit of a possible 10-16, or -1
+var _digit_time := 0
 
 
 func _ready() -> void:
@@ -32,6 +42,7 @@ func _ready() -> void:
 	add_child(surface)
 	surface.pitch_menu_requested.connect(_open_pitch_menu)
 	surface.channel_menu_requested.connect(_open_channel_menu)
+	surface.pulse_menu_requested.connect(_open_pulse_menu)
 
 	_build_hud()
 
@@ -52,6 +63,7 @@ func _ready() -> void:
 	radial.inner_chosen.connect(_on_radial_inner)
 	radial.center_chosen.connect(_on_radial_center)
 	radial.wheel.connect(func(dir: int) -> void: _set_menu_octave(_menu_octave + dir))
+	radial.digit.connect(_on_digit)
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()
@@ -72,6 +84,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	match key.keycode:
 		KEY_TAB, KEY_O:
 			options.toggle()
+			get_viewport().set_input_as_handled()
+		KEY_SPACE:
+			surface.stop_all_waves()
 			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if options.visible:
@@ -95,6 +110,7 @@ func _build_hud() -> void:
 	top.offset_left = 20
 	top.offset_right = -20
 	top.offset_top = 16
+	top.add_theme_constant_override("separation", 8)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top)
 
@@ -110,6 +126,13 @@ func _build_hud() -> void:
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(status_label)
 
+	var stop := Button.new()
+	stop.text = "Stop waves"
+	stop.tooltip_text = "Clear every wave on the surface (Space)"
+	stop.focus_mode = Control.FOCUS_NONE
+	stop.pressed.connect(func() -> void: surface.stop_all_waves())
+	top.add_child(stop)
+
 	var gear := Button.new()
 	gear.text = "Options"
 	gear.focus_mode = Control.FOCUS_NONE
@@ -117,7 +140,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = "Click to send a wave  ·  Right-click to place / tune a note  ·  Alt-click for channel  ·  Tab for options"
+	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Space: stop waves  ·  Tab: options"
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -142,32 +165,39 @@ func _update_status() -> void:
 	status_label.text = text
 
 
-# --- Radial menus ---------------------------------------------------------------------
+# --- Pitch menu (quick place) -------------------------------------------------------------
 
+## Opened on the right-button press: hold, hover a pitch, release. A tap keeps it open.
 func _open_pitch_menu(note_id: int, at: Vector2) -> void:
 	_menu_note = note_id
 	_menu_pos = at
+	_digit_first = -1
 	var current := surface.last_pitch
+	_menu_channel = surface.last_channel
+	_menu_pitch = -1
 	if note_id != -1:
-		current = surface.get_note(note_id).note
+		var n := surface.get_note(note_id)
+		current = n.note
+		_menu_channel = n.channel
+		_menu_pitch = n.note
 	_menu_octave = clampi(Scales.octave_of(current, Settings.root_note), 1, 7)
 	radial.set_meta("mode", "pitch")
 	radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED} if note_id != -1 else {}
-	_rebuild_pitch_items(current)
-	radial.open(at)
+	_rebuild_pitch_items()
+	radial.open(at, true)
 
 
-func _rebuild_pitch_items(current: int = -1) -> void:
-	if current == -1 and _menu_note != -1:
-		current = surface.get_note(_menu_note).get("note", -1)
-	var col := Palette.channel_color(surface.get_note(_menu_note).get("channel", surface.last_channel))
+func _rebuild_pitch_items() -> void:
+	var col := Palette.channel_color(_menu_channel)
 	radial.outer_items = []
 	for n in Scales.octave_notes(_menu_octave, Settings.root_note, Settings.scale_name):
-		radial.outer_items.append({"id": n, "label": MidiMessage.note_name(n), "color": col, "selected": n == current})
+		radial.outer_items.append({"id": n, "label": MidiMessage.note_name(n), "color": col, "selected": n == _menu_pitch})
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _menu_octave})
-	radial.title = "%s %s · octave %d" % [Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave]
+	radial.title = "%s %s · octave %d · ch %d" % [
+		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave, _menu_channel + 1]
+	radial.subtitle = "A / D octave · type 1-16 for channel · Esc cancels"
 	radial.refresh()
 
 
@@ -177,6 +207,28 @@ func _set_menu_octave(o: int) -> void:
 	_menu_octave = clampi(o, 1, 7)
 	_rebuild_pitch_items()
 
+
+## Two-digit channel typing: 1-9 apply at once; a quick second digit makes 10-16
+## (1 then 2 = 12); any other second digit starts over.
+func _on_digit(d: int) -> void:
+	if radial.get_meta("mode", "") != "pitch":
+		return
+	var now := Time.get_ticks_msec()
+	if _digit_first != -1 and now - _digit_time <= DIGIT_WINDOW_MS:
+		var v := _digit_first * 10 + d
+		_digit_first = -1
+		if v >= 10 and v <= 16:
+			_menu_channel = v - 1
+			_rebuild_pitch_items()
+			return
+	if d >= 1 and d <= 9:
+		_menu_channel = d - 1
+		_digit_first = d if d == 1 else -1     # only "1" can start 10-16
+		_digit_time = now
+		_rebuild_pitch_items()
+
+
+# --- Channel menu ---------------------------------------------------------------------------
 
 func _open_channel_menu(note_id: int, at: Vector2) -> void:
 	_menu_note = note_id
@@ -188,32 +240,86 @@ func _open_channel_menu(note_id: int, at: Vector2) -> void:
 	for ch in 16:
 		radial.outer_items.append({"id": ch, "label": str(ch + 1), "color": Palette.channel_color(ch), "selected": ch == current})
 	radial.title = "MIDI channel"
+	radial.subtitle = ""
 	radial.open(at)
 
 
+# --- Pulse menu -----------------------------------------------------------------------------
+
+## Outer ring = cooldown, inner ring = emit strength, centre = cycle mode.
+func _open_pulse_menu(note_id: int, at: Vector2) -> void:
+	_menu_note = note_id
+	radial.set_meta("mode", "pulse")
+	_rebuild_pulse_items()
+	radial.open(at)
+
+
+func _rebuild_pulse_items() -> void:
+	var n := surface.get_note(_menu_note)
+	if n.is_empty():
+		return
+	radial.outer_items = []
+	for c in COOLDOWNS:
+		var label := ("%.2f" % c).rstrip("0").rstrip(".") + "s"   # 0.1s, 0.15s, 1s, 1.5s
+		radial.outer_items.append({"id": c, "label": label, "color": Palette.YELLOW,
+				"selected": absf(n.cooldown - c) < 0.001})
+	radial.inner_items = []
+	for s in PULSE_STRENGTHS:
+		radial.inner_items.append({"id": s, "label": "%d%%" % roundi(s * 100), "color": Palette.RED,
+				"selected": absf(n.pulse_strength - s) < 0.001})
+	radial.center_item = {"id": "mode", "label": MODE_LABELS[n.mode], "color": Palette.channel_color(n.channel)}
+	radial.title = "Pulse · cooldown (outer) · strength (inner)"
+	radial.subtitle = "Centre: Note → Note + Pulse → Pulse only"
+	radial.refresh()
+
+
+# --- Radial results ---------------------------------------------------------------------------
+
 func _on_radial_outer(id: Variant) -> void:
-	var mode: String = radial.get_meta("mode", "")
-	if mode == "pitch":
-		var pitch: int = id
-		var ch := surface.last_channel
-		if _menu_note == -1:
-			surface.add_note_at(_menu_pos, pitch, ch)
-		else:
-			surface.set_note_pitch(_menu_note, pitch)
-			ch = surface.get_note(_menu_note).channel
-		Midi.play_note(pitch, 90, 0.25, ch)
-	elif mode == "channel":
-		var ch: int = id
-		surface.set_note_channel(_menu_note, ch)
-		var n := surface.get_note(_menu_note)
-		if not n.is_empty():
-			Midi.play_note(n.note, 90, 0.25, ch)
+	match radial.get_meta("mode", ""):
+		"pitch":
+			var pitch: int = id
+			if _menu_note == -1:
+				surface.add_note_at(_menu_pos, pitch, _menu_channel)
+			else:
+				surface.set_note_pitch(_menu_note, pitch)
+				if surface.get_note(_menu_note).channel != _menu_channel:
+					surface.set_note_channel(_menu_note, _menu_channel)
+			Midi.play_note(pitch, 90, 0.25, _menu_channel)
+		"channel":
+			var ch: int = id
+			surface.set_note_channel(_menu_note, ch)
+			var n := surface.get_note(_menu_note)
+			if not n.is_empty():
+				Midi.play_note(n.note, 90, 0.25, ch)
+		"pulse":
+			var n := surface.get_note(_menu_note)
+			if n.is_empty():
+				return
+			surface.set_pulse_params(_menu_note, n.pulse_strength, id)
+			if n.mode == WaveSurface.Mode.NOTE:
+				surface.set_note_mode(_menu_note, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
 
 
 func _on_radial_inner(id: Variant) -> void:
-	_set_menu_octave(id)
+	match radial.get_meta("mode", ""):
+		"pitch":
+			_set_menu_octave(id)
+		"pulse":
+			var n := surface.get_note(_menu_note)
+			if n.is_empty():
+				return
+			surface.set_pulse_params(_menu_note, id, n.cooldown)
+			if n.mode == WaveSurface.Mode.NOTE:
+				surface.set_note_mode(_menu_note, WaveSurface.Mode.NOTE_PULSE)
+			_rebuild_pulse_items()
 
 
 func _on_radial_center(id: Variant) -> void:
-	if id == "delete" and _menu_note != -1:
-		surface.remove_note(_menu_note)
+	if _menu_note == -1:
+		return
+	match id:
+		"delete":
+			surface.remove_note(_menu_note)
+		"mode":
+			surface.cycle_mode(_menu_note)

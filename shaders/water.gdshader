@@ -1,8 +1,8 @@
 shader_type canvas_item;
-// Liquid surface: dark glass lit from the top-left, rippled by up to 32 waves.
+// Liquid surface: dark glass lit from the top-left, rippled by up to 64 waves.
 // waves[i] = (origin.x, origin.y, radius, amplitude) in pixels / 0-1.
 
-const int MAX_WAVES = 32;
+const int MAX_WAVES = 64;
 
 uniform int wave_count = 0;
 uniform vec4 waves[MAX_WAVES];

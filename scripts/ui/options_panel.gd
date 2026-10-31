@@ -114,12 +114,15 @@ func _build() -> void:
 	box.add_child(_hint(
 		"Click: send a wave\n" +
 		"Drag a note: move it\n" +
-		"Right-click: set pitch (on empty space: place a note)\n" +
+		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
+		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
 		"Alt-click: set MIDI channel\n" +
+		"Ctrl-click: Note → Note + Pulse → Pulse only\n" +
+		"Ctrl-right-click: pulse cooldown and strength\n" +
+		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
-		"Mouse wheel in the pitch ring: change octave\n" +
-		"Tab: options · Esc: close menus"))
+		"Space: stop all waves · Tab: options"))
 
 
 func refresh_ports() -> void:
