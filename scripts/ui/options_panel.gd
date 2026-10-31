@@ -77,9 +77,26 @@ func _build() -> void:
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
 
+	_section(box, "TIMING", Palette.ACCENT)
+	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
+	_slider(box, "Beat spacing", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String: return "%d px" % v)
+	var div_row := HBoxContainer.new()
+	box.add_child(div_row)
+	var div_label := Label.new()
+	div_label.text = "Divisions per beat"
+	div_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	div_row.add_child(div_label)
+	var div_pick := OptionButton.new()
+	div_pick.focus_mode = Control.FOCUS_NONE
+	for d in Settings.DIVISION_OPTIONS:
+		div_pick.add_item(str(d))
+	div_pick.select(maxi(0, Settings.DIVISION_OPTIONS.find(Settings.divisions)))
+	div_pick.item_selected.connect(func(i: int) -> void: Settings.set_value("divisions", Settings.DIVISION_OPTIONS[i]))
+	div_row.add_child(div_pick)
+	box.add_child(_hint("Waves travel one beat spacing per beat, so the layout stays in time at any tempo. Timing rings appear while you drag."))
+
 	_section(box, "WAVE", Palette.RED)
 	_slider(box, "Strength", "wave_strength", 0.1, 1.0, 0.01, func(v: float) -> String: return "%d%%" % roundi(v * 100))
-	_slider(box, "Speed", "wave_speed", 80.0, 1600.0, 10.0, func(v: float) -> String: return "%d px/s" % v)
 	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String: return "%d px" % v)
 	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
 		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
@@ -122,6 +139,8 @@ func _build() -> void:
 		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
+		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
+		"While dragging: snaps to timing rings · hold Shift to place freely\n" +
 		"Space: stop all waves · Tab: options"))
 
 

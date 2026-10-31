@@ -3,6 +3,7 @@ extends Control
 ## and wires the radial menus to note editing.
 
 const DIGIT_WINDOW_MS := 600   ## time allowed for the second digit of a channel number
+const PAN_SPEED := 700.0       ## px per second for arrow-key panning
 
 const COOLDOWNS := [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.75, 1.0, 1.5, 2.0]
 const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
@@ -70,11 +71,23 @@ func _ready() -> void:
 	_update_status()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_pan_with_keys(delta)
 	var mat := water.material as ShaderMaterial
 	mat.set_shader_parameter("surface_size", water.size)
 	mat.set_shader_parameter("wave_count", mini(surface.waves.size(), WaveSurface.MAX_WAVES))
 	mat.set_shader_parameter("waves", surface.shader_waves())
+
+
+## Arrow keys pan the view (not while a radial menu is open: it uses Left / Right for octave).
+func _pan_with_keys(delta: float) -> void:
+	if radial.visible or get_viewport().gui_get_focus_owner() != null:
+		return
+	var dir := Vector2(
+		float(Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_LEFT)),
+		float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP)))
+	if dir != Vector2.ZERO:
+		surface.pan_by(dir.normalized() * PAN_SPEED * delta)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -87,6 +100,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_SPACE:
 			surface.stop_all_waves()
+			get_viewport().set_input_as_handled()
+		KEY_HOME:
+			surface.frame_notes()
 			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if options.visible:
@@ -140,7 +156,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Space: stop waves  ·  Tab: options"
+	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Middle-drag / arrows: pan  ·  Space: stop  ·  Tab: options"
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

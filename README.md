@@ -18,6 +18,8 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note |
+| Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
+| While dragging a note or emitter | Timing rings show; it snaps to the nearest ring (hold Shift to place freely) |
 | Space | Stop all waves |
 | Tab or O | Options · Esc closes menus |
 
@@ -30,8 +32,19 @@ Its emitter starts on the note; drag the diamond to start its waves somewhere el
 stays put when you move the note. An emitter on top of another note fires that note instantly.
 The surface holds 64 waves; when it is full, pulsers skip a beat instead of removing waves.
 
-Options: MIDI output port (remembered and reopened on launch), wave strength, speed,
-reach (distance where it fades to 0), falloff curve, note length, root and scale.
+### Timing rings and tempo
+
+Wave speed is locked to tempo: a wave travels one *beat spacing* per beat, so speed =
+beat spacing × BPM / 60. Changing BPM speeds every wave up or down but keeps the layout in
+time; changing beat spacing moves the rings. While you drag a note or emitter, rings appear
+around the wave sources that matter (bars brightest, beats bright, divisions faded) and the
+dragged item snaps to the nearest ring. A readout shows the delay in beats and ms, and the
+loop period when two pulsers reach each other.
+
+Notes off screen keep playing; a marker on the window edge shows them firing.
+
+Options: MIDI output port (remembered and reopened on launch), tempo, beat spacing, divisions per beat,
+wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
 Changing the scale snaps every note to it. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
 
@@ -79,6 +92,6 @@ Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extensio
 
 ## How the wave works
 
-A wave's radius grows at *speed* (pulser waves too). Its amplitude at distance *d* is
+A wave's radius grows at *speed* = beat spacing × BPM / 60 (pulser waves too). Its amplitude at distance *d* is
 `strength × (1 − d / reach) ^ curve`, reaching 0 at *reach*. When the ring passes a note, the note plays
 once per wave at velocity `amplitude × 127`, and turns off after *note length*.

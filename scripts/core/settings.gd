@@ -5,20 +5,34 @@ extends Node
 signal changed(key: String)
 
 const PATH := "user://settings.cfg"
+const LAYOUT_VERSION := 2       ## 1 = positions normalized to the window, 2 = world pixels
+const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version-1 layouts
+const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
-	"wave_strength", "wave_speed", "wave_range", "falloff_curve", "note_length",
-	"root_note", "scale_name", "midi_port", "notes",
+	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
+	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 ]
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
-var wave_speed := 420.0         ## px per second
+var bpm := 120.0                ## tempo; wave speed follows it
+var beat_spacing := 210.0       ## px a wave travels in one beat (timing ring spacing)
+var divisions := 4              ## faded division rings per beat
 var wave_range := 900.0         ## px at which the wave reaches 0
 var falloff_curve := 1.6        ## 1 = linear, higher = drops faster near the source
 var note_length := 0.35         ## seconds a triggered note is held
 var root_note := 0              ## 0-11, C = 0
 var scale_name := "Minor Pentatonic"
 var midi_port := ""             ## last opened output port, reopened on launch
-var notes: Array = []           ## [{x, y, note, channel}] with x/y normalized 0-1
+var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world px
+var view_offset := Vector2.ZERO ## world position of the window's top-left corner
+var layout_version := LAYOUT_VERSION
+
+## Wave speed in px/s, locked to tempo. Setting it changes beat spacing at the current BPM.
+var wave_speed: float:
+	get:
+		return beat_spacing * bpm / 60.0
+	set(value):
+		beat_spacing = value * 60.0 / maxf(bpm, 1.0)
 
 var _save_timer: Timer
 
@@ -45,6 +59,10 @@ func queue_save() -> void:
 		_save_timer.start()
 
 
+func beat_seconds() -> float:
+	return 60.0 / maxf(bpm, 1.0)
+
+
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
@@ -52,8 +70,26 @@ func load_settings() -> void:
 	for key in KEYS:
 		if cfg.has_section_key("app", key):
 			set(key, cfg.get_value("app", key))
+	if not cfg.has_section_key("app", "layout_version"):
+		_migrate_v1(cfg)
 	if not Scales.SCALES.has(scale_name):
 		scale_name = "Minor Pentatonic"
+	if not DIVISION_OPTIONS.has(divisions):
+		divisions = 4
+
+
+## Version 1 stored positions as fractions of the window and wave speed in px/s.
+func _migrate_v1(cfg: ConfigFile) -> void:
+	if cfg.has_section_key("app", "wave_speed"):
+		wave_speed = float(cfg.get_value("app", "wave_speed"))   # -> beat_spacing at the default BPM
+	for d in notes:
+		d["x"] = float(d.get("x", 0.5)) * LEGACY_SIZE.x
+		d["y"] = float(d.get("y", 0.5)) * LEGACY_SIZE.y
+		if d.has("ex"):
+			d["ex"] = float(d["ex"]) * LEGACY_SIZE.x
+			d["ey"] = float(d["ey"]) * LEGACY_SIZE.y
+	layout_version = LAYOUT_VERSION
+	queue_save()
 
 
 func save_now() -> void:
