@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory",
+	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
 
@@ -40,6 +40,24 @@ var guides_to_edge := true      ## guides run to the window edge (false: stop at
 var guide_divisions := true     ## draw the faded division rings
 var guide_brightness := 1.0     ## 0.3-1.5
 var snap_memory := true         ## remember the target snapped to on drop for the next drag
+
+## Per-channel note length in seconds (index 0 = channel 1); 0 = use the global note_length.
+var channel_lengths: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+## How long a note on `channel` (0-15) is held.
+func note_length_for(channel: int) -> float:
+	if channel >= 0 and channel < channel_lengths.size() and float(channel_lengths[channel]) > 0.0:
+		return float(channel_lengths[channel])
+	return note_length
+
+
+func set_channel_length(channel: int, seconds: float) -> void:
+	if channel < 0 or channel > 15:
+		return
+	channel_lengths[channel] = maxf(seconds, 0.0)
+	changed.emit("channel_lengths")
+	queue_save()
 
 ## Wave speed in world units per second, locked to tempo: one beat of space per beat.
 ## Setting it sets the tempo.
@@ -100,6 +118,11 @@ func load_settings() -> void:
 		divisions = 4
 	if not SPOKE_OPTIONS.has(spoke_count):
 		spoke_count = 8
+	if channel_lengths.size() != 16:
+		var fixed: Array = []
+		for i in 16:
+			fixed.append(float(channel_lengths[i]) if i < channel_lengths.size() else 0.0)
+		channel_lengths = fixed
 
 
 ## Version 1 stored positions as fractions of the window and wave speed in px/s.

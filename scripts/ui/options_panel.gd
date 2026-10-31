@@ -62,6 +62,7 @@ func _build() -> void:
 	outer.add_child(tabs)
 	var box := _tab("General")
 	_build_snap(_tab("Snap"))
+	_build_channels(_tab("Channels"))
 
 	_section(box, "MIDI OUTPUT", Palette.BLUE)
 	_ports = OptionButton.new()
@@ -153,6 +154,53 @@ func _build() -> void:
 		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
 		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +
 		"Tab: options"))
+
+
+## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.
+func _build_channels(box: VBoxContainer) -> void:
+	_section(box, "NOTE LENGTH", Palette.RED)
+	box.add_child(_hint("How long notes on each channel are held. Default follows Note length on the General tab."))
+	for ch in 16:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var dot := ColorRect.new()
+		dot.color = Palette.channel_color(ch)
+		dot.custom_minimum_size = Vector2(10, 10)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(dot)
+		var name_l := Label.new()
+		name_l.text = "Ch %d" % (ch + 1)
+		name_l.custom_minimum_size.x = 44
+		row.add_child(name_l)
+		var s := HSlider.new()
+		s.min_value = 0.0
+		s.max_value = 4.0
+		s.step = 0.01
+		s.value = float(Settings.channel_lengths[ch])
+		s.focus_mode = Control.FOCUS_NONE
+		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(s)
+		var val_l := Label.new()
+		val_l.custom_minimum_size.x = 64
+		val_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val_l.add_theme_color_override("font_color", Palette.TEXT_DIM)
+		row.add_child(val_l)
+		var show := func(v: float) -> void:
+			val_l.text = "Default" if v <= 0.0 else "%.2f s" % v
+		show.call(s.value)
+		s.value_changed.connect(func(v: float) -> void:
+			show.call(v)
+			Settings.set_channel_length(ch, v))
+	box.add_child(_button("Reset all to Default", func() -> void:
+		for ch in 16:
+			Settings.set_channel_length(ch, 0.0)
+		for child in box.get_children():
+			if child is HBoxContainer:
+				for c in child.get_children():
+					if c is HSlider:
+						c.value = 0.0))
 
 
 ## Snap tab: snapping and guide settings (used while dragging a note or emitter).

@@ -792,7 +792,7 @@ func _play(n: Dictionary, amp: float, now: int) -> void:
 		Midi.note_off(n.note, n.channel)
 	Midi.note_on(n.note, velocity, n.channel)
 	n.playing = true
-	n.off_at = now + int(Settings.note_length * 1_000_000.0)
+	n.off_at = now + int(Settings.note_length_for(n.channel) * 1_000_000.0)
 	n.flash = maxf(n.flash, 0.35 + amp * 0.65)
 	splashes.append({"pos": n.pos, "t": 0.0, "color": Palette.channel_color(n.channel), "strength": amp})
 

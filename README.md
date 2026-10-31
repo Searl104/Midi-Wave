@@ -63,6 +63,8 @@ toggles that object's rings on, and the dragged item snaps only to touched objec
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
+**Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
+
 Options (General tab): MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
 wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
 Changing the scale snaps every note to it. Settings and the note layout save automatically to
