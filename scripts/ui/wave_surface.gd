@@ -34,7 +34,9 @@ extends Control
 ##
 ## Touch to snap: while dragging, the held object shows its own rings; touching another
 ## object toggles that object's snap rings. The held item snaps only to touched objects.
-## Touched objects reset on drop.
+## Touches reset on drop, except the target the item was snapped to when dropped: it is
+## remembered (per note and per emitter, saved with the layout) and starts toggled on that
+## item's next drag.
 
 signal pitch_menu_requested(note_id: int, at: Vector2)    # note_id -1 = place a new note at `at`
 signal channel_menu_requested(note_id: int, at: Vector2)
@@ -149,10 +151,23 @@ func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
 
 func load_notes() -> void:
 	notes.clear()
+	# Notes keep their ids across saves, so snap memories ("n<id>" / "e<id>") stay valid.
+	var used := {}
+	for d in Settings.notes:
+		var saved := int(d.get("id", 0))
+		if saved > 0 and not used.has(saved):
+			used[saved] = true
+			_next_id = maxi(_next_id, saved + 1)
 	for d in Settings.notes:
 		var p := Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
 		var id := _add(p, int(d.get("note", 60)), int(d.get("channel", 0)))
 		var n := get_note(id)
+		var saved := int(d.get("id", 0))
+		if saved > 0 and used.get(saved, false):
+			n.id = saved
+			used[saved] = false             # each saved id is used once
+		n.snap_note = str(d.get("snap_note", ""))
+		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
 		n.pulse_strength = clampf(float(d.get("pulse_strength", DEFAULT_PULSE_STRENGTH)), 0.05, 1.0)
 		n.cooldown = maxf(float(d.get("cooldown", DEFAULT_COOLDOWN)), MIN_COOLDOWN)
@@ -187,6 +202,7 @@ func save_notes() -> void:
 			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
+			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit,
 		})
 	Settings.notes = out
 	Settings.queue_save()
@@ -370,7 +386,9 @@ func handle_at(screen_pos: Vector2) -> int:
 
 func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 	var id := _next_id
-	_next_id += 1
+	while not get_note(id).is_empty():
+		id += 1
+	_next_id = id + 1
 	notes.append({
 		"id": id, "pos": world_pos,
 		"note": clampi(pitch, 0, 127), "channel": clampi(channel, 0, 15),
@@ -379,6 +397,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"ready_at": 0, "pulse_flash": 0.0,
 		"attached": true, "emit": world_pos,
 		"mod": "", "mod_on": true, "mod_start": true, "mod_flip": 0.0, "dim_flash": 0.0,
+		"snap_note": "", "snap_emit": "",   # target last snapped to when the note / its emitter was dropped
 	})
 	return id
 
@@ -562,10 +581,10 @@ func touch_targets(exclude_id: int) -> Dictionary:
 func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
 	var reach := Settings.wave_range
 	var targets := touch_targets(n.id)
-	var pairs: Array = []      # [world point, owning note id]
+	var pairs: Array = []      # [world point, owning note id, key]
 	for key in touched:
 		if targets.has(key):
-			pairs.append([targets[key], int(key.substr(1))])
+			pairs.append([targets[key], int(key.substr(1)), key])
 
 	var step_px := ring_step()
 	var best: Array = []
@@ -596,7 +615,7 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 		var pool: Array = pairs.duplicate()
 		if pool.is_empty():
 			for key in targets:
-				pool.append([targets[key], int(key.substr(1))])
+				pool.append([targets[key], int(key.substr(1)), key])
 		var nearest_d := reach
 		for pr in pool:
 			var d := p.distance_to(pr[0])
@@ -608,7 +627,8 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	for pr in pairs:
 		centres.append(pr[0])
 	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
-			"ref_point": ref[0] if not ref.is_empty() else null}
+			"ref_point": ref[0] if not ref.is_empty() else null,
+			"snap_key": ref[2] if snapped else ""}
 	if not ref.is_empty():
 		var d := out_pos.distance_to(ref[0])
 		info.readout = "%s · %d ms" % [format_beats(d / Settings.BEAT_UNIT), roundi(d / Settings.wave_speed * 1000.0)]
@@ -795,6 +815,10 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	_dragging = false
 	_touched = {}
 	var n := get_note(id)
+	if not n.is_empty():
+		var remembered: String = n.snap_emit if kind == "emitter" else n.snap_note
+		if remembered != "" and touch_targets(id).has(remembered):
+			_touched[remembered] = true
 	# Whatever the held item already overlaps at the start doesn't count as a touch.
 	_overlapping = _overlaps_at(n, n.pos if kind == "note" else emitter_world_pos(n)) if not n.is_empty() else {}
 
@@ -804,6 +828,11 @@ func _end_press() -> void:
 		var n := get_note(_press_id)
 		if not n.is_empty():
 			if _dragging:
+				var snapped_to: String = drag_info.get("snap_key", "") if drag_info.get("snapped", false) else ""
+				if _press_kind == "emitter":
+					n.snap_emit = snapped_to
+				else:
+					n.snap_note = snapped_to
 				if _press_kind == "emitter" and n.emit.distance_to(n.pos) <= NOTE_RADIUS / z():
 					n.attached = true        # dropped back on its own note: re-attach
 					n.emit = n.pos

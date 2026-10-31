@@ -19,7 +19,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it); touches reset on drop. Shift places freely |
+| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
 | Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
 | Space or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
@@ -51,7 +51,7 @@ sets how many screen pixels one beat takes up. Distances, waves, reach, rings an
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
-toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px).
+toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
