@@ -368,11 +368,12 @@ func release_all_slots() -> void:
 
 
 ## KP1-9: every note in the slot is clicked once (a pulser fires directly, a plain note
-## sends a wave from where it sits).
+## sends a wave from where it sits). Muted notes are skipped: the keypad doesn't fire them,
+## though a wave reaching a muted pulser still makes it pulse.
 func trigger_slot(slot: int) -> int:
 	var count := 0
 	for n in notes.duplicate():
-		if n.slot == slot:
+		if n.slot == slot and not n.muted:
 			click_note(n.id)
 			count += 1
 	return count
@@ -753,7 +754,8 @@ func step(delta: float) -> void:
 	# toggle silences still waits a full cooldown before the next).
 	if not held_slots.is_empty():
 		for n in notes.duplicate():
-			if held_slots.has(n.slot) and n.mode != Mode.NOTE and not is_retrigger(n) and now >= n.hold_next:
+			if held_slots.has(n.slot) and n.mode != Mode.NOTE and not n.muted and not is_retrigger(n) \
+					and now >= n.hold_next:
 				n.hold_next = now + cooldown_usec(n)
 				trigger_note(n.id)
 
