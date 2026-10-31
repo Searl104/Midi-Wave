@@ -1101,8 +1101,9 @@ func _draw_rings() -> void:
 		var count := mini(int(ceil(far / step_s)), 600)
 		var is_held: bool = centre_w == drag_info.centres[0]
 		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness
-		if not is_held and Settings.spoke_count > 0:
-			# Spokes (default 8, every 45 degrees) out to the guide limit.
+		if Settings.spoke_count > 0:
+			# Spokes (default 8, every 45 degrees) out to the guide limit, on the held item
+			# and on every snap target.
 			var spokes: int = Settings.spoke_count
 			for i in spokes:
 				var sd := Vector2.from_angle(i * TAU / spokes)
