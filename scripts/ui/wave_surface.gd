@@ -26,7 +26,8 @@ extends Control
 ## Mouse:  click = wave (on a plain note: a wave from the note; on a pulser: trigger it,
 ##         no click wave) · drag note = move · drag emitter handle = place emitter
 ##         right-click (hold / tap) = pitch radial · alt-click = channel radial
-##         ctrl-click = cycle mode · ctrl-right-click = pulse radial
+##         ctrl-click = cycle mode · ctrl-drag from a pulser = set its own reach
+##         ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
 ##         middle-click / Delete = remove note (or the selection) · middle-drag = pan
 ##         ctrl + right-drag on empty space = box select; Esc clears it
@@ -182,6 +183,7 @@ func load_notes() -> void:
 			n.id = saved
 			used[saved] = false             # each saved id is used once
 		n.slot = clampi(int(d.get("slot", 0)), 0, 9)
+		n.range = maxf(float(d.get("range", 0.0)), 0.0)
 		n.snap_note = str(d.get("snap_note", ""))
 		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
@@ -224,7 +226,7 @@ func save_notes() -> void:
 			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown_beats": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
-			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot,
+			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot, "range": n.range,
 		})
 	Settings.notes = out
 	Settings.queue_save()
@@ -417,6 +419,8 @@ func hover_text(n: Dictionary) -> String:
 		text += " · toggle %s" % ("on" if n.mod_on else "off")
 		if n.mod_on != n.mod_start:
 			text += ", starts %s" % ("on" if n.mod_start else "off")
+	if n.mode != Mode.NOTE and n.range > 0.0:
+		text += " · reach " + format_beats(n.range / Settings.BEAT_UNIT)
 	if n.slot > 0:
 		text += " · key %d" % n.slot
 	return text
@@ -476,7 +480,7 @@ func copy_selection() -> int:
 			"off": n.pos - centre, "emit_off": n.emit - centre, "attached": n.attached,
 			"note": n.note, "channel": n.channel, "mode": n.mode,
 			"pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
-			"mod": n.mod, "mod_start": n.mod_start, "slot": n.slot,
+			"mod": n.mod, "mod_start": n.mod_start, "slot": n.slot, "range": n.range,
 		})
 	return _clipboard.size()
 
@@ -499,6 +503,7 @@ func paste_at(screen_pos: Vector2) -> int:
 		n.mod_start = c.mod_start
 		n.mod_on = c.mod_start
 		n.slot = c.slot
+		n.range = c.range
 		selection[id] = true
 	save_notes()
 	return _clipboard.size()
@@ -586,6 +591,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"snap_note": "", "snap_emit": "",   # target last snapped to when the note / its emitter was dropped
 		"slot": 0,                          # keypad trigger slot 1-9, 0 = none
 		"hold_next": 0,                     # next refire time while its slot key is held
+		"range": 0.0,                       # own wave reach in world units (0 = global Reach)
 	})
 	return id
 
@@ -619,13 +625,26 @@ func stop_all_waves() -> void:
 	waves.clear()
 
 
-func _make_wave(world_origin: Vector2, strength: float, source: int) -> Dictionary:
-	return {"origin": world_origin, "r": 0.0, "strength": strength, "source": source, "hits": {}}
+## `range` 0 = the global Reach (Options); pulsers can set their own.
+func _make_wave(world_origin: Vector2, strength: float, source: int, range: float = 0.0) -> Dictionary:
+	return {"origin": world_origin, "r": 0.0, "strength": strength, "source": source, "hits": {}, "range": range}
 
 
-## Wave amplitude at distance `d` from its source: strength at 0, falling to 0 at range.
-func amplitude(strength: float, d: float) -> float:
-	var x := clampf(1.0 - d / maxf(Settings.wave_range, 1.0), 0.0, 1.0)
+func wave_range_of(w: Dictionary) -> float:
+	var r: float = w.get("range", 0.0)
+	return r if r > 0.0 else Settings.wave_range
+
+
+## A pulser's reach: its own if set (Ctrl + left-drag), else the global Reach.
+func emitter_range(n: Dictionary) -> float:
+	return n.range if n.range > 0.0 else Settings.wave_range
+
+
+## Wave amplitude at distance `d` from its source: strength at 0, falling to 0 at `range`
+## (the global Reach when not given).
+func amplitude(strength: float, d: float, range: float = -1.0) -> float:
+	var reach := Settings.wave_range if range <= 0.0 else range
+	var x := clampf(1.0 - d / maxf(reach, 1.0), 0.0, 1.0)
 	return strength * pow(x, Settings.falloff_curve)
 
 
@@ -636,7 +655,7 @@ func shader_waves() -> PackedVector4Array:
 	for i in mini(waves.size(), MAX_WAVES):
 		var w: Dictionary = waves[i]
 		var o := to_screen(w.origin)
-		out[i] = Vector4(o.x, o.y, w.r * z(), amplitude(w.strength, w.r) * _fade_in(w.r))
+		out[i] = Vector4(o.x, o.y, w.r * z(), amplitude(w.strength, w.r, wave_range_of(w)) * _fade_in(w.r))
 	return out
 
 
@@ -660,7 +679,8 @@ func step(delta: float) -> void:
 	while i < waves.size():
 		var w: Dictionary = waves[i]
 		w.r += delta * speed
-		if w.r >= Settings.wave_range:
+		var wr := wave_range_of(w)
+		if w.r >= wr:
 			waves.remove_at(i)
 			continue
 		for n in notes:
@@ -670,7 +690,7 @@ func step(delta: float) -> void:
 			# A wave that starts on a note (d within its radius) hits it straight away.
 			if w.r >= d or d <= NOTE_RADIUS:
 				w.hits[n.id] = true
-				var amp := amplitude(w.strength, d)
+				var amp := amplitude(w.strength, d, wr)
 				if amp >= MIN_AMPLITUDE:
 					_trigger(n, amp, now, spawned)
 		i += 1
@@ -730,7 +750,7 @@ func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
 	if waves.size() + spawned.size() >= MAX_WAVES:
 		skipped_pulses += 1          # surface full: skip this beat, stay ready
 		return
-	spawned.append(_make_wave(emitter_world_pos(n), n.pulse_strength, n.id))
+	spawned.append(_make_wave(emitter_world_pos(n), n.pulse_strength, n.id, n.range))
 	n.ready_at = now + cooldown_usec(n)
 	n.pulse_flash = 1.0
 
@@ -949,6 +969,9 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 	var n := get_note(_press_id)
 	if n.is_empty():
 		return
+	if _press_kind == "range":
+		_drag_range(n, to_world(screen_pos), free)
+		return
 	var p := to_world(screen_pos)
 	_update_touches(n, p)
 	drag_info = compute_drag(n, _press_kind, p, free, _touched)
@@ -973,6 +996,31 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 					g.emit = g.pos
 			if not n.attached:
 				n.emit = _group_start[n.id][1] + delta
+
+
+## Ctrl + left-drag: the distance from the emitter to the cursor becomes its reach, snapped to
+## the timing divisions (Shift: free). Back onto the note resets it to the global Reach.
+## Applies to every selected pulser when the note is in the selection.
+func _drag_range(n: Dictionary, p: Vector2, free: bool) -> void:
+	if n.mode == Mode.NOTE:
+		drag_info = {}
+		return
+	var r := emitter_world_pos(n).distance_to(p)
+	var step := ring_step()
+	if r <= NOTE_RADIUS / z():
+		r = 0.0                                  # back onto the note: use the global Reach
+	elif not free and Settings.snap_enabled:
+		r = maxf(roundf(r / step) * step, step)
+	for gid in group_for(n.id):
+		var g := get_note(gid)
+		if not g.is_empty() and g.mode != Mode.NOTE:
+			g.range = r
+	var shown := emitter_range(n)
+	var label := "reach %s" % format_beats(shown / Settings.BEAT_UNIT)
+	if r == 0.0:
+		label += " (global)"
+	drag_info = {"pos": emitter_world_pos(n), "centres": [], "readout": label, "loop": "", "snapped": r > 0.0 and not free,
+			"ref_point": null, "snap_key": "", "range_edit": true}
 
 
 ## The held item touching another object toggles that object's snap rings. A toggle
@@ -1008,8 +1056,11 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 		MOUSE_BUTTON_LEFT:
 			if mb.pressed:
 				if mb.ctrl_pressed:
-					if hit != -1:
-						cycle_mode(hit)
+					# Ctrl-click a note: cycle its mode. Ctrl-drag from a pulser or its emitter:
+					# set that emitter's own wave reach.
+					var rid := handle if handle != -1 else hit
+					if rid != -1:
+						_begin_press(rid, "range", pos)
 					else:
 						spawn_wave(pos)
 				elif mb.alt_pressed:
@@ -1074,7 +1125,7 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	_dragging = false
 	_touched = {}
 	_group_start = {}
-	if kind == "note" and selection.has(id) and selection.size() > 1:
+	if (kind == "note" or kind == "range") and selection.has(id) and selection.size() > 1:
 		for gid in group_for(id):
 			var g := get_note(gid)
 			_group_start[gid] = [g.pos, g.emit]
@@ -1088,6 +1139,17 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 
 
 func _end_press() -> void:
+	if _press_id != -1 and _press_kind == "range":
+		if _dragging:
+			save_notes()
+		else:
+			cycle_mode(_press_id)                # a plain Ctrl-click
+		_press_id = -1
+		_press_kind = ""
+		_dragging = false
+		drag_info = {}
+		_group_start = {}
+		return
 	if _press_id != -1:
 		var n := get_note(_press_id)
 		if not n.is_empty():
@@ -1142,12 +1204,12 @@ func _draw() -> void:
 		_draw_reach_glow(_mouse_pos)
 	_draw_limit_rings()
 
-	if not drag_info.is_empty():
+	if not drag_info.is_empty() and not drag_info.get("range_edit", false):
 		_draw_rings()
 
 	for w in waves:
 		var o := to_screen(w.origin)
-		var a := amplitude(w.strength, w.r) * _fade_in(w.r)
+		var a := amplitude(w.strength, w.r, wave_range_of(w)) * _fade_in(w.r)
 		var ring_col := Palette.ACCENT if w.source == -1 else Palette.YELLOW
 		var sr: float = w.r * z()
 		draw_arc(o, sr, 0.0, TAU, 160, Color(ring_col, a * 0.7), 2.0, true)
@@ -1180,7 +1242,8 @@ func _draw() -> void:
 		draw_rect(box, Color(Palette.ACCENT.lightened(0.3), 0.8), false, 1.0)
 
 	if not drag_info.is_empty():
-		_draw_touches()
+		if not drag_info.get("range_edit", false):
+			_draw_touches()
 		_draw_readout(font)
 	elif _hover_id != -1 and _press_id == -1 and not _pan_active:
 		var hn := get_note(_hover_id)
@@ -1221,14 +1284,15 @@ func _reach_texture() -> GradientTexture2D:
 
 ## Every pulser's emitter shows a faint ring at its reach, where its waves fade to 0.
 func _draw_limit_rings() -> void:
-	var reach := Settings.wave_range * z()
-	var view := Rect2(Vector2.ZERO, size).grow(reach)
 	for n in notes:
 		if n.mode == Mode.NOTE:
 			continue
+		var reach := emitter_range(n) * z()
 		var c := emitter_screen_pos(n)
-		if view.has_point(c):
-			draw_arc(c, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.YELLOW, 0.11), 1.0, true)
+		if Rect2(Vector2.ZERO, size).grow(reach).has_point(c):
+			var editing: bool = _press_kind == "range" and _dragging and _group_start.has(n.id) or (_press_kind == "range" and _dragging and n.id == _press_id)
+			var a := 0.55 if editing else (0.16 if n.range > 0.0 else 0.11)
+			draw_arc(c, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.YELLOW, a), 2.0 if editing else 1.0, true)
 
 
 func _draw_rings() -> void:

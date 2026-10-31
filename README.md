@@ -14,6 +14,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12) · Esc: cancel |
 | Alt-click a note | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only |
+| Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
 | Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4 (outer), emit strength (inner), mode (centre) |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
