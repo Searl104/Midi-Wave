@@ -167,6 +167,7 @@ func load_notes() -> void:
 		if saved > 0 and used.get(saved, false):
 			n.id = saved
 			used[saved] = false             # each saved id is used once
+		n.slot = clampi(int(d.get("slot", 0)), 0, 9)
 		n.snap_note = str(d.get("snap_note", ""))
 		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
@@ -203,7 +204,7 @@ func save_notes() -> void:
 			"mode": n.mode, "pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
-			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit,
+			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot,
 		})
 	Settings.notes = out
 	Settings.queue_save()
@@ -298,6 +299,44 @@ func save_state() -> void:
 	save_notes()
 
 
+## Keypad slots: Ctrl + KP1-9 over a note puts it in that slot (again takes it out).
+func toggle_slot(id: int, slot: int) -> void:
+	var n := get_note(id)
+	if n.is_empty() or slot < 1 or slot > 9:
+		return
+	n.slot = 0 if n.slot == slot else slot
+	save_notes()
+
+
+## KP1-9: every note in the slot is clicked once (a pulser fires directly, a plain note
+## sends a wave from where it sits).
+func trigger_slot(slot: int) -> int:
+	var count := 0
+	for n in notes.duplicate():
+		if n.slot == slot:
+			click_note(n.id)
+			count += 1
+	return count
+
+
+func hovered_note() -> int:
+	return _hover_id
+
+
+## What a click on a note does: a plain note sends a click wave from the note; a pulser
+## is triggered directly with no click wave.
+func click_note(id: int) -> void:
+	var n := get_note(id)
+	if n.is_empty():
+		return
+	if n.mode == Mode.NOTE:
+		waves.append(_make_wave(n.pos, Settings.wave_strength, -1))
+		while waves.size() > MAX_WAVES:
+			waves.pop_front()
+	else:
+		trigger_note(id)
+
+
 ## Triggers a note as if a wave at full click strength had just reached it: it plays
 ## (unless muted) and a pulser fires from its emitter. Modifiers and cooldown apply as for
 ## any hit. No click wave is sent.
@@ -330,6 +369,8 @@ func hover_text(n: Dictionary) -> String:
 		text += " · toggle %s" % ("on" if n.mod_on else "off")
 		if n.mod_on != n.mod_start:
 			text += ", starts %s" % ("on" if n.mod_start else "off")
+	if n.slot > 0:
+		text += " · key %d" % n.slot
 	return text
 
 
@@ -411,6 +452,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"attached": true, "emit": world_pos,
 		"mod": "", "mod_on": true, "mod_start": true, "mod_flip": 0.0, "dim_flash": 0.0,
 		"snap_note": "", "snap_emit": "",   # target last snapped to when the note / its emitter was dropped
+		"slot": 0,                          # keypad trigger slot 1-9, 0 = none
 	})
 	return id
 
@@ -851,10 +893,7 @@ func _end_press() -> void:
 					n.emit = n.pos
 				save_notes()
 			elif _press_kind == "note":
-				if n.mode == Mode.NOTE:
-					spawn_wave(note_screen_pos(n))   # a plain note: a click wave from the note
-				else:
-					trigger_note(n.id)               # a pulser: trigger it directly, no click wave
+				click_note(n.id)
 	_press_id = -1
 	_press_kind = ""
 	_dragging = false
@@ -1099,6 +1138,13 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 		draw_circle(p, NOTE_RADIUS + 4.0, Color(1, 1, 1, 0.12 * n.dim_flash))     # a silenced hit
 	if n.mod != "":
 		_draw_modifier(n, p, col)
+	if n.slot > 0:
+		# Keypad slot badge, top left (opposite the emitter handle).
+		var out := NOTE_RADIUS + (MOD_RING + 8.0 if n.mod != "" else 8.0)
+		var b := p + Vector2(-1, -1).normalized() * out
+		draw_circle(b, 8.0, Color(0.075, 0.08, 0.11, 1.0))
+		draw_arc(b, 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.35), 1.0, true)
+		draw_string(font, b + Vector2(-8, 4), str(n.slot), HORIZONTAL_ALIGNMENT_CENTER, 16, 11, Palette.TEXT)
 
 
 ## Modifier ring and its tab (the tab hangs off the bottom of the ring, with the icon).

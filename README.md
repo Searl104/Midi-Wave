@@ -22,7 +22,9 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
 | Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
-| Space or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
+| Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
+| KP1–KP9 | Trigger every note assigned to that key, once (a pulser fires directly; a plain note sends a wave from where it sits) |
+| Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
 | Tab or O | Options · Esc closes menus |
 
 ### Pulsers

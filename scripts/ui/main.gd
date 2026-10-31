@@ -95,6 +95,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if not key or not key.pressed or key.echo:
 		return
+	# Keypad: KP1-9 trigger that slot's notes; Ctrl + KP1-9 over a note assigns it.
+	# Match the physical key so it works with Num Lock on or off.
+	var pad: int = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+	if pad == KEY_KP_0:
+		surface.stop()
+		get_viewport().set_input_as_handled()
+		return
+	if pad >= KEY_KP_1 and pad <= KEY_KP_9:
+		var slot: int = pad - KEY_KP_0
+		if key.ctrl_pressed:
+			if surface.hovered_note() != -1:
+				surface.toggle_slot(surface.hovered_note(), slot)
+		else:
+			surface.trigger_slot(slot)
+		get_viewport().set_input_as_handled()
+		return
 	match key.keycode:
 		KEY_TAB, KEY_O:
 			options.toggle()
