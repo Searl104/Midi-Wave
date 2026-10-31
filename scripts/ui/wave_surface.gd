@@ -35,7 +35,8 @@ extends Control
 ## state (set by the user, or by Save state); Stop returns every toggle to it.
 ##
 ## Touch to snap: while dragging, the held object shows its own rings; touching another
-## object toggles that object's snap rings. The held item snaps only to touched objects.
+## object toggles that object's snap rings and its 8 spokes (every 45 degrees). The held item
+## snaps only to touched objects: to a ring, to a spoke, or to where the two cross.
 ## Touches reset on drop, except the target the item was snapped to when dropped: it is
 ## remembered (per note and per emitter, saved with the layout) and starts toggled on that
 ## item's next drag.
@@ -57,7 +58,6 @@ const SPLASH_TIME := 0.6
 const MIN_COOLDOWN := 0.125       ## beats (an eighth of a beat)
 const DEFAULT_PULSE_STRENGTH := 0.8
 const DEFAULT_COOLDOWN := 1.0      ## beats
-const SNAP_DISTANCE := 12.0     ## screen px within which a dragged item snaps to a ring
 const EDGE_INSET := 16.0
 const MOD_RING := 10.0          ## modifier ring radius beyond NOTE_RADIUS
 const MODIFIERS := ["toggle"]
@@ -676,6 +676,7 @@ func touch_targets(exclude_id: int) -> Dictionary:
 ## Returns {pos, centres, readout, loop, snapped, ref_point}; centres[0] is the held item.
 func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
 	var reach := Settings.wave_range
+	free = free or not Settings.snap_enabled
 	var targets := touch_targets(n.id)
 	var pairs: Array = []      # [world point, owning note id, key]
 	for key in touched:
@@ -687,6 +688,8 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	var best_fix := INF
 	for pr in pairs:
 		var d := p.distance_to(pr[0])
+		if not Settings.guides_to_edge and d >= reach:
+			continue                                   # guides stop at the reach
 		var target := roundf(d / step_px) * step_px
 		if target < step_px * 0.5:
 			continue
@@ -695,15 +698,44 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 			best_fix = fix
 			best = pr
 
+	# Spokes: 8 lines every 45 degrees from each snap target. Nearest spoke within tolerance.
+	var tol := Settings.snap_distance / z()
+	var spoke: Array = []
+	var spoke_ang := 0.0
+	var spoke_off := INF
+	var spoke_step := TAU / maxf(float(Settings.spoke_count), 1.0)
+	for pr in (pairs if Settings.snap_spokes and Settings.spoke_count > 0 else []):
+		var v := p - (pr[0] as Vector2)
+		var d := v.length()
+		if d < 1.0:
+			continue
+		var ang := v.angle()
+		var snapped_ang := roundf(ang / spoke_step) * spoke_step
+		var off := d * absf(sin(ang - snapped_ang))
+		if off <= tol and off < spoke_off:
+			spoke_off = off
+			spoke = pr
+			spoke_ang = snapped_ang
+
 	var out_pos := p
 	var snapped := false
 	var ref: Array = []
-	if not free and not best.is_empty() and best_fix <= SNAP_DISTANCE / z():
+	if not free and not best.is_empty() and best_fix <= tol:
+		# On a ring; if also near one of the same target's spokes, land on the crossing.
 		var a: Vector2 = best[0]
+		var radius := roundf(p.distance_to(a) / step_px) * step_px
 		var dir := (p - a).normalized() if p.distance_to(a) > 0.001 else Vector2.RIGHT
-		out_pos = a + dir * roundf(p.distance_to(a) / step_px) * step_px
+		if not spoke.is_empty() and spoke[2] == best[2]:
+			dir = Vector2.from_angle(spoke_ang)
+		out_pos = a + dir * radius
 		snapped = true
 		ref = best
+	elif not free and not spoke.is_empty():
+		# Only on a spoke: keep the distance, line up on the spoke.
+		var a2: Vector2 = spoke[0]
+		out_pos = a2 + Vector2.from_angle(spoke_ang) * p.distance_to(a2)
+		snapped = true
+		ref = spoke
 	else:
 		# Not snapped: measure to the nearest touched object, else the nearest object in reach.
 		var pool: Array = pairs.duplicate()
@@ -911,7 +943,7 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	var n := get_note(id)
 	if not n.is_empty():
 		var remembered: String = n.snap_emit if kind == "emitter" else n.snap_note
-		if remembered != "" and touch_targets(id).has(remembered):
+		if Settings.snap_memory and remembered != "" and touch_targets(id).has(remembered):
 			_touched[remembered] = true
 	# Whatever the held item already overlaps at the start doesn't count as a touch.
 	_overlapping = _overlaps_at(n, n.pos if kind == "note" else emitter_world_pos(n)) if not n.is_empty() else {}
@@ -923,6 +955,8 @@ func _end_press() -> void:
 		if not n.is_empty():
 			if _dragging:
 				var snapped_to: String = drag_info.get("snap_key", "") if drag_info.get("snapped", false) else ""
+				if not Settings.snap_memory:
+					snapped_to = ""
 				if _press_kind == "emitter":
 					n.snap_emit = snapped_to
 				else:
@@ -1062,9 +1096,18 @@ func _draw_rings() -> void:
 		var far := 0.0
 		for corner in corners:
 			far = maxf(far, centre.distance_to(corner))
+		if not Settings.guides_to_edge:
+			far = minf(far, reach_s)
 		var count := mini(int(ceil(far / step_s)), 600)
 		var is_held: bool = centre_w == drag_info.centres[0]
-		var weight := 1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6
+		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness
+		if not is_held and Settings.spoke_count > 0:
+			# Spokes (default 8, every 45 degrees) out to the guide limit.
+			var spokes: int = Settings.spoke_count
+			for i in spokes:
+				var sd := Vector2.from_angle(i * TAU / spokes)
+				draw_line(centre + sd * (NOTE_RADIUS + 10.0), centre + sd * far,
+						Color(Palette.ACCENT.lightened(0.3), minf((0.5 if i % 2 == 0 else 0.32) * weight, 1.0)), 1.0, true)
 		for k in range(1, count + 1):
 			var r := k * step_s
 			var fade := (1.0 - 0.55 * minf(r / maxf(far, 1.0), 1.0)) * weight
@@ -1079,8 +1122,8 @@ func _draw_rings() -> void:
 				col = Color(Palette.ACCENT.lightened(0.3), 0.62 * fade)     # beat
 				width = 1.5
 			else:
-				if step_s < 6.0:
-					continue                                                 # too dense to read
+				if step_s < 6.0 or not Settings.guide_divisions:
+					continue                                                 # off, or too dense to read
 				col = Color(1, 1, 1, 0.16 * fade)                            # division
 			draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
 	if not dragged.is_empty() and drag_info.snapped:

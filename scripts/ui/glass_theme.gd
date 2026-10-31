@@ -45,6 +45,23 @@ static func build() -> Theme:
 	t.set_icon("grabber_highlight", "HSlider", _dot(Color.WHITE))
 
 	t.set_stylebox("separator", "HSeparator", _line())
+
+	# Tabs: glass strip, selected tab lit with the accent.
+	t.set_stylebox("panel", "TabContainer", _box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+	t.set_stylebox("tabbar_background", "TabContainer", _box(Color(1, 1, 1, 0.03), Color(0, 0, 0, 0), 8, 0))
+	t.set_stylebox("tab_selected", "TabContainer", _box(Color(Palette.ACCENT, 0.3), Color(Palette.ACCENT, 0.8), 8, 8))
+	t.set_stylebox("tab_unselected", "TabContainer", _box(Color(1, 1, 1, 0.04), Color(1, 1, 1, 0.08), 8, 8))
+	t.set_stylebox("tab_hovered", "TabContainer", _box(Color(1, 1, 1, 0.09), Color(1, 1, 1, 0.16), 8, 8))
+	t.set_stylebox("tab_focus", "TabContainer", _box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 8, 8))
+	t.set_color("font_selected_color", "TabContainer", Color.WHITE)
+	t.set_color("font_unselected_color", "TabContainer", Palette.TEXT_DIM)
+	t.set_color("font_hovered_color", "TabContainer", Palette.TEXT)
+	t.set_color("font_color", "CheckButton", Palette.TEXT)
+	t.set_color("font_hover_color", "CheckButton", Color.WHITE)
+	t.set_color("font_pressed_color", "CheckButton", Palette.TEXT)
+	t.set_color("font_hover_pressed_color", "CheckButton", Color.WHITE)
+	for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		t.set_stylebox(st, "CheckButton", _box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 6, 4))
 	return t
 
 

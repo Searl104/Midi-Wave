@@ -12,7 +12,10 @@ const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
+	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
+	"guide_divisions", "guide_brightness", "snap_memory",
 ]
+const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
 var bpm := 120.0                ## tempo; wave speed follows it
@@ -27,6 +30,16 @@ var midi_port := ""             ## last opened output port, reopened on launch
 var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
+
+# Snap settings (Options > Snap)
+var snap_enabled := true        ## snap dragged items to touched targets' rings and spokes
+var snap_distance := 12.0       ## screen px within which a dragged item snaps
+var snap_spokes := true         ## snap to spokes as well as rings
+var spoke_count := 8            ## spokes drawn from each snap target (0 = none)
+var guides_to_edge := true      ## guides run to the window edge (false: stop at the wave's reach)
+var guide_divisions := true     ## draw the faded division rings
+var guide_brightness := 1.0     ## 0.3-1.5
+var snap_memory := true         ## remember the target snapped to on drop for the next drag
 
 ## Wave speed in world units per second, locked to tempo: one beat of space per beat.
 ## Setting it sets the tempo.
@@ -85,6 +98,8 @@ func load_settings() -> void:
 		scale_name = "Minor Pentatonic"
 	if not DIVISION_OPTIONS.has(divisions):
 		divisions = 4
+	if not SPOKE_OPTIONS.has(spoke_count):
+		spoke_count = 8
 
 
 ## Version 1 stored positions as fractions of the window and wave speed in px/s.

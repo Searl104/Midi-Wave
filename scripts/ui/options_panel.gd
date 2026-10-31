@@ -1,6 +1,7 @@
 class_name OptionsPanel
 extends PanelContainer
-## Slide-in options: MIDI output, wave settings, scale, note tools.
+## Slide-in options in two tabs. General: MIDI output, timing, wave, scale, notes, controls.
+## Snap: snapping and guide settings.
 
 signal clear_notes_requested
 signal reset_layout_requested
@@ -38,27 +39,29 @@ func toggle() -> void:
 		show()
 
 
+var tabs: TabContainer
+
+
 func _build() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	var pad := MarginContainer.new()
-	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pad.add_theme_constant_override("margin_right", 14)
-	scroll.add_child(pad)
-	var box := VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 8)
-	pad.add_child(box)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	add_child(outer)
 
 	var head := HBoxContainer.new()
-	box.add_child(head)
+	outer.add_child(head)
 	var title := Label.new()
 	title.text = "Options"
 	title.add_theme_font_size_override("font_size", 20)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	head.add_child(_button("Close", hide))
+
+	tabs = TabContainer.new()
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tabs.focus_mode = Control.FOCUS_NONE
+	outer.add_child(tabs)
+	var box := _tab("General")
+	_build_snap(_tab("Snap"))
 
 	_section(box, "MIDI OUTPUT", Palette.BLUE)
 	_ports = OptionButton.new()
@@ -142,11 +145,28 @@ func _build() -> void:
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
 		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
-		"While dragging: touch another note or emitter to snap to its rings (touch again to drop it) · Shift places freely\n" +
+		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
 		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
 		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
 		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
 		"Tab: options"))
+
+
+## Snap tab: snapping and guide settings (used while dragging a note or emitter).
+func _build_snap(box: VBoxContainer) -> void:
+	_section(box, "SNAPPING", Palette.ACCENT)
+	_check(box, "Snap to touched targets", "snap_enabled")
+	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
+	_check(box, "Snap to spokes", "snap_spokes")
+	_check(box, "Remember snap target on drop", "snap_memory")
+	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Hold Shift to place freely."))
+
+	_section(box, "GUIDES", Palette.YELLOW)
+	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,
+			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
+	_pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
+	_check(box, "Division rings", "guide_divisions")
+	_slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
 
 
 func refresh_ports() -> void:
@@ -182,6 +202,50 @@ func _update_port_status() -> void:
 
 
 # --- Builders -----------------------------------------------------------------------
+
+## A tab page: a scrolling column of controls.
+func _tab(name: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(scroll)
+	var pad := MarginContainer.new()
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_right", 14)
+	pad.add_theme_constant_override("margin_top", 4)
+	scroll.add_child(pad)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 8)
+	pad.add_child(box)
+	return box
+
+
+func _check(box: VBoxContainer, label: String, key: String) -> CheckButton:
+	var c := CheckButton.new()
+	c.text = label
+	c.focus_mode = Control.FOCUS_NONE
+	c.button_pressed = bool(Settings.get(key))
+	c.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
+	box.add_child(c)
+	return c
+
+
+func _pick(box: VBoxContainer, label: String, key: String, values: Array, labels: Array) -> OptionButton:
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var l := Label.new()
+	l.text = label
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	var o := OptionButton.new()
+	o.focus_mode = Control.FOCUS_NONE
+	for t in labels:
+		o.add_item(str(t))
+	o.select(maxi(0, values.find(Settings.get(key))))
+	o.item_selected.connect(func(i: int) -> void: Settings.set_value(key, values[i]))
+	row.add_child(o)
+	return o
 
 func _section(box: VBoxContainer, text: String, col: Color) -> void:
 	var gap := Control.new()

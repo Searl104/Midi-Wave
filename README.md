@@ -53,11 +53,13 @@ sets how many screen pixels one beat takes up. Distances, waves, reach, rings an
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
-toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
+toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross.
+
+**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
-Options: MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
+Options (General tab): MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
 wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
 Changing the scale snaps every note to it. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
