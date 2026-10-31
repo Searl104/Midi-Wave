@@ -93,11 +93,18 @@ func _pan_with_keys(delta: float) -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
-	if not key or not key.pressed or key.echo:
+	if not key:
 		return
-	# Keypad: KP1-9 trigger that slot's notes; Ctrl + KP1-9 over a note assigns it.
-	# Match the physical key so it works with Num Lock on or off.
+	# Keypad: KP1-9 trigger that slot's notes (held: pulsers refire on their cooldown);
+	# Ctrl + KP1-9 over a note assigns it. Match the physical key so it works with
+	# Num Lock on or off.
 	var pad: int = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+	if not key.pressed:
+		if pad >= KEY_KP_1 and pad <= KEY_KP_9:
+			surface.release_slot(pad - KEY_KP_0)
+		return
+	if key.echo:
+		return
 	if pad == KEY_KP_0:
 		surface.stop()
 		get_viewport().set_input_as_handled()
@@ -108,7 +115,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if surface.hovered_note() != -1:
 				surface.toggle_slot(surface.hovered_note(), slot)
 		else:
-			surface.trigger_slot(slot)
+			surface.press_slot(slot)
 		get_viewport().set_input_as_handled()
 		return
 	match key.keycode:
@@ -129,6 +136,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if options.visible:
 				options.hide()
 				get_viewport().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	# A key released while the window is unfocused never arrives: don't leave slots held.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
+		surface.release_all_slots()
 
 
 func _reopen_last_port() -> void:

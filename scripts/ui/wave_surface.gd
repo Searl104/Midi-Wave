@@ -99,6 +99,7 @@ var _glow_curve := -1.0          # falloff curve the glow texture was built for
 var _touched: Dictionary = {}     # object keys ("n<id>" / "e<id>") toggled as snap targets this drag
 var _overlapping: Dictionary = {} # object keys the held item overlaps right now
 var touch_flashes: Array = []     # {pos: Vector2 (world), t: float}
+var held_slots: Dictionary = {}   # keypad slots currently held down
 
 
 func _ready() -> void:
@@ -308,6 +309,24 @@ func toggle_slot(id: int, slot: int) -> void:
 	save_notes()
 
 
+## Keypad key down: trigger the slot once, then while it stays held its pulsers refire
+## each time their cooldown runs out. Plain notes fire only on key down.
+func press_slot(slot: int) -> void:
+	held_slots[slot] = true
+	trigger_slot(slot)
+	for n in notes:
+		if n.slot == slot and n.mode != Mode.NOTE:
+			n.hold_next = clock_usec + int(n.cooldown * 1_000_000.0)
+
+
+func release_slot(slot: int) -> void:
+	held_slots.erase(slot)
+
+
+func release_all_slots() -> void:
+	held_slots.clear()
+
+
 ## KP1-9: every note in the slot is clicked once (a pulser fires directly, a plain note
 ## sends a wave from where it sits).
 func trigger_slot(slot: int) -> int:
@@ -453,6 +472,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"mod": "", "mod_on": true, "mod_start": true, "mod_flip": 0.0, "dim_flash": 0.0,
 		"snap_note": "", "snap_emit": "",   # target last snapped to when the note / its emitter was dropped
 		"slot": 0,                          # keypad trigger slot 1-9, 0 = none
+		"hold_next": 0,                     # next refire time while its slot key is held
 	})
 	return id
 
@@ -542,6 +562,14 @@ func step(delta: float) -> void:
 					_trigger(n, amp, now, spawned)
 		i += 1
 	waves.append_array(spawned)
+
+	# Held keypad slots: pulsers refire each time their cooldown runs out (a refire that a
+	# toggle silences still waits a full cooldown before the next).
+	if not held_slots.is_empty():
+		for n in notes.duplicate():
+			if held_slots.has(n.slot) and n.mode != Mode.NOTE and now >= n.hold_next:
+				n.hold_next = now + int(n.cooldown * 1_000_000.0)
+				trigger_note(n.id)
 
 	for n in notes:
 		if n.playing and now >= n.off_at:
