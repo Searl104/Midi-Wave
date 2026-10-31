@@ -687,8 +687,6 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	var best_fix := INF
 	for pr in pairs:
 		var d := p.distance_to(pr[0])
-		if d >= reach:
-			continue
 		var target := roundf(d / step_px) * step_px
 		if target < step_px * 0.5:
 			continue
@@ -1049,31 +1047,42 @@ func _draw_limit_rings() -> void:
 
 
 func _draw_rings() -> void:
+	# Rings run out to the edges of the window (not just the wave's reach). Rings past the
+	# reach are drawn a little dimmer: waves fade out before getting there.
 	var step_px := ring_step()
 	var div: int = Settings.divisions
-	var count := int(Settings.wave_range / step_px)
+	var step_s := step_px * z()                       # ring spacing on screen
+	var reach_s := Settings.wave_range * z()
 	var dragged := get_note(_press_id)
 	var focus: Variant = drag_info.get("ref_point")
+	var corners := [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]
 	for c in drag_info.centres:
 		var centre_w: Vector2 = c
 		var centre := to_screen(centre_w)
-		# The set being measured against draws at full strength; the others softer.
+		var far := 0.0
+		for corner in corners:
+			far = maxf(far, centre.distance_to(corner))
+		var count := mini(int(ceil(far / step_s)), 600)
 		var is_held: bool = centre_w == drag_info.centres[0]
-		var weight := 1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.55
+		var weight := 1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6
 		for k in range(1, count + 1):
-			var r := k * step_px * z()
-			var fade := (1.0 - k * step_px / Settings.wave_range) * weight
+			var r := k * step_s
+			var fade := (1.0 - 0.55 * minf(r / maxf(far, 1.0), 1.0)) * weight
+			if r > reach_s:
+				fade *= 0.6
 			var col: Color
 			var width := 1.0
 			if k % (div * 4) == 0:
-				col = Color(Palette.ACCENT.lightened(0.35), 0.62 * fade)    # bar
+				col = Color(Palette.ACCENT.lightened(0.45), 0.85 * fade)    # bar
 				width = 2.0
 			elif k % div == 0:
-				col = Color(Palette.ACCENT.lightened(0.2), 0.42 * fade)     # beat
+				col = Color(Palette.ACCENT.lightened(0.3), 0.62 * fade)     # beat
 				width = 1.5
 			else:
-				col = Color(1, 1, 1, 0.07 * fade)                            # division
-			draw_arc(centre, r, 0.0, TAU, maxi(48, int(r / 6.0)), col, width, true)
+				if step_s < 6.0:
+					continue                                                 # too dense to read
+				col = Color(1, 1, 1, 0.16 * fade)                            # division
+			draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
 	if not dragged.is_empty() and drag_info.snapped:
 		var at := to_screen(drag_info.pos)
 		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.3), 0.6), 1.0, true)
