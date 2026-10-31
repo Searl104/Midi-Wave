@@ -17,7 +17,9 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4 (outer), emit strength (inner), mode (centre) |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
-| Middle-click / Delete | Remove the hovered note |
+| Middle-click / Delete | Remove the hovered note (Delete removes the selection, if any) |
+| Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
+| With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
 | While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
 | Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |

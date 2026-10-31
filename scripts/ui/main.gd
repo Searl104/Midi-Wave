@@ -130,12 +130,23 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if key.ctrl_pressed:
 				surface.save_state()
 				get_viewport().set_input_as_handled()
+		KEY_C:
+			if key.ctrl_pressed:
+				surface.copy_selection()
+				get_viewport().set_input_as_handled()
+		KEY_V:
+			if key.ctrl_pressed:
+				surface.paste_at(surface.get_local_mouse_position())
+				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
 			if options.visible:
 				options.hide()
+				get_viewport().set_input_as_handled()
+			elif not surface.selection.is_empty():
+				surface.clear_selection()
 				get_viewport().set_input_as_handled()
 
 
@@ -378,25 +389,30 @@ func _on_radial_outer(id: Variant) -> void:
 			Midi.play_note(pitch, 90, 0.25, _menu_channel)
 		"channel":
 			var ch: int = id
-			surface.set_note_channel(_menu_note, ch)
+			for gid in surface.group_for(_menu_note):
+				surface.set_note_channel(gid, ch)
 			var n := surface.get_note(_menu_note)
 			if not n.is_empty():
 				Midi.play_note(n.note, 90, 0.25, ch)
 		"modifier":
-			surface.set_modifier(_menu_note, id)
+			for gid in surface.group_for(_menu_note):
+				surface.set_modifier(gid, id)
 		"pulse":
 			var n := surface.get_note(_menu_note)
 			if n.is_empty():
 				return
-			surface.set_pulse_params(_menu_note, n.pulse_strength, id)
-			if n.mode == WaveSurface.Mode.NOTE:
-				surface.set_note_mode(_menu_note, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
+			for gid in surface.group_for(_menu_note):
+				var g := surface.get_note(gid)
+				surface.set_pulse_params(gid, g.pulse_strength, id)
+				if g.mode == WaveSurface.Mode.NOTE:
+					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
 
 
 func _on_radial_inner(id: Variant) -> void:
 	match radial.get_meta("mode", ""):
 		"modifier":
-			surface.set_modifier_state(_menu_note, id)
+			for gid in surface.group_for(_menu_note):
+				surface.set_modifier_state(gid, id)
 			_rebuild_modifier_items()
 		"pitch":
 			_set_menu_octave(id)
@@ -404,9 +420,11 @@ func _on_radial_inner(id: Variant) -> void:
 			var n := surface.get_note(_menu_note)
 			if n.is_empty():
 				return
-			surface.set_pulse_params(_menu_note, id, n.cooldown)
-			if n.mode == WaveSurface.Mode.NOTE:
-				surface.set_note_mode(_menu_note, WaveSurface.Mode.NOTE_PULSE)
+			for gid in surface.group_for(_menu_note):
+				var g := surface.get_note(gid)
+				surface.set_pulse_params(gid, id, g.cooldown)
+				if g.mode == WaveSurface.Mode.NOTE:
+					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)
 			_rebuild_pulse_items()
 
 

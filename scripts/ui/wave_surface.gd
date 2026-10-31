@@ -28,7 +28,13 @@ extends Control
 ##         right-click (hold / tap) = pitch radial · alt-click = channel radial
 ##         ctrl-click = cycle mode · ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
-##         middle-click / Delete = remove note · middle-drag = pan
+##         middle-click / Delete = remove note (or the selection) · middle-drag = pan
+##         ctrl + right-drag on empty space = box select; Esc clears it
+##
+## Selection: dragging a selected note moves the whole group (snapping applies to the note
+## held; the group's own notes are never snap targets). Delete removes it; channel, pulse,
+## mode, modifier and keypad-slot edits on a selected note apply to every selected note;
+## Ctrl+C / Ctrl+V copy and paste it at the cursor.
 ##
 ## Modifier ring (one per note). "toggle": on each trigger the note acts on its current
 ## state, then flips; off silences both its sound and its pulse. Each toggle has a start
@@ -101,6 +107,12 @@ var _touched: Dictionary = {}     # object keys ("n<id>" / "e<id>") toggled as s
 var _overlapping: Dictionary = {} # object keys the held item overlaps right now
 var touch_flashes: Array = []     # {pos: Vector2 (world), t: float}
 var held_slots: Dictionary = {}   # keypad slots currently held down
+var selection: Dictionary = {}    # selected note ids (box select: Ctrl + right-drag)
+var _group_start: Dictionary = {} # id -> [pos, emit] for the group being dragged
+var _box_active := false
+var _box_start := Vector2.ZERO
+var _box_end := Vector2.ZERO
+var _clipboard: Array = []        # copied notes, positions relative to the group centre
 
 
 func _ready() -> void:
@@ -252,7 +264,9 @@ func cycle_mode(id: int) -> void:
 	var n := get_note(id)
 	if n.is_empty():
 		return
-	set_note_mode(id, (n.mode + 1) % 3)
+	var mode: int = (n.mode + 1) % 3
+	for gid in group_for(id):
+		set_note_mode(gid, mode)
 
 
 func set_note_mode(id: int, mode: int) -> void:
@@ -313,7 +327,9 @@ func toggle_slot(id: int, slot: int) -> void:
 	var n := get_note(id)
 	if n.is_empty() or slot < 1 or slot > 9:
 		return
-	n.slot = 0 if n.slot == slot else slot
+	var target: int = 0 if n.slot == slot else slot
+	for gid in group_for(id):
+		get_note(gid).slot = target
 	save_notes()
 
 
@@ -406,6 +422,88 @@ func hover_text(n: Dictionary) -> String:
 	return text
 
 
+# --- Selection --------------------------------------------------------------------------
+
+## The notes an edit on `id` applies to: the whole selection if `id` is in it.
+func group_for(id: int) -> Array:
+	if selection.has(id) and selection.size() > 1:
+		var out: Array = []
+		for n in notes:
+			if selection.has(n.id):
+				out.append(n.id)
+		return out
+	return [id]
+
+
+func select_in_rect(screen_rect: Rect2, add: bool = false) -> void:
+	if not add:
+		selection.clear()
+	var r := screen_rect.abs()
+	for n in notes:
+		if r.has_point(note_screen_pos(n)):
+			selection[n.id] = true
+
+
+func clear_selection() -> void:
+	selection.clear()
+
+
+func delete_selection() -> void:
+	for id in selection.keys():
+		for i in notes.size():
+			if notes[i].id == id:
+				_silence(notes[i])
+				notes.remove_at(i)
+				break
+	selection.clear()
+	_hover_id = -1
+	save_notes()
+
+
+func copy_selection() -> int:
+	_clipboard.clear()
+	if selection.is_empty():
+		return 0
+	var centre := Vector2.ZERO
+	var picked: Array = []
+	for n in notes:
+		if selection.has(n.id):
+			picked.append(n)
+			centre += n.pos
+	centre /= picked.size()
+	for n in picked:
+		_clipboard.append({
+			"off": n.pos - centre, "emit_off": n.emit - centre, "attached": n.attached,
+			"note": n.note, "channel": n.channel, "mode": n.mode,
+			"pulse_strength": n.pulse_strength, "cooldown": n.cooldown,
+			"mod": n.mod, "mod_start": n.mod_start, "slot": n.slot,
+		})
+	return _clipboard.size()
+
+
+## Pastes the copied group centred at a screen position; the pasted notes become the selection.
+func paste_at(screen_pos: Vector2) -> int:
+	if _clipboard.is_empty():
+		return 0
+	var centre := to_world(screen_pos)
+	selection.clear()
+	for c in _clipboard:
+		var id := _add(centre + c.off, c.note, c.channel)
+		var n := get_note(id)
+		n.mode = c.mode
+		n.pulse_strength = c.pulse_strength
+		n.cooldown = c.cooldown
+		n.attached = c.attached
+		n.emit = n.pos if c.attached else centre + c.emit_off
+		n.mod = c.mod
+		n.mod_start = c.mod_start
+		n.mod_on = c.mod_start
+		n.slot = c.slot
+		selection[id] = true
+	save_notes()
+	return _clipboard.size()
+
+
 func remove_note(id: int) -> void:
 	for i in notes.size():
 		if notes[i].id == id:
@@ -414,6 +512,7 @@ func remove_note(id: int) -> void:
 			break
 	if _hover_id == id:
 		_hover_id = -1
+	selection.erase(id)
 	save_notes()
 
 
@@ -421,6 +520,7 @@ func clear_notes() -> void:
 	for n in notes:
 		_silence(n)
 	notes.clear()
+	selection.clear()
 	save_notes()
 
 
@@ -663,7 +763,7 @@ func ring_step() -> float:
 func touch_targets(exclude_id: int) -> Dictionary:
 	var out := {}
 	for m in notes:
-		if m.id == exclude_id:
+		if m.id == exclude_id or _group_start.has(m.id):
 			continue
 		out["n%d" % m.id] = m.pos
 		if m.mode != Mode.NOTE and not m.attached:
@@ -824,6 +924,9 @@ func _gui_input(event: InputEvent) -> void:
 	if mm:
 		_mouse_pos = mm.position
 		_mouse_in = true
+		if _box_active:
+			_box_end = mm.position
+			return
 		if _pan_active:
 			if not _pan_moved and mm.position.distance_to(_pan_start) > DRAG_THRESHOLD:
 				_pan_moved = true
@@ -854,6 +957,22 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 		n.emit = drag_info.pos
 	else:
 		n.pos = drag_info.pos
+		if not _group_start.is_empty():
+			# The rest of the selection follows the held note, keeping its shape.
+			var delta: Vector2 = n.pos - _group_start[n.id][0]
+			for gid in _group_start:
+				if gid == n.id:
+					continue
+				var g := get_note(gid)
+				if g.is_empty():
+					continue
+				g.pos = _group_start[gid][0] + delta
+				if not g.attached:
+					g.emit = _group_start[gid][1] + delta
+				else:
+					g.emit = g.pos
+			if not n.attached:
+				n.emit = _group_start[n.id][1] + delta
 
 
 ## The held item touching another object toggles that object's snap rings. A toggle
@@ -901,8 +1020,11 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				elif handle != -1:
 					_begin_press(handle, "emitter", pos)
 				elif hit != -1:
+					if not selection.has(hit):
+						selection.clear()
 					_begin_press(hit, "note", pos)
 				else:
+					selection.clear()
 					spawn_wave(pos)
 			else:
 				_end_press()
@@ -911,6 +1033,10 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				if mb.ctrl_pressed:
 					if hit != -1:
 						pulse_menu_requested.emit(hit, pos)
+					else:
+						_box_active = true          # box select from empty space
+						_box_start = pos
+						_box_end = pos
 				elif mb.shift_pressed:
 					if hit != -1:
 						modifier_menu_requested.emit(hit, pos)
@@ -919,6 +1045,13 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 						channel_menu_requested.emit(hit, pos)
 				else:
 					pitch_menu_requested.emit(hit, pos)
+			elif _box_active:
+				_box_active = false
+				_box_end = pos
+				if _box_start.distance_to(_box_end) > DRAG_THRESHOLD:
+					select_in_rect(Rect2(_box_start, _box_end - _box_start), mb.shift_pressed)
+				else:
+					selection.clear()
 		MOUSE_BUTTON_MIDDLE:
 			# Drag pans; a click without movement removes the note under the cursor.
 			if mb.pressed:
@@ -940,6 +1073,11 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	_press_pos = pos
 	_dragging = false
 	_touched = {}
+	_group_start = {}
+	if kind == "note" and selection.has(id) and selection.size() > 1:
+		for gid in group_for(id):
+			var g := get_note(gid)
+			_group_start[gid] = [g.pos, g.emit]
 	var n := get_note(id)
 	if not n.is_empty():
 		var remembered: String = n.snap_emit if kind == "emitter" else n.snap_note
@@ -973,12 +1111,16 @@ func _end_press() -> void:
 	drag_info = {}
 	_touched = {}
 	_overlapping = {}
+	_group_start = {}
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key and key.pressed and not key.echo and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE):
-		if _hover_id != -1:
+		if not selection.is_empty():
+			delete_selection()
+			get_viewport().set_input_as_handled()
+		elif _hover_id != -1:
 			remove_note(_hover_id)
 			get_viewport().set_input_as_handled()
 
@@ -1027,6 +1169,15 @@ func _draw() -> void:
 			_draw_note(n, font, now)
 		else:
 			_draw_edge_marker(n)
+
+	for n in notes:
+		if selection.has(n.id) and is_on_screen(n.pos, NOTE_RADIUS + 40.0):
+			var sr := NOTE_RADIUS + (MOD_RING + 6.0 if n.mod != "" else 12.0)
+			draw_arc(note_screen_pos(n), sr, 0.0, TAU, 48, Color(1, 1, 1, 0.75), 1.5, true)
+	if _box_active:
+		var box := Rect2(_box_start, _box_end - _box_start).abs()
+		draw_rect(box, Color(Palette.ACCENT, 0.08))
+		draw_rect(box, Color(Palette.ACCENT.lightened(0.3), 0.8), false, 1.0)
 
 	if not drag_info.is_empty():
 		_draw_touches()
