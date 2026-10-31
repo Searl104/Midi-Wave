@@ -141,7 +141,7 @@ func _build() -> void:
 		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
 		"Alt-click: set MIDI channel\n" +
 		"Ctrl-click: Note → Note + Pulse → Pulse only · Ctrl-drag from a pulser: set its own wave reach (back onto the note resets it)\n" +
-		"Ctrl-right-click: pulse cooldown (in beats) and strength\n" +
+		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
 		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +

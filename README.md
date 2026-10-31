@@ -15,7 +15,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Alt-click a note | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only |
 | Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
-| Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4 (outer), emit strength (inner), mode (centre) |
+| Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note (Delete removes the selection, if any) |
@@ -34,7 +34,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 ### Pulsers
 
 A pulsing note sends out its own wave when a wave hits it, at its own fixed strength,
-at most once per cooldown. Cooldowns are in beats (⅛ beat to 4 beats), so they follow the tempo. It is never triggered by its own wave, so two
+at most once per cooldown. Cooldowns are in beats (⅛ beat to 4 beats), so they follow the tempo, or Retrigger: no timer, fire on every wave that reaches it (an ⅛-beat floor still guards against runaway loops). It is never triggered by its own wave, so two
 pulsers can keep a loop going until you stop it (Space). A pulser starts ready to fire.
 Its emitter starts on the note; drag the diamond to start its waves somewhere else, and it
 stays put when you move the note. An emitter on top of another note fires that note instantly.

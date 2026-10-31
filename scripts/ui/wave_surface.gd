@@ -196,7 +196,7 @@ func load_notes() -> void:
 			cd = float(d["cooldown_beats"])
 		elif d.has("cooldown"):
 			cd = float(d["cooldown"]) * Settings.bpm / 60.0
-		n.cooldown = maxf(cd, MIN_COOLDOWN)
+		n.cooldown = 0.0 if cd <= 0.0 else maxf(cd, MIN_COOLDOWN)   # 0 = retrigger
 		n.attached = bool(d.get("attached", true))
 		n.emit = Vector2(float(d.get("ex", p.x)), float(d.get("ey", p.y)))
 		n.mod = str(d.get("mod", ""))
@@ -291,7 +291,7 @@ func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 	if n.is_empty():
 		return
 	n.pulse_strength = clampf(strength, 0.05, 1.0)
-	n.cooldown = maxf(cooldown, MIN_COOLDOWN)
+	n.cooldown = 0.0 if cooldown <= 0.0 else maxf(cooldown, MIN_COOLDOWN)   # 0 = retrigger
 	n.ready_at = mini(n.ready_at, clock_usec + cooldown_usec(n))
 	save_notes()
 
@@ -348,8 +348,15 @@ func press_slot(slot: int) -> void:
 
 
 ## A note's cooldown in microseconds at the current tempo.
+## Retrigger (cooldown 0) has no timer: the pulser fires on every wave that reaches it,
+## with only the 1/8-beat minimum kept as a safety floor against runaway contact loops.
 func cooldown_usec(n: Dictionary) -> int:
-	return int(n.cooldown * 60.0 / maxf(Settings.bpm, 1.0) * 1_000_000.0)
+	var beats: float = MIN_COOLDOWN if is_retrigger(n) else n.cooldown
+	return int(beats * 60.0 / maxf(Settings.bpm, 1.0) * 1_000_000.0)
+
+
+func is_retrigger(n: Dictionary) -> bool:
+	return n.cooldown <= 0.0
 
 
 func release_slot(slot: int) -> void:
@@ -417,6 +424,8 @@ func hover_text(n: Dictionary) -> String:
 		text += " · pulse"
 	elif n.mode == Mode.PULSE:
 		text += " · pulse only"
+	if n.mode != Mode.NOTE and is_retrigger(n):
+		text += " · retrigger"
 	if n.muted:
 		text += " · muted"
 	if n.mod == "toggle":
@@ -731,7 +740,7 @@ func step(delta: float) -> void:
 	# toggle silences still waits a full cooldown before the next).
 	if not held_slots.is_empty():
 		for n in notes.duplicate():
-			if held_slots.has(n.slot) and n.mode != Mode.NOTE and now >= n.hold_next:
+			if held_slots.has(n.slot) and n.mode != Mode.NOTE and not is_retrigger(n) and now >= n.hold_next:
 				n.hold_next = now + cooldown_usec(n)
 				trigger_note(n.id)
 
