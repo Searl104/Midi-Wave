@@ -1,7 +1,13 @@
 class_name RadialMenu
 extends Control
-## Ring-shaped picker. Outer ring choices close the menu; inner ring choices
-## (optional, e.g. octaves) and the mouse wheel just emit so the caller can rebuild.
+## Ring-shaped picker (marking menu). Outer ring choices close the menu; inner ring
+## choices (e.g. octaves) and the mouse wheel just emit so the caller can rebuild.
+##
+## Two ways to use it:
+## - Click mode: it stays open; click an item.
+## - Hold mode (quick place): opened on a right-button press; hover an item and release.
+##   Releasing without moving drops into click mode. Releasing in the dead zone cancels.
+## While open: A / D emit `wheel(-1 / +1)`, number keys emit `digit(n)`, Esc closes.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 
@@ -9,6 +15,7 @@ signal outer_chosen(id: Variant)
 signal inner_chosen(id: Variant)
 signal center_chosen(id: Variant)
 signal wheel(direction: int)
+signal digit(value: int)
 signal closed
 
 const CENTER_R := 30.0
@@ -17,14 +24,20 @@ const INNER_R1 := 72.0
 const OUTER_R0 := 78.0
 const OUTER_R1 := 148.0
 const SOLO_R0 := 44.0
+const TAP_SLOP := 6.0
 
 var title := ""
+var subtitle := ""
 var outer_items: Array = []
 var inner_items: Array = []
 var center_item: Dictionary = {}
 
+var holding := false        ## true while the opening right-button press is still held
+
 var _center := Vector2.ZERO
-var _hover_ring := ""     # "outer", "inner", "center" or ""
+var _press_pos := Vector2.ZERO
+var _moved := false
+var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
 
@@ -35,13 +48,15 @@ func _ready() -> void:
 	hide()
 
 
-func open(at: Vector2) -> void:
+func open(at: Vector2, hold: bool = false) -> void:
 	var m := OUTER_R1 + 12.0
 	var top := OUTER_R1 + 34.0   # room for the title
 	_center = Vector2(clampf(at.x, m, maxf(m, size.x - m)), clampf(at.y, top, maxf(top, size.y - m)))
+	_press_pos = at
+	_moved = false
+	holding = hold
 	_open_t = 0.0
-	_hover_ring = ""
-	_hover_index = -1
+	_set_hover(_ring_at(at))
 	show()
 	var tw := create_tween()
 	tw.tween_property(self, "_open_t", 1.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -49,6 +64,7 @@ func open(at: Vector2) -> void:
 
 
 func close() -> void:
+	holding = false
 	if visible:
 		hide()
 		closed.emit()
@@ -62,6 +78,8 @@ func _process(_d: float) -> void:
 	if visible and _open_t < 1.0:
 		queue_redraw()
 
+
+# --- Hit testing -----------------------------------------------------------------------
 
 func _outer_r0() -> float:
 	return OUTER_R0 if not inner_items.is_empty() else SOLO_R0
@@ -84,14 +102,90 @@ func _segment(pos: Vector2, count: int) -> int:
 	return int(fposmod(a, TAU) / seg) % count
 
 
+func _set_hover(r: Array) -> void:
+	if r[0] != _hover_ring or r[1] != _hover_index:
+		_hover_ring = r[0]
+		_hover_index = r[1]
+		queue_redraw()
+
+
+## Activates whatever is at `pos`. Returns false if nothing was there.
+func _activate(pos: Vector2) -> bool:
+	var r := _ring_at(pos)
+	match r[0]:
+		"outer":
+			var id: Variant = outer_items[r[1]].id
+			close()
+			outer_chosen.emit(id)
+		"inner":
+			inner_chosen.emit(inner_items[r[1]].id)
+		"center":
+			var cid: Variant = center_item.id
+			close()
+			center_chosen.emit(cid)
+		_:
+			return false
+	return true
+
+
+# --- Input -------------------------------------------------------------------------------
+
+## Hold mode: the press started on another control, so motion and the release are
+## routed there. Watch them here first. They are deliberately not consumed: the
+## control that took the press must also see its release, or the GUI keeps sending
+## it the mouse afterwards.
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	var key := event as InputEventKey
+	if key and key.pressed and not key.echo:
+		if _handle_key(key):
+			get_viewport().set_input_as_handled()
+		return
+	if not holding:
+		return
+	var mm := event as InputEventMouseMotion
+	if mm:
+		if mm.position.distance_to(_press_pos) > TAP_SLOP:
+			_moved = true
+		_set_hover(_ring_at(mm.position))
+		return
+	var mb := event as InputEventMouseButton
+	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
+		holding = false
+		if not _moved:
+			return                      # a tap: stay open in click mode
+		var r := _ring_at(mb.position)
+		if r[0] == "inner":
+			_activate(mb.position)      # change octave, stay open in click mode
+		elif not _activate(mb.position):
+			close()                     # released in the dead zone: cancel
+
+
+func _handle_key(key: InputEventKey) -> bool:
+	match key.keycode:
+		KEY_ESCAPE:
+			close()
+			return true
+		KEY_A, KEY_LEFT:
+			wheel.emit(-1)
+			return true
+		KEY_D, KEY_RIGHT:
+			wheel.emit(1)
+			return true
+	if key.keycode >= KEY_0 and key.keycode <= KEY_9:
+		digit.emit(key.keycode - KEY_0)
+		return true
+	if key.keycode >= KEY_KP_0 and key.keycode <= KEY_KP_9:
+		digit.emit(key.keycode - KEY_KP_0)
+		return true
+	return false
+
+
 func _gui_input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion
 	if mm:
-		var r := _ring_at(mm.position)
-		if r[0] != _hover_ring or r[1] != _hover_index:
-			_hover_ring = r[0]
-			_hover_index = r[1]
-			queue_redraw()
+		_set_hover(_ring_at(mm.position))
 		accept_event()
 		return
 	var mb := event as InputEventMouseButton
@@ -103,28 +197,11 @@ func _gui_input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			wheel.emit(-1)
 			return
-		var r := _ring_at(mb.position)
-		match r[0]:
-			"outer":
-				var id: Variant = outer_items[r[1]].id
-				close()
-				outer_chosen.emit(id)
-			"inner":
-				inner_chosen.emit(inner_items[r[1]].id)
-			"center":
-				var cid: Variant = center_item.id
-				close()
-				center_chosen.emit(cid)
-			_:
-				close()
+		if not _activate(mb.position):
+			close()
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	if visible and key and key.pressed and key.keycode == KEY_ESCAPE:
-		close()
-		get_viewport().set_input_as_handled()
-
+# --- Drawing -------------------------------------------------------------------------------
 
 func _draw() -> void:
 	var k := ease(_open_t, 0.5)
@@ -144,8 +221,11 @@ func _draw() -> void:
 				HORIZONTAL_ALIGNMENT_CENTER, CENTER_R * 2.0, 12, Palette.TEXT)
 
 	if title != "":
-		draw_string(font, _center + Vector2(-OUTER_R1, -OUTER_R1 * k - 12.0), title,
-				HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0, 13, Palette.TEXT_DIM)
+		draw_string(font, _center + Vector2(-OUTER_R1 - 40.0, -OUTER_R1 * k - 12.0), title,
+				HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0 + 80.0, 13, Palette.TEXT_DIM)
+	if subtitle != "":
+		draw_string(font, _center + Vector2(-OUTER_R1 - 40.0, OUTER_R1 * k + 24.0), subtitle,
+				HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0 + 80.0, 12, Palette.TEXT_DIM)
 
 
 func _draw_ring(items: Array, r0: float, r1: float, ring: String, font_size: int, font: Font) -> void:
