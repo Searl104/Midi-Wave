@@ -1,7 +1,8 @@
 # MIDI Wave: notes for Claude
 
 Godot 4.4 app: a liquid surface where waves trigger MIDI notes. The user runs it on Windows with loopMIDI.
-The spec lives in the claude.ai project doc `claude/midi-wave-spec.md`.
+The spec lives in the editable doc **MIDI Wave Spec**: https://claude.ai/artifact/9KPPqbxemAgocHncR9TQVA
+(the claude.ai project file `claude/midi-wave-spec.md` only points there). Read it before changing behavior.
 
 ## Keep the Windows DLLs built and committed
 
