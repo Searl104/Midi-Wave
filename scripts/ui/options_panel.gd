@@ -131,7 +131,7 @@ func _build() -> void:
 
 	_section(box, "CONTROLS", Palette.TEXT_DIM)
 	box.add_child(_hint(
-		"Click: send a wave\n" +
+		"Click: send a wave (click a pulser to trigger it without a wave)\n" +
 		"Drag a note: move it\n" +
 		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
 		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +

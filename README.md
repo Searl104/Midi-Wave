@@ -7,7 +7,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 
 | Action | What it does |
 |---|---|
-| Click | Send a wave from that point (clicking a note sends one from the note) |
+| Click | Send a wave from that point. Clicking a plain note sends one from the note; clicking a pulser triggers it directly (sound + pulse, no click wave) |
 | Drag a note | Move it |
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |

@@ -22,7 +22,8 @@ extends Control
 ## emitter within reach: beats bright, bars brighter, divisions faded. The dragged item snaps
 ## to the nearest ring; Shift places freely. A readout shows the delay in beats and any pulser loop.
 ##
-## Mouse:  click = wave · drag note = move · drag emitter handle = place emitter
+## Mouse:  click = wave (on a plain note: a wave from the note; on a pulser: trigger it,
+##         no click wave) · drag note = move · drag emitter handle = place emitter
 ##         right-click (hold / tap) = pitch radial · alt-click = channel radial
 ##         ctrl-click = cycle mode · ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
@@ -295,6 +296,18 @@ func save_state() -> void:
 		if n.mod != "":
 			n.mod_start = n.mod_on
 	save_notes()
+
+
+## Triggers a note as if a wave at full click strength had just reached it: it plays
+## (unless muted) and a pulser fires from its emitter. Modifiers and cooldown apply as for
+## any hit. No click wave is sent.
+func trigger_note(id: int) -> void:
+	var n := get_note(id)
+	if n.is_empty():
+		return
+	var spawned: Array = []
+	_trigger(n, Settings.wave_strength, clock_usec, spawned)
+	waves.append_array(spawned)
 
 
 ## Stop: clear all waves, return every modifier to its start state and every pulser to ready.
@@ -838,7 +851,10 @@ func _end_press() -> void:
 					n.emit = n.pos
 				save_notes()
 			elif _press_kind == "note":
-				spawn_wave(note_screen_pos(n))
+				if n.mode == Mode.NOTE:
+					spawn_wave(note_screen_pos(n))   # a plain note: a click wave from the note
+				else:
+					trigger_note(n.id)               # a pulser: trigger it directly, no click wave
 	_press_id = -1
 	_press_kind = ""
 	_dragging = false
