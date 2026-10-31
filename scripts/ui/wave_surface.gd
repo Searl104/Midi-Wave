@@ -3,6 +3,8 @@ extends Control
 ## The liquid surface. Owns waves and notes, does hit detection, sends MIDI, draws both.
 ##
 ## Everything lives in world pixels; the window shows the part starting at `view_offset`.
+## A faint glow under the cursor shows a wave's reach and fade; pulser emitters show a faint
+## ring at their reach.
 ## The canvas is unbounded and pans (middle-drag, arrow keys); there is no zoom.
 ## Waves and notes keep playing off screen; edge markers show off-screen notes firing.
 ##
@@ -72,6 +74,10 @@ var _pan_moved := false
 var _pan_start := Vector2.ZERO
 var _pan_last := Vector2.ZERO
 var _pan_hit := -1
+var _mouse_pos := Vector2.ZERO
+var _mouse_in := false
+var _glow_tex: GradientTexture2D
+var _glow_curve := -1.0          # falloff curve the glow texture was built for
 
 
 func _ready() -> void:
@@ -541,6 +547,8 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	var mm := event as InputEventMouseMotion
 	if mm:
+		_mouse_pos = mm.position
+		_mouse_in = true
 		if _pan_active:
 			if not _pan_moved and mm.position.distance_to(_pan_start) > DRAG_THRESHOLD:
 				_pan_moved = true
@@ -655,9 +663,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 # --- Drawing -------------------------------------------------------------------------------
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT:
+		_mouse_in = false
+	elif what == NOTIFICATION_MOUSE_ENTER:
+		_mouse_in = true
+
+
 func _draw() -> void:
 	var font := get_theme_default_font()
 	var now := clock_usec
+
+	if _mouse_in and not _pan_active:
+		_draw_reach_glow(_mouse_pos)
+	_draw_limit_rings()
 
 	if not drag_info.is_empty():
 		_draw_rings()
@@ -688,6 +707,49 @@ func _draw() -> void:
 
 	if not drag_info.is_empty():
 		_draw_readout(font)
+
+
+## Faint glow under the cursor showing how far a wave from here reaches and how it fades:
+## brightness follows the wave's amplitude (strength x falloff curve) out to its reach.
+func _draw_reach_glow(at: Vector2) -> void:
+	var reach := Settings.wave_range
+	draw_texture_rect(_reach_texture(), Rect2(at - Vector2(reach, reach), Vector2(reach, reach) * 2.0),
+			false, Color(1, 1, 1, 0.2 * Settings.wave_strength))
+	draw_arc(at, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.ACCENT, 0.10), 1.0, true)
+
+
+func _reach_texture() -> GradientTexture2D:
+	if _glow_tex == null or not is_equal_approx(_glow_curve, Settings.falloff_curve):
+		_glow_curve = Settings.falloff_curve
+		var g := Gradient.new()
+		var offsets := PackedFloat32Array()
+		var colors := PackedColorArray()
+		for i in 17:
+			var t := i / 16.0
+			offsets.append(t)
+			colors.append(Color(Palette.ACCENT.lightened(0.15), pow(1.0 - t, _glow_curve)))
+		g.offsets = offsets
+		g.colors = colors
+		_glow_tex = GradientTexture2D.new()
+		_glow_tex.gradient = g
+		_glow_tex.width = 256
+		_glow_tex.height = 256
+		_glow_tex.fill = GradientTexture2D.FILL_RADIAL
+		_glow_tex.fill_from = Vector2(0.5, 0.5)
+		_glow_tex.fill_to = Vector2(1.0, 0.5)
+	return _glow_tex
+
+
+## Every pulser's emitter shows a faint ring at its reach, where its waves fade to 0.
+func _draw_limit_rings() -> void:
+	var reach := Settings.wave_range
+	var view := Rect2(Vector2.ZERO, size).grow(reach)
+	for n in notes:
+		if n.mode == Mode.NOTE:
+			continue
+		var c := emitter_screen_pos(n)
+		if view.has_point(c):
+			draw_arc(c, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.YELLOW, 0.11), 1.0, true)
 
 
 func _draw_rings() -> void:
