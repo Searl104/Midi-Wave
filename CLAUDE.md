@@ -20,4 +20,5 @@ Needs `g++-mingw-w64-x86-64-posix` and `scons`. Linux `.so` files stay gitignore
 
 ## Branches
 
-Make changes on a branch and open a pull request.
+Work on `claude_dev` only: commit and push there, and open pull requests from `claude_dev` into `main`.
+**Never commit or push to `main`**; the user merges pull requests.
