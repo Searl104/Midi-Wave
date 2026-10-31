@@ -10,7 +10,9 @@ native/**/*.o
 native/**/*.os
 native/**/*.obj
 native/.sconsign*.dblite
-addons/midi_out/bin/
+# Built extension: commit the Windows DLLs so a fresh clone works on Windows.
+addons/midi_out/bin/*
+!addons/midi_out/bin/*.windows.*.dll
 
 # OS
 .DS_Store
