@@ -1,6 +1,7 @@
 class_name OptionsPanel
 extends PanelContainer
-## Slide-in options: MIDI output, wave settings, scale, note tools.
+## Slide-in options in two tabs. General: MIDI output, timing, wave, scale, notes, controls.
+## Snap: snapping and guide settings.
 
 signal clear_notes_requested
 signal reset_layout_requested
@@ -38,27 +39,30 @@ func toggle() -> void:
 		show()
 
 
+var tabs: TabContainer
+
+
 func _build() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
-	var pad := MarginContainer.new()
-	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pad.add_theme_constant_override("margin_right", 14)
-	scroll.add_child(pad)
-	var box := VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 8)
-	pad.add_child(box)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	add_child(outer)
 
 	var head := HBoxContainer.new()
-	box.add_child(head)
+	outer.add_child(head)
 	var title := Label.new()
 	title.text = "Options"
 	title.add_theme_font_size_override("font_size", 20)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	head.add_child(_button("Close", hide))
+
+	tabs = TabContainer.new()
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tabs.focus_mode = Control.FOCUS_NONE
+	outer.add_child(tabs)
+	var box := _tab("General")
+	_build_snap(_tab("Snap"))
+	_build_channels(_tab("Channels"))
 
 	_section(box, "MIDI OUTPUT", Palette.BLUE)
 	_ports = OptionButton.new()
@@ -77,10 +81,29 @@ func _build() -> void:
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
 
+	_section(box, "TIMING", Palette.ACCENT)
+	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
+	_slider(box, "Beat spacing (zoom)", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String:
+		return "%d px · %d%%" % [v, roundi(v / Settings.BEAT_UNIT * 100.0)])
+	var div_row := HBoxContainer.new()
+	box.add_child(div_row)
+	var div_label := Label.new()
+	div_label.text = "Divisions per beat"
+	div_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	div_row.add_child(div_label)
+	var div_pick := OptionButton.new()
+	div_pick.focus_mode = Control.FOCUS_NONE
+	for d in Settings.DIVISION_OPTIONS:
+		div_pick.add_item(str(d))
+	div_pick.select(maxi(0, Settings.DIVISION_OPTIONS.find(Settings.divisions)))
+	div_pick.item_selected.connect(func(i: int) -> void: Settings.set_value("divisions", Settings.DIVISION_OPTIONS[i]))
+	div_row.add_child(div_pick)
+	box.add_child(_hint("Beat spacing zooms the canvas: distances scale, icons stay the same size, and timing doesn't change. Waves cross one beat of space per beat, so the layout stays in time at any tempo."))
+
 	_section(box, "WAVE", Palette.RED)
 	_slider(box, "Strength", "wave_strength", 0.1, 1.0, 0.01, func(v: float) -> String: return "%d%%" % roundi(v * 100))
-	_slider(box, "Speed", "wave_speed", 80.0, 1600.0, 10.0, func(v: float) -> String: return "%d px/s" % v)
-	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String: return "%d px" % v)
+	_slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String:
+		return "%.1f beats" % (v / Settings.BEAT_UNIT))
 	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
 		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
 	_slider(box, "Note length", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)
@@ -112,17 +135,89 @@ func _build() -> void:
 
 	_section(box, "CONTROLS", Palette.TEXT_DIM)
 	box.add_child(_hint(
-		"Click: send a wave\n" +
+		"Click: send a wave (click a pulser to trigger it without a wave)\n" +
 		"Drag a note: move it\n" +
 		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
 		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
 		"Alt-click: set MIDI channel\n" +
-		"Ctrl-click: Note → Note + Pulse → Pulse only\n" +
-		"Ctrl-right-click: pulse cooldown and strength\n" +
+		"Ctrl-click: Note → Note + Pulse → Pulse only · Ctrl-drag from a pulser: set its own wave reach (back onto the note resets it)\n" +
+		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
 		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
 		"Middle-click or Delete: remove the hovered note\n" +
-		"Space: stop all waves · Tab: options"))
+		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
+		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
+		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
+		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
+		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
+		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
+		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
+		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +
+		"Tab: options"))
+
+
+## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.
+func _build_channels(box: VBoxContainer) -> void:
+	_section(box, "NOTE LENGTH", Palette.RED)
+	box.add_child(_hint("How long notes on each channel are held. Default follows Note length on the General tab."))
+	for ch in 16:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var dot := ColorRect.new()
+		dot.color = Palette.channel_color(ch)
+		dot.custom_minimum_size = Vector2(10, 10)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(dot)
+		var name_l := Label.new()
+		name_l.text = "Ch %d" % (ch + 1)
+		name_l.custom_minimum_size.x = 44
+		row.add_child(name_l)
+		var s := HSlider.new()
+		s.min_value = 0.0
+		s.max_value = 4.0
+		s.step = 0.01
+		s.value = float(Settings.channel_lengths[ch])
+		s.focus_mode = Control.FOCUS_NONE
+		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(s)
+		var val_l := Label.new()
+		val_l.custom_minimum_size.x = 64
+		val_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val_l.add_theme_color_override("font_color", Palette.TEXT_DIM)
+		row.add_child(val_l)
+		var show := func(v: float) -> void:
+			val_l.text = "Default" if v <= 0.0 else "%.2f s" % v
+		show.call(s.value)
+		s.value_changed.connect(func(v: float) -> void:
+			show.call(v)
+			Settings.set_channel_length(ch, v))
+	box.add_child(_button("Reset all to Default", func() -> void:
+		for ch in 16:
+			Settings.set_channel_length(ch, 0.0)
+		for child in box.get_children():
+			if child is HBoxContainer:
+				for c in child.get_children():
+					if c is HSlider:
+						c.value = 0.0))
+
+
+## Snap tab: snapping and guide settings (used while dragging a note or emitter).
+func _build_snap(box: VBoxContainer) -> void:
+	_section(box, "SNAPPING", Palette.ACCENT)
+	_check(box, "Snap to touched targets", "snap_enabled")
+	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
+	_check(box, "Snap to spokes", "snap_spokes")
+	_check(box, "Remember snap target on drop", "snap_memory")
+	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Hold Shift to place freely."))
+
+	_section(box, "GUIDES", Palette.YELLOW)
+	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,
+			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
+	_pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
+	_check(box, "Division rings", "guide_divisions")
+	_slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
 
 
 func refresh_ports() -> void:
@@ -158,6 +253,50 @@ func _update_port_status() -> void:
 
 
 # --- Builders -----------------------------------------------------------------------
+
+## A tab page: a scrolling column of controls.
+func _tab(name: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(scroll)
+	var pad := MarginContainer.new()
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_theme_constant_override("margin_right", 14)
+	pad.add_theme_constant_override("margin_top", 4)
+	scroll.add_child(pad)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 8)
+	pad.add_child(box)
+	return box
+
+
+func _check(box: VBoxContainer, label: String, key: String) -> CheckButton:
+	var c := CheckButton.new()
+	c.text = label
+	c.focus_mode = Control.FOCUS_NONE
+	c.button_pressed = bool(Settings.get(key))
+	c.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
+	box.add_child(c)
+	return c
+
+
+func _pick(box: VBoxContainer, label: String, key: String, values: Array, labels: Array) -> OptionButton:
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var l := Label.new()
+	l.text = label
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	var o := OptionButton.new()
+	o.focus_mode = Control.FOCUS_NONE
+	for t in labels:
+		o.add_item(str(t))
+	o.select(maxi(0, values.find(Settings.get(key))))
+	o.item_selected.connect(func(i: int) -> void: Settings.set_value(key, values[i]))
+	row.add_child(o)
+	return o
 
 func _section(box: VBoxContainer, text: String, col: Color) -> void:
 	var gap := Control.new()

@@ -5,20 +5,72 @@ extends Node
 signal changed(key: String)
 
 const PATH := "user://settings.cfg"
+const LAYOUT_VERSION := 3       ## 1 = fractions of the window, 2 = screen px, 3 = world units
+const BEAT_UNIT := 200.0        ## world units per beat; beat spacing / BEAT_UNIT = zoom
+const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version-1 layouts
+const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
-	"wave_strength", "wave_speed", "wave_range", "falloff_curve", "note_length",
-	"root_note", "scale_name", "midi_port", "notes",
+	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
+	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
+	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
+	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths",
 ]
+const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
-var wave_speed := 420.0         ## px per second
-var wave_range := 900.0         ## px at which the wave reaches 0
+var bpm := 120.0                ## tempo; wave speed follows it
+var beat_spacing := 200.0       ## on-screen px per beat: the canvas zoom (timing is unchanged)
+var divisions := 4              ## faded division rings per beat
+var wave_range := 900.0         ## world units at which the wave reaches 0 (BEAT_UNIT per beat)
 var falloff_curve := 1.6        ## 1 = linear, higher = drops faster near the source
 var note_length := 0.35         ## seconds a triggered note is held
 var root_note := 0              ## 0-11, C = 0
 var scale_name := "Minor Pentatonic"
 var midi_port := ""             ## last opened output port, reopened on launch
-var notes: Array = []           ## [{x, y, note, channel}] with x/y normalized 0-1
+var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
+var view_offset := Vector2.ZERO ## world position of the window's top-left corner
+var layout_version := LAYOUT_VERSION
+
+# Snap settings (Options > Snap)
+var snap_enabled := true        ## snap dragged items to touched targets' rings and spokes
+var snap_distance := 12.0       ## screen px within which a dragged item snaps
+var snap_spokes := true         ## snap to spokes as well as rings
+var spoke_count := 8            ## spokes drawn from each snap target (0 = none)
+var guides_to_edge := true      ## guides run to the window edge (false: stop at the wave's reach)
+var guide_divisions := true     ## draw the faded division rings
+var guide_brightness := 1.0     ## 0.3-1.5
+var snap_memory := true         ## remember the target snapped to on drop for the next drag
+
+## Per-channel note length in seconds (index 0 = channel 1); 0 = use the global note_length.
+var channel_lengths: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+## How long a note on `channel` (0-15) is held.
+func note_length_for(channel: int) -> float:
+	if channel >= 0 and channel < channel_lengths.size() and float(channel_lengths[channel]) > 0.0:
+		return float(channel_lengths[channel])
+	return note_length
+
+
+func set_channel_length(channel: int, seconds: float) -> void:
+	if channel < 0 or channel > 15:
+		return
+	channel_lengths[channel] = maxf(seconds, 0.0)
+	changed.emit("channel_lengths")
+	queue_save()
+
+## Wave speed in world units per second, locked to tempo: one beat of space per beat.
+## Setting it sets the tempo.
+var wave_speed: float:
+	get:
+		return BEAT_UNIT * bpm / 60.0
+	set(value):
+		bpm = value * 60.0 / BEAT_UNIT
+
+
+## Canvas zoom: on-screen px per world unit. Icons are drawn at a fixed size regardless.
+func zoom() -> float:
+	return beat_spacing / BEAT_UNIT
 
 var _save_timer: Timer
 
@@ -45,6 +97,10 @@ func queue_save() -> void:
 		_save_timer.start()
 
 
+func beat_seconds() -> float:
+	return 60.0 / maxf(bpm, 1.0)
+
+
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
@@ -52,8 +108,49 @@ func load_settings() -> void:
 	for key in KEYS:
 		if cfg.has_section_key("app", key):
 			set(key, cfg.get_value("app", key))
+	if not cfg.has_section_key("app", "layout_version"):
+		_migrate_v1(cfg)
+	if layout_version < 3:
+		_migrate_v2()
 	if not Scales.SCALES.has(scale_name):
 		scale_name = "Minor Pentatonic"
+	if not DIVISION_OPTIONS.has(divisions):
+		divisions = 4
+	if not SPOKE_OPTIONS.has(spoke_count):
+		spoke_count = 8
+	if channel_lengths.size() != 16:
+		var fixed: Array = []
+		for i in 16:
+			fixed.append(float(channel_lengths[i]) if i < channel_lengths.size() else 0.0)
+		channel_lengths = fixed
+
+
+## Version 1 stored positions as fractions of the window and wave speed in px/s.
+func _migrate_v1(cfg: ConfigFile) -> void:
+	# Version 1 had no tempo: one beat was its wave speed (default 420 px/s) x 60 / 120 BPM.
+	beat_spacing = float(cfg.get_value("app", "wave_speed", 420.0)) * 60.0 / maxf(bpm, 1.0)
+	for d in notes:
+		d["x"] = float(d.get("x", 0.5)) * LEGACY_SIZE.x
+		d["y"] = float(d.get("y", 0.5)) * LEGACY_SIZE.y
+		if d.has("ex"):
+			d["ex"] = float(d["ex"]) * LEGACY_SIZE.x
+			d["ey"] = float(d["ey"]) * LEGACY_SIZE.y
+	layout_version = 2
+	queue_save()
+
+
+## Version 2 stored positions in screen px, with one beat = beat_spacing px. Version 3 stores
+## world units (one beat = BEAT_UNIT); beat spacing is now only the zoom, so the layout looks
+## the same and keeps its timing.
+func _migrate_v2() -> void:
+	var k := BEAT_UNIT / maxf(beat_spacing, 1.0)
+	for d in notes:
+		for key in ["x", "y", "ex", "ey"]:
+			if d.has(key):
+				d[key] = float(d[key]) * k
+	view_offset *= k
+	layout_version = LAYOUT_VERSION
+	queue_save()
 
 
 func save_now() -> void:
