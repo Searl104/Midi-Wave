@@ -14,9 +14,9 @@ extends Control
 ## reacts to waves it emitted itself. Its emitter starts on the note (attached); dragging
 ## the emitter handle detaches it to a fixed spot on the surface.
 ##
-## Timing rings: while a note or emitter is dragged, rings show where waves arrive on each
-## beat (bright), bar (brighter) and division (faded). The dragged item snaps to the
-## nearest ring; Shift places freely. A readout shows the delay in beats and any pulser loop.
+## Timing rings: while a note or emitter is dragged, rings show around every other note and
+## emitter within reach: beats bright, bars brighter, divisions faded. The dragged item snaps
+## to the nearest ring; Shift places freely. A readout shows the delay in beats and any pulser loop.
 ##
 ## Mouse:  click = wave · drag note = move · drag emitter handle = place emitter
 ##         right-click (hold / tap) = pitch radial · alt-click = channel radial
@@ -40,7 +40,6 @@ const MIN_COOLDOWN := 0.1
 const DEFAULT_PULSE_STRENGTH := 0.8
 const DEFAULT_COOLDOWN := 0.5
 const SNAP_DISTANCE := 12.0     ## px within which a dragged item snaps to a ring
-const MAX_INCOMING_RINGS := 3   ## ring sets drawn around other emitters while dragging a note
 const EDGE_INSET := 16.0
 
 const FRACTIONS := {
@@ -429,28 +428,21 @@ func ring_step() -> float:
 ## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
 ## "emitter") to world point `p`. Returns {pos, centres, readout, loop, snapped}.
 func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool) -> Dictionary:
+	# Rings centre on every other object within reach of the dragged point: other notes,
+	# and other pulsers' detached emitters. So notes can be spaced to each other in time
+	# whether or not anything pulses yet.
 	var reach := Settings.wave_range
-	var pairs: Array = []      # [static point, other note id, "out" | "in"]
-	var centres: Array = []    # ring centres; the dragged point is marked with null
-	var outgoing: bool = kind == "emitter" or (n.mode != Mode.NOTE and n.attached)
-
-	if outgoing:
-		centres.append(null)
-		for m in notes:
-			if m.id != n.id and p.distance_to(m.pos) < reach:
-				pairs.append([m.pos, m.id, "out"])
-	if kind == "note":
-		var incoming: Array = []
-		for m in notes:
-			if m.id == n.id or m.mode == Mode.NOTE:
-				continue
-			var e := emitter_world_pos(m)
-			if p.distance_to(e) < reach:
-				incoming.append([e, m.id, "in"])
-		incoming.sort_custom(func(a, b) -> bool: return p.distance_to(a[0]) < p.distance_to(b[0]))
-		for k in mini(incoming.size(), MAX_INCOMING_RINGS):
-			centres.append(incoming[k][0])
-		pairs.append_array(incoming)
+	var pairs: Array = []      # [static point, owning note id]
+	for m in notes:
+		if m.id == n.id:
+			continue
+		if p.distance_to(m.pos) < reach:
+			pairs.append([m.pos, m.id])
+		if m.mode != Mode.NOTE and not m.attached and p.distance_to(m.emit) < reach:
+			pairs.append([m.emit, m.id])
+	var centres: Array = []
+	for pr in pairs:
+		centres.append(pr[0])
 
 	var step_px := ring_step()
 	var best: Array = []
@@ -480,7 +472,8 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool) -> Dictio
 		snapped = true
 		ref = best
 
-	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped}
+	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
+			"ref_point": ref[0] if not ref.is_empty() else null}
 	if not ref.is_empty():
 		var d := out_pos.distance_to(ref[0])
 		info.readout = "%s · %d ms" % [format_beats(d / Settings.beat_spacing), roundi(d / Settings.wave_speed * 1000.0)]
@@ -702,16 +695,15 @@ func _draw_rings() -> void:
 	var div: int = Settings.divisions
 	var count := int(Settings.wave_range / step_px)
 	var dragged := get_note(_press_id)
+	var focus: Variant = drag_info.get("ref_point")
 	for c in drag_info.centres:
-		var centre_w: Vector2
-		if c == null:
-			centre_w = drag_info.pos
-		else:
-			centre_w = c
+		var centre_w: Vector2 = c
 		var centre := to_screen(centre_w)
+		# The set being measured against draws at full strength; the others softer.
+		var weight := 1.0 if (focus != null and centre_w.is_equal_approx(focus)) else 0.45
 		for k in range(1, count + 1):
 			var r := k * step_px
-			var fade := 1.0 - r / Settings.wave_range
+			var fade := (1.0 - r / Settings.wave_range) * weight
 			var col: Color
 			var width := 1.0
 			if k % (div * 4) == 0:
