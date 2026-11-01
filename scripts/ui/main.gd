@@ -78,6 +78,7 @@ func _ready() -> void:
 	radial.center_chosen.connect(_on_radial_center)
 	radial.wheel.connect(func(dir: int) -> void: _set_menu_octave(_menu_octave + dir))
 	radial.digit.connect(_on_digit)
+	radial.hover_changed.connect(_on_radial_hover)
 
 	cheat_sheet = CheatSheet.new()
 	add_child(cheat_sheet)
@@ -459,6 +460,7 @@ func _open_pitch_menu(note_id: int, at: Vector2) -> void:
 	_menu_note = note_id
 	_menu_pos = at
 	_digit_first = -1
+	_previewed_pitch = -1
 	var current := surface.last_pitch
 	_menu_channel = surface.last_channel
 	_menu_pitch = -1
@@ -600,6 +602,19 @@ func _rebuild_modifier_items() -> void:
 	radial.refresh()
 
 
+## Pitch ring preview: hovering an outer item plays it on the ring's channel.
+var _previewed_pitch := -1
+
+
+func _on_radial_hover(ring: String, id: Variant) -> void:
+	_previewed_pitch = -1
+	if ring != "outer" or radial.get_meta("mode", "") != "pitch" or not Settings.hover_preview:
+		return
+	var pitch: int = id
+	Midi.play_note(pitch, 80, 0.25, _menu_channel)
+	_previewed_pitch = pitch
+
+
 # --- Radial results ---------------------------------------------------------------------------
 
 func _on_radial_outer(id: Variant) -> void:
@@ -612,7 +627,8 @@ func _on_radial_outer(id: Variant) -> void:
 				surface.set_note_pitch(_menu_note, pitch)
 				if surface.get_note(_menu_note).channel != _menu_channel:
 					surface.set_note_channel(_menu_note, _menu_channel)
-			Midi.play_note(pitch, 90, 0.25, _menu_channel)
+			if pitch != _previewed_pitch:
+				Midi.play_note(pitch, 90, 0.25, _menu_channel)   # already heard on hover otherwise
 		"channel":
 			var ch: int = id
 			for gid in surface.group_for(_menu_note):

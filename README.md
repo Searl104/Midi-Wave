@@ -11,6 +11,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a note | Move it |
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
+| Hovering the pitch ring | Plays each note as the pointer moves onto it, on the ring's channel (Options → General → Play notes while hovering the pitch ring turns it off) |
 | C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. Hold the key and right-drag for a quick ring: flick to an item and release. Pressing the key again or Esc cancels |
 | While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
 | Alt-click a note (alias for C) | Channel ring (1-16); notes are colored by channel |

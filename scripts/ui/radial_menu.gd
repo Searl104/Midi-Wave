@@ -17,6 +17,7 @@ signal center_chosen(id: Variant)
 signal wheel(direction: int)
 signal digit(value: int)
 signal closed
+signal hover_changed(ring: String, id: Variant)   ## pointer moved onto an item while open
 
 const CENTER_R := 30.0
 const INNER_R0 := 36.0
@@ -107,6 +108,10 @@ func _set_hover(r: Array) -> void:
 		_hover_ring = r[0]
 		_hover_index = r[1]
 		queue_redraw()
+		if visible and _hover_ring != "":
+			var items: Array = outer_items if _hover_ring == "outer" else (inner_items if _hover_ring == "inner" else [center_item])
+			if _hover_index >= 0 and _hover_index < items.size():
+				hover_changed.emit(_hover_ring, items[_hover_index].get("id"))
 
 
 ## Activates whatever is at `pos`. Returns false if nothing was there.

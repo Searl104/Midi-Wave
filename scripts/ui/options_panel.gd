@@ -84,6 +84,7 @@ func _build() -> void:
 	port_row.add_child(_port_status)
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
+	_check(box, "Play notes while hovering the pitch ring", "hover_preview")
 
 	_section(box, "MIDI INPUT (PADS)", Palette.BLUE)
 	_in_ports = OptionButton.new()

@@ -11,7 +11,7 @@ const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version
 const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
-	"root_note", "scale_name", "midi_port", "midi_in_port", "midi_in_base", "notes", "view_offset", "layout_version",
+	"root_note", "scale_name", "midi_port", "midi_in_port", "midi_in_base", "hover_preview", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
 	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_lengths", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
@@ -88,6 +88,7 @@ var spoke_count := 8            ## spokes drawn from each snap target (0 = none)
 var guides_to_edge := true      ## guides run to the window edge (false: stop at the wave's reach)
 var guide_divisions := true     ## draw the faded division rings
 var guide_brightness := 1.0     ## 0.3-1.5
+var hover_preview := true       ## the pitch ring plays each note as the pointer moves onto it
 var midi_in_port := ""          ## MIDI controller whose pads fire keypad slots ("" = off)
 var midi_in_base := 36          ## the note that fires slot 1; the next eight fire slots 2-9
 ## Colour-blind safe channel colours (channels 9-16 get a double outline).
