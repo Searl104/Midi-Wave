@@ -137,6 +137,8 @@ func _build() -> void:
 	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
 		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
 	_slider(box, "Note length", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)
+	_slider(box, "Cursor glow", "cursor_glow", 0.0, 2.0, 0.05, func(v: float) -> String:
+		return "Off" if v <= 0.0 else "%d%%" % roundi(v * 100))
 
 	_section(box, "SCALE", Palette.YELLOW)
 	var scale_row := HBoxContainer.new()

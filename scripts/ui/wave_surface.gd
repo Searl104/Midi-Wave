@@ -1666,10 +1666,13 @@ func _draw() -> void:
 ## Faint glow under the cursor showing how far a wave from here reaches and how it fades:
 ## brightness follows the wave's amplitude (strength x falloff curve) out to its reach.
 func _draw_reach_glow(at: Vector2) -> void:
+	var g: float = Settings.cursor_glow        # Options -> Wave -> Cursor glow (0 = off)
+	if g <= 0.0:
+		return
 	var reach := Settings.wave_range * z()
 	draw_texture_rect(_reach_texture(), Rect2(at - Vector2(reach, reach), Vector2(reach, reach) * 2.0),
-			false, Color(1, 1, 1, 0.2 * Settings.wave_strength))
-	draw_arc(at, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.ACCENT, 0.10), 1.0, true)
+			false, Color(1, 1, 1, minf(0.2 * Settings.wave_strength * g, 1.0)))
+	draw_arc(at, reach, 0.0, TAU, maxi(64, int(reach / 6.0)), Color(Palette.ACCENT, minf(0.10 * g, 1.0)), 1.0, true)
 
 
 func _reach_texture() -> GradientTexture2D:

@@ -85,6 +85,8 @@ Touch to snap, the older way of picking snap targets (touch an object while drag
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
+A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → General → Wave → Cursor glow** sets its strength (0% hides it, up to 200%).
+
 ### MIDI input: pads fire the keypad
 
 **Options → General → MIDI input (pads)** picks a controller (Refresh lists them). Its notes
