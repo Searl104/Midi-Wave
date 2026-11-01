@@ -140,7 +140,7 @@ func _build() -> void:
 		"Drag a note: move it\n" +
 		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
 		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
-		"Alt-click: set MIDI channel\n" +
+		"C / E / F then right-click a note: channel / pulse / modifier ring, once (hold the key and right-drag: quick ring) · Alt-click: channel\n" +
 		"Ctrl-click: Note → Note + Pulse → Pulse only · Ctrl-drag from a pulser: set its own wave reach (back onto the note resets it)\n" +
 		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
 		"Drag the diamond on a pulser: place where its wave starts\n" +

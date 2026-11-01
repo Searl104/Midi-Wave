@@ -50,7 +50,7 @@ func _ready() -> void:
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(surface)
 	surface.mode_changed.connect(_on_mode_changed)
-	surface.pitch_menu_requested.connect(_open_pitch_menu)
+	surface.pitch_menu_requested.connect(_on_right_click)
 	surface.channel_menu_requested.connect(_open_channel_menu)
 	surface.pulse_menu_requested.connect(_open_pulse_menu)
 	surface.modifier_menu_requested.connect(_open_modifier_menu)
@@ -175,10 +175,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if not key.ctrl_pressed and surface.edit_mode:
 				surface.toggle_mute()
 				get_viewport().set_input_as_handled()
-		KEY_C:
-			if key.ctrl_pressed and surface.edit_mode:
-				surface.copy_selection()
-				get_viewport().set_input_as_handled()
 		KEY_V:
 			if key.ctrl_pressed and surface.edit_mode:
 				surface.paste_at(surface.get_local_mouse_position())
@@ -191,11 +187,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if key.ctrl_pressed and surface.edit_mode:
 				_undo_redo(true)
 				get_viewport().set_input_as_handled()
+		KEY_C, KEY_E, KEY_F:
+			if key.keycode == KEY_C and key.ctrl_pressed:
+				if surface.edit_mode:
+					surface.copy_selection()
+					get_viewport().set_input_as_handled()
+			elif not key.ctrl_pressed and not key.alt_pressed and surface.edit_mode and not radial.visible:
+				arm_ring(RING_KEYS[key.keycode])
+				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
-			if options.visible:
+			if armed_ring != "":
+				arm_ring("")
+				get_viewport().set_input_as_handled()
+			elif options.visible:
 				options.hide()
 				get_viewport().set_input_as_handled()
 			elif not surface.selection.is_empty():
@@ -203,16 +210,64 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
-const HINT_EDIT := "Edit mode  ·  Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Shift-right-click: modifier  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: play mode  ·  O: options"
+const HINT_EDIT := "Edit mode  ·  Click: wave  ·  Right-click: ring (hold: quick place / tune)  ·  C / E / F: channel / pulse / modifier ring  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: play mode  ·  O: options"
 const HINT_PLAY := "Play mode  ·  Click: wave or trigger  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: edit mode  ·  O: options"
 
 
 func _on_mode_changed(edit: bool) -> void:
 	if radial and radial.visible:
 		radial.close()
-	hint_label.text = HINT_EDIT if edit else HINT_PLAY
-	hint_label.modulate.a = 1.0
+	armed_ring = ""
+	_refresh_hint()
 	_toast("Edit mode" if edit else "Play mode  ·  layout locked")
+
+
+# --- Ring choice (R8) --------------------------------------------------------------------------
+# Right-click always summons the active ring. Pitch is the default; C, E and F pick the channel,
+# pulse or modifier ring for the next right-click on a note, then it goes back to pitch. Holding
+# the key while right-dragging is a quick ring: flick to an item and release.
+
+const RING_KEYS := {KEY_C: "channel", KEY_E: "pulse", KEY_F: "modifier"}
+const RING_NAMES := {"channel": "Channel", "pulse": "Pulse", "modifier": "Modifier"}
+const RING_KEY_LABELS := {"channel": "C", "pulse": "E", "modifier": "F"}
+
+var armed_ring := ""        ## "" = pitch (the default), else "channel", "pulse" or "modifier"
+
+
+## Picks the ring the next right-click opens. Picking the armed ring again cancels it.
+func arm_ring(ring: String) -> void:
+	armed_ring = "" if ring == armed_ring else ring
+	_refresh_hint()
+
+
+func _on_right_click(note_id: int, at: Vector2) -> void:
+	var ring := armed_ring
+	if ring == "":
+		_open_pitch_menu(note_id, at)
+		return
+	if note_id == -1:
+		_toast("Right-click a note for the %s ring" % RING_NAMES[ring])
+		return
+	armed_ring = ""                  # used once, then back to pitch
+	_refresh_hint()
+	# Opened as a held ring: flick and release to choose (the quick ring); a tap keeps it open.
+	match ring:
+		"channel":
+			_open_channel_menu(note_id, at, true)
+		"pulse":
+			_open_pulse_menu(note_id, at, true)
+		"modifier":
+			_open_modifier_menu(note_id, at, true)
+
+
+func _refresh_hint() -> void:
+	if armed_ring != "":
+		var k: String = RING_KEY_LABELS[armed_ring]
+		hint_label.text = "%s ring armed  ·  Right-click a note (or hold %s and right-drag, release to choose)  ·  %s or Esc cancels" % [
+				RING_NAMES[armed_ring], k, k]
+	else:
+		hint_label.text = HINT_EDIT if surface.edit_mode else HINT_PLAY
+	hint_label.modulate.a = 1.0
 
 
 ## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
@@ -400,7 +455,7 @@ func _on_digit(d: int) -> void:
 
 # --- Channel menu ---------------------------------------------------------------------------
 
-func _open_channel_menu(note_id: int, at: Vector2) -> void:
+func _open_channel_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
 	var current: int = surface.get_note(note_id).get("channel", 0)
 	radial.set_meta("mode", "channel")
@@ -411,17 +466,17 @@ func _open_channel_menu(note_id: int, at: Vector2) -> void:
 		radial.outer_items.append({"id": ch, "label": str(ch + 1), "color": Palette.channel_color(ch), "selected": ch == current})
 	radial.title = "MIDI channel"
 	radial.subtitle = ""
-	radial.open(at)
+	radial.open(at, hold)
 
 
 # --- Pulse menu -----------------------------------------------------------------------------
 
 ## Outer ring = cooldown, inner ring = emit strength, centre = cycle mode.
-func _open_pulse_menu(note_id: int, at: Vector2) -> void:
+func _open_pulse_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
 	radial.set_meta("mode", "pulse")
 	_rebuild_pulse_items()
-	radial.open(at)
+	radial.open(at, hold)
 
 
 func _rebuild_pulse_items() -> void:
@@ -447,11 +502,11 @@ func _rebuild_pulse_items() -> void:
 
 ## Outer ring = modifier (None / Toggle); inner ring = the toggle's state (On / Off),
 ## which sets both its current and its start state.
-func _open_modifier_menu(note_id: int, at: Vector2) -> void:
+func _open_modifier_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
 	radial.set_meta("mode", "modifier")
 	_rebuild_modifier_items()
-	radial.open(at)
+	radial.open(at, hold)
 
 
 func _rebuild_modifier_items() -> void:

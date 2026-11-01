@@ -11,11 +11,12 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a note | Move it |
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
+| C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. Hold the key and right-drag for a quick ring: flick to an item and release. Pressing the key again or Esc cancels |
 | While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12) · Esc: cancel |
-| Alt-click a note | Channel ring (1-16); notes are colored by channel |
+| Alt-click a note (alias for C) | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only (silent, hollow, no note label) |
 | Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
-| Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
+| Ctrl-right-click a note (alias for E) | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Delete | Remove the hovered note (or the selection, if any) |
@@ -24,7 +25,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
 | While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). Drag onto any note or emitter to snap to its centre. The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
-| Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
+| Shift-right-click a note (alias for F) | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
 | Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
