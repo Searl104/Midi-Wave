@@ -145,7 +145,7 @@ func _build() -> void:
 		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
 		"Drag the diamond on a pulser: place where its wave starts\n" +
 		"Shift-click: place a note with the last pitch\n" +
-		"Middle-click or Delete: remove the hovered note\n" +
+		"Delete: remove the hovered note or the selection\n" +
 		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
 		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
 		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +

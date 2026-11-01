@@ -29,7 +29,7 @@ extends Control
 ##         ctrl-click = cycle mode · ctrl-drag from a pulser = set its own reach
 ##         ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
-##         middle-click / Delete = remove note (or the selection) · middle-drag = pan
+##         Delete = remove note (or the selection) · middle-drag = pan
 ##         M = mute / unmute the selection or hovered note (keeps the mode; pulses still fire)
 ##         ctrl + right-drag on empty space = box select; Esc clears it
 ##
@@ -100,7 +100,6 @@ var _pan_active := false
 var _pan_moved := false
 var _pan_start := Vector2.ZERO
 var _pan_last := Vector2.ZERO
-var _pan_hit := -1
 var _mouse_pos := Vector2.ZERO
 var _mouse_in := false
 var _glow_tex: GradientTexture2D
@@ -1186,18 +1185,14 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				else:
 					selection.clear()
 		MOUSE_BUTTON_MIDDLE:
-			# Drag pans; a click without movement removes the note under the cursor.
+			# Middle only pans. (It used to delete on a click, which a short pan could trigger.)
 			if mb.pressed:
 				_pan_active = true
 				_pan_moved = false
 				_pan_start = pos
 				_pan_last = pos
-				_pan_hit = hit
 			elif _pan_active:
-				if not _pan_moved and _pan_hit != -1:
-					remove_note(_pan_hit)
 				_pan_active = false
-				_pan_hit = -1
 
 
 func _begin_press(id: int, kind: String, pos: Vector2) -> void:

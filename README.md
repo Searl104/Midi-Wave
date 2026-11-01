@@ -18,7 +18,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
-| Middle-click / Delete | Remove the hovered note (Delete removes the selection, if any) |
+| Delete | Remove the hovered note (or the selection, if any) |
 | M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses. Hollow notes show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
