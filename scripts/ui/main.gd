@@ -12,6 +12,7 @@ const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
 const MODE_LABELS := ["Note", "N+Pulse", "Pulse"]
 
 var water: ColorRect
+var caustic_time := 0.0          ## Tidal caustic clock, advanced at the Caustics speed setting
 var surface: WaveSurface
 var radial: RadialMenu
 var options: OptionsPanel
@@ -87,6 +88,9 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("waves", surface.shader_waves())
 	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
 	mat.set_shader_parameter("zoom", surface.z())
+	if Settings.look == "Tidal":
+		caustic_time = fmod(caustic_time + delta * Settings.look_uniform_value("tidal_caustic_speed"), 10000.0)
+		mat.set_shader_parameter("caustic_time", caustic_time)
 
 
 ## Surface shader for the chosen look: Abyssal (endless depth), Tidal (black glossy sand

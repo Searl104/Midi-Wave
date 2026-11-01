@@ -20,6 +20,8 @@ uniform sampler2D sand_color : source_color, hint_default_black, repeat_enable, 
 uniform float color_amount = 1.0;       // 0 = black sand, 1 = the scan's colour, darkened
 uniform float caustics = 1.0;           // caustic light strength
 uniform float caustic_px = 330.0;       // on-screen size of one caustic tile at zoom 1
+uniform float caustic_time = 0.0;       // caustic clock, advanced by the app at caustic_speed
+uniform float caustic_speed = 0.35;     // (read by the app, so a speed change never jumps)
 uniform float tile_px = 1800.0;          // on-screen size of one texture tile at zoom 1
 uniform float plane_depth = 0.65;       // pan/zoom rate of the sand relative to the surface
 uniform float bump = 1.15;               // normal map strength
@@ -84,7 +86,7 @@ void fragment() {
 
 	// Caustics: light focused by the water, drifting across the sand plane. Two layers at
 	// different scales and speeds keep the web from looking tiled.
-	float ct = TIME * 0.35;
+	float ct = caustic_time;
 	float caust = caustic(q / caustic_px, ct) * 0.7 + caustic(q / (caustic_px * 1.7) + 0.37, ct * 0.8) * 0.45;
 	caust = pow(caust, 1.3) * 1.4 * caustics * (0.55 + 0.45 * ndl);
 	col += (base * 2.6 + vec3(0.06, 0.085, 0.1)) * caust;
