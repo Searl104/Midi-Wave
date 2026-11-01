@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "channel_lengths", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_lengths", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
@@ -88,6 +88,11 @@ var spoke_count := 8            ## spokes drawn from each snap target (0 = none)
 var guides_to_edge := true      ## guides run to the window edge (false: stop at the wave's reach)
 var guide_divisions := true     ## draw the faded division rings
 var guide_brightness := 1.0     ## 0.3-1.5
+## Colour-blind safe channel colours (channels 9-16 get a double outline).
+var colorblind := false:
+	set(v):
+		colorblind = v
+		Palette.colorblind = v
 ## Deprecated: touch to snap (touch an object while dragging to snap to it). Off by default and
 ## not in the Options panel; set touch_snap=true in the settings file to bring it back.
 var touch_snap := false

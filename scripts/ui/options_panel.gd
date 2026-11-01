@@ -127,6 +127,8 @@ func _build() -> void:
 	scale.item_selected.connect(func(i: int) -> void: Settings.set_value("scale_name", names[i]))
 	scale_row.add_child(scale)
 	box.add_child(_hint("Changing the scale snaps every note to it."))
+	_check(box, "Colour-blind palette", "colorblind")
+	box.add_child(_hint("Eight colour-blind safe channel colours; channels 9-16 reuse them with a double outline. Hover a note for its channel number."))
 
 	_section(box, "NOTES", Palette.TEXT_DIM)
 	var notes_row := HBoxContainer.new()

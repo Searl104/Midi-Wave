@@ -183,7 +183,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_S:
 			if key.ctrl_pressed:
-				surface.save_state()
+				_save_state()
 				get_viewport().set_input_as_handled()
 		KEY_M:
 			if not key.ctrl_pressed and surface.edit_mode:
@@ -317,6 +317,12 @@ func _refresh_hint() -> void:
 		hint_label.text = text
 
 
+## Ctrl+S or the Save state button: toggles' current states become their start states.
+func _save_state() -> void:
+	surface.save_state()
+	_toast("Start states saved")
+
+
 ## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
 func _undo_redo(redo: bool) -> void:
 	var done: bool = surface.redo() if redo else surface.undo()
@@ -395,7 +401,7 @@ func _build_hud() -> void:
 	save.text = "Save state"
 	save.tooltip_text = "Make every toggle's current state its start state (Ctrl+S)"
 	save.focus_mode = Control.FOCUS_NONE
-	save.pressed.connect(func() -> void: surface.save_state())
+	save.pressed.connect(_save_state)
 	top.add_child(save)
 
 	var stop := Button.new()
@@ -465,8 +471,11 @@ func _rebuild_pitch_items() -> void:
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _menu_octave})
-	radial.title = "%s %s · octave %d · ch %d" % [
-		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave, _menu_channel + 1]
+	var ch_text := "ch %d" % (_menu_channel + 1)
+	if _digit_first != -1 and Time.get_ticks_msec() - _digit_time <= DIGIT_WINDOW_MS:
+		ch_text += "…"                  # waiting for a second digit (10-16)
+	radial.title = "%s %s · octave %d · %s" % [
+		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave, ch_text]
 	radial.subtitle = "A / D octave · type 1-16 for channel · Esc cancels"
 	radial.refresh()
 
@@ -496,6 +505,11 @@ func _on_digit(d: int) -> void:
 		_digit_first = d if d == 1 else -1     # only "1" can start 10-16
 		_digit_time = now
 		_rebuild_pitch_items()
+		if _digit_first != -1:
+			# Show "ch 1…" while a second digit can still follow, then settle on "ch 1".
+			get_tree().create_timer(DIGIT_WINDOW_MS / 1000.0 + 0.02).timeout.connect(func() -> void:
+				if radial.visible and radial.get_meta("mode", "") == "pitch" and Time.get_ticks_msec() - _digit_time > DIGIT_WINDOW_MS:
+					_rebuild_pitch_items())
 
 
 # --- Channel menu ---------------------------------------------------------------------------

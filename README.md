@@ -12,7 +12,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
 | C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. Hold the key and right-drag for a quick ring: flick to an item and release. Pressing the key again or Esc cancels |
-| While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12) · Esc: cancel |
+| While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
 | Alt-click a note (alias for C) | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only (silent, hollow, no note label) |
 | Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
@@ -20,7 +20,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Delete | Remove the hovered note (or the selection, if any) |
-| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses. Hollow notes show a bright centre dot when unmuted, a faint one when muted |
+| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
@@ -28,7 +28,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | While dragging a note or emitter | It shows its own timing rings and snaps to the nearest grid point (a ring, a spoke, or where they cross). Drag onto any note or emitter to snap to its centre. Shift places freely |
 | Placing new notes | Quick place, Shift-click and paste put the new note on the nearest grid point under the mouse (when any grid is on) |
 | Shift-right-click a note (alias for F) | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
-| Ctrl+S or Save state | Make every toggle's current state its start state |
+| Ctrl+S or Save state | Make every toggle's current state its start state (a toast confirms it) |
 | Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
 | KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
@@ -79,6 +79,8 @@ priority over grid points. Shift places freely. Grid toggles are undoable like a
 Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
+
+Hover a note to see its pitch and channel number. **Options → General → Colour-blind palette** swaps the 16 channel colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
 
 Hover and selection are drawn as white corner brackets (thin for hover, bright for selected), so rings only ever mean state: pulse cooldown, modifier, snap guides. M, Delete and Ctrl+KP act on the bracketed note, and its brackets flash when the key lands.
 

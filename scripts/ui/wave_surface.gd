@@ -1815,6 +1815,12 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 		draw_circle(p, NOTE_RADIUS, Palette.GLASS.lerp(col, 0.12 + f * 0.35))                  # body
 		draw_arc(p, NOTE_RADIUS - 6.0, PI * 1.05, PI * 1.6, 18, Color(1, 1, 1, 0.22), 2.0, true)  # highlight
 	draw_arc(p, NOTE_RADIUS, 0.0, TAU, 48, Color(col.lerp(Color.WHITE, f * 0.5), 0.45 if muted else 1.0), 2.5, true)
+	if Palette.channel_marked(n.channel):
+		draw_arc(p, NOTE_RADIUS - 4.5, 0.0, TAU, 40, Color(col, 0.45 if muted else 0.9), 1.5, true)
+	if n.muted:
+		# Muted: a slash, so it reads differently from a hollow pulse-only pulser.
+		var sl := Vector2(1, -1).normalized() * (NOTE_RADIUS - 3.0)
+		draw_line(p - sl, p + sl, Color(col, 0.85), 2.0, true)
 
 	if n.mode != Mode.NOTE:
 		# Pulse ring: refills clockwise from the top while cooling down, flashes on fire.
