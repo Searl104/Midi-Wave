@@ -1,35 +1,19 @@
 shader_type canvas_item;
-// Liquid surface: dark glass lit from the top-left, rippled by up to 64 waves.
-// waves[i] = (origin.x, origin.y, radius, amplitude) in pixels / 0-1.
+// Glass theme: dark glass lit from the top-left, rippled by up to 64 waves.
 
-const int MAX_WAVES = 64;
+#include "res://shaders/waves.gdshaderinc"
 
-uniform int wave_count = 0;
-uniform vec4 waves[MAX_WAVES];
 uniform vec2 surface_size = vec2(1280.0, 800.0);
-uniform float ring_width = 34.0;
 uniform vec3 accent : source_color = vec3(0.18, 0.48, 1.0);
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
 void fragment() {
 	vec2 p = UV * surface_size;
-	float h = 0.0;
-	vec2 grad = vec2(0.0);
-
-	for (int i = 0; i < MAX_WAVES; i++) {
-		if (i >= wave_count) { break; }
-		vec4 w = waves[i];
-		vec2 d = p - w.xy;
-		float dist = length(d) + 0.001;
-		float x = (dist - w.z) / ring_width;
-		if (abs(x) > 3.5) { continue; }
-		float env = exp(-x * x * 1.6);
-		float s = sin(x * 5.5);
-		h += w.w * env * s;
-		float dh = w.w * env * (cos(x * 5.5) * 5.5 - s * 3.2 * x);
-		grad += dh * d / dist;
-	}
+	float h;
+	vec2 grad;
+	float energy;
+	surface_waves(p, h, grad, energy);
 
 	vec3 n = normalize(vec3(-grad * 0.55, 1.0));
 	vec3 light = normalize(vec3(-0.45, -0.6, 0.66));   // screen y points down

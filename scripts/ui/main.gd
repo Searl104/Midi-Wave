@@ -35,10 +35,15 @@ func _ready() -> void:
 	water.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	water.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var water_mat := ShaderMaterial.new()
-	water_mat.shader = load("res://shaders/water.gdshader")
 	water_mat.set_shader_parameter("accent", Palette.ACCENT)
 	water.material = water_mat
+	_apply_look()
 	add_child(water)
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "look":
+			_apply_look()
+		elif Settings.LOOK_PARAMS.has(key):
+			_apply_look_params())
 
 	surface = WaveSurface.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -80,6 +85,32 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("surface_size", water.size)
 	mat.set_shader_parameter("wave_count", mini(surface.waves.size(), WaveSurface.MAX_WAVES))
 	mat.set_shader_parameter("waves", surface.shader_waves())
+	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
+	mat.set_shader_parameter("zoom", surface.z())
+
+
+## Surface shader for the chosen look: Abyssal (endless depth), Tidal (black glossy sand
+## below the water) or Glass (flat dark glass).
+func _apply_look() -> void:
+	var mat := water.material as ShaderMaterial
+	match Settings.look:
+		"Glass":
+			mat.shader = load("res://shaders/water.gdshader")
+		"Tidal":
+			mat.shader = load("res://shaders/tidal.gdshader")
+			mat.set_shader_parameter("sand_normal", load("res://assets/tidal/sand_normal.jpg"))
+			mat.set_shader_parameter("sand_rough", load("res://assets/tidal/sand_rough.jpg"))
+		_:
+			mat.shader = load("res://shaders/abyssal.gdshader")
+	_apply_look_params()
+
+
+## Pushes the Options > Look controls into the surface shader.
+func _apply_look_params() -> void:
+	var mat := water.material as ShaderMaterial
+	for key in Settings.LOOK_PARAMS:
+		if Settings.LOOK_PARAMS[key][0] == Settings.look:
+			mat.set_shader_parameter(Settings.LOOK_PARAMS[key][1], Settings.look_uniform_value(key))
 
 
 ## Arrow keys pan the view (not while a radial menu is open: it uses Left / Right for octave).

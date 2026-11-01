@@ -368,11 +368,12 @@ func release_all_slots() -> void:
 
 
 ## KP1-9: every note in the slot is clicked once (a pulser fires directly, a plain note
-## sends a wave from where it sits).
+## sends a wave from where it sits). Muted notes are skipped: the keypad doesn't fire them,
+## though a wave reaching a muted pulser still makes it pulse.
 func trigger_slot(slot: int) -> int:
 	var count := 0
 	for n in notes.duplicate():
-		if n.slot == slot:
+		if n.slot == slot and not n.muted:
 			click_note(n.id)
 			count += 1
 	return count
@@ -415,6 +416,12 @@ func stop() -> void:
 		n.mod_on = n.mod_start
 		n.ready_at = 0
 		n.dim_flash = 0.0
+
+
+## Alpha of a hollow note's centre dot: bright unless muted (pulse-only pulsers are always
+## hollow, so the dot is what shows their mute state).
+func center_dot_alpha(n: Dictionary) -> float:
+	return 0.18 if n.muted else 0.9
 
 
 ## Pulse-only pulsers play no note, so they hide their pitch (it is kept for switching back).
@@ -722,13 +729,17 @@ func step(delta: float) -> void:
 	var now := clock_usec
 	var speed := Settings.wave_speed
 	var spawned: Array = []
+	var fresh_from := waves.size()   # waves at or past this index were fired this frame
 	var i := 0
 	while i < waves.size():
 		var w: Dictionary = waves[i]
-		w.r += delta * speed
+		if i < fresh_from:
+			w.r += delta * speed
 		var wr := wave_range_of(w)
 		if w.r >= wr:
 			waves.remove_at(i)
+			if i < fresh_from:
+				fresh_from -= 1
 			continue
 		for n in notes:
 			if n.id == w.source or w.hits.has(n.id):
@@ -740,14 +751,19 @@ func step(delta: float) -> void:
 				var amp := amplitude(w.strength, d, wr)
 				if amp >= MIN_AMPLITUDE:
 					_trigger(n, amp, now, spawned)
+		# Waves fired by pulsers join the loop now, at radius 0, so a note sitting on the
+		# emitter is hit this same frame: a stacked chain plays as one chord instead of one
+		# link per frame. Cooldowns and MAX_WAVES keep this from running away.
+		waves.append_array(spawned)
+		spawned.clear()
 		i += 1
-	waves.append_array(spawned)
 
 	# Held keypad slots: pulsers refire each time their cooldown runs out (a refire that a
 	# toggle silences still waits a full cooldown before the next).
 	if not held_slots.is_empty():
 		for n in notes.duplicate():
-			if held_slots.has(n.slot) and n.mode != Mode.NOTE and not is_retrigger(n) and now >= n.hold_next:
+			if held_slots.has(n.slot) and n.mode != Mode.NOTE and not n.muted and not is_retrigger(n) \
+					and now >= n.hold_next:
 				n.hold_next = now + cooldown_usec(n)
 				trigger_note(n.id)
 
@@ -840,7 +856,8 @@ func touch_targets(exclude_id: int) -> Dictionary:
 
 ## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
 ## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
-## Returns {pos, centres, readout, loop, snapped, ref_point}; centres[0] is the held item.
+## Returns {pos, centres, readout, loop, snapped, centre, ref_point}; centres[0] is the held item.
+## Centre snapping (onto any note or emitter within the snap distance) beats rings and spokes.
 func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
 	var reach := Settings.wave_range
 	free = free or not Settings.snap_enabled
@@ -884,10 +901,24 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 			spoke = pr
 			spoke_ang = snapped_ang
 
+	# Centre: any note or emitter (touched or not) whose centre is within the snap distance.
+	var centre: Array = []
+	var centre_d := tol
+	if not free and Settings.snap_centres:
+		for key in targets:
+			var dc := p.distance_to(targets[key])
+			if dc <= centre_d:
+				centre_d = dc
+				centre = [targets[key], int(key.substr(1)), key]
+
 	var out_pos := p
 	var snapped := false
 	var ref: Array = []
-	if not free and not best.is_empty() and best_fix <= tol:
+	if not centre.is_empty():
+		out_pos = centre[0]
+		snapped = true
+		ref = centre
+	elif not free and not best.is_empty() and best_fix <= tol:
 		# On a ring; if also near one of the same target's spokes, land on the crossing.
 		var a: Vector2 = best[0]
 		var radius := roundf(p.distance_to(a) / step_px) * step_px
@@ -922,7 +953,11 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
 			"ref_point": ref[0] if not ref.is_empty() else null,
 			"snap_key": ref[2] if snapped else ""}
-	if not ref.is_empty():
+	info["centre"] = not centre.is_empty()
+	if not centre.is_empty():
+		info.readout = "centre"
+		info.loop = _loop_text(n, kind, out_pos, get_note(ref[1]))
+	elif not ref.is_empty():
 		var d := out_pos.distance_to(ref[0])
 		info.readout = "%s · %d ms" % [format_beats(d / Settings.BEAT_UNIT), roundi(d / Settings.wave_speed * 1000.0)]
 		info.loop = _loop_text(n, kind, out_pos, get_note(ref[1]))
@@ -1279,6 +1314,13 @@ func _draw() -> void:
 		else:
 			_draw_edge_marker(n)
 
+	# Emitter diamonds go over every note, so a note can never hide one.
+	for n in notes:
+		if n.mode != Mode.NOTE:
+			var hp := handle_screen_pos(n)
+			if hp.x > -40.0 and hp.y > -40.0 and hp.x < size.x + 40.0 and hp.y < size.y + 40.0:
+				_draw_handle(hp, Palette.channel_color(n.channel), n.id == _hover_handle)
+
 	for n in notes:
 		if selection.has(n.id) and is_on_screen(n.pos, NOTE_RADIUS + 40.0):
 			var sr := NOTE_RADIUS + (MOD_RING + 6.0 if n.mod != "" else 12.0)
@@ -1391,7 +1433,14 @@ func _draw_rings() -> void:
 			draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
 	if not dragged.is_empty() and drag_info.snapped:
 		var at := to_screen(drag_info.pos)
-		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.3), 0.6), 1.0, true)
+		var sc := Color(Palette.ACCENT.lightened(0.3), 0.6)
+		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, sc, 1.0, true)
+		if drag_info.get("centre", false):
+			# Centre snap: a crosshair through the shared centre.
+			var arm := NOTE_RADIUS + 22.0
+			for dv in [Vector2.RIGHT, Vector2.DOWN]:
+				draw_line(at - dv * arm, at - dv * (NOTE_RADIUS + 8.0), sc, 1.5, true)
+				draw_line(at + dv * (NOTE_RADIUS + 8.0), at + dv * arm, sc, 1.5, true)
 
 
 ## Touched objects get a highlight ring; a touch shows a brief flash.
@@ -1464,7 +1513,8 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	draw_circle(p, NOTE_RADIUS + 3.0, Color(0, 0, 0, 0.35))                                   # shadow
 	if muted:
 		draw_circle(p, NOTE_RADIUS, Color(Palette.BG, 0.9))                                    # hollow
-		draw_circle(p, NOTE_RADIUS * 0.35, Color(col, 0.18))
+		# Centre dot doubles as the mute indicator: bright on an unmuted pulse-only pulser.
+		draw_circle(p, NOTE_RADIUS * 0.35, Color(col, center_dot_alpha(n)))
 	else:
 		draw_circle(p, NOTE_RADIUS, Palette.GLASS.lerp(col, 0.12 + f * 0.35))                  # body
 		draw_arc(p, NOTE_RADIUS - 6.0, PI * 1.05, PI * 1.6, 18, Color(1, 1, 1, 0.22), 2.0, true)  # highlight
@@ -1482,7 +1532,6 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 				Color(Palette.YELLOW, 0.55 + 0.45 * pf), 2.0, true)
 		if pf > 0.0:
 			draw_arc(p, ring_r + 8.0 * (1.0 - pf), 0.0, TAU, 48, Color(Palette.YELLOW, 0.5 * pf), 2.0, true)
-		_draw_handle(handle_screen_pos(n), col, n.id == _hover_handle)
 
 	if n.id == _hover_id:
 		draw_arc(p, NOTE_RADIUS + (12.0 if n.mode != Mode.NOTE else 5.0), 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.0, true)

@@ -19,15 +19,15 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Middle-click / Delete | Remove the hovered note (Delete removes the selection, if any) |
-| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses |
+| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses. Hollow notes show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
+| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). Drag onto any note or emitter to snap to its centre. The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
 | Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
-| KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out |
+| KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
 | Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
 | Tab or O | Options · Esc closes menus |
 
@@ -57,11 +57,19 @@ sets how many screen pixels one beat takes up. Distances, waves, reach, rings an
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
-toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross.
+toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross. Centre snapping puts the item exactly on top of any note or emitter (touched or not) whose centre is within the snap distance, for stacking an emitter on a note or two emitters on one spot; it takes priority over rings and spokes.
 
-**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
+**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
+
+**Surface looks** (Options → Look). The Look tab picks the look and shows its controls, each a percentage of the designed look (100%), with a reset button:
+- Abyssal: sinking speed, marine snow, glints, light shafts, depth, refraction.
+- Tidal: sand scale, floor parallax (how far the sand moves when you pan or zoom; lower feels deeper), shine, ripple relief, tide speed, refraction.
+
+- **Abyssal** (default): a thin glassy surface over endless dark water. Marine snow sinks away forever in parallax layers (deep layers move less when you pan), faint light shafts converge on a dark vanishing point, and rare glints pulse far below in the primary colours. Ripples refract the depths, and a passing wave lights the snow under it.
+- **Tidal**: black, glossy sand ripples on a plane below the water. The sand pans and zooms at 65% of the surface's rate, like a sea floor; a slow tide line sweeps across it, wet sand turning glassy and drying back duller. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
+- **Glass**: the original flat dark glass.
 
 **Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
 
@@ -90,7 +98,11 @@ scripts/
   ui/radial_menu.gd       Ring picker used for pitch and channel
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
-shaders/water.gdshader    The liquid surface
+shaders/waves.gdshaderinc Ripple maths shared by the surface shaders
+shaders/abyssal.gdshader  Abyssal surface: endless depth under the water
+shaders/tidal.gdshader    Tidal surface: black glossy sand below the water
+shaders/water.gdshader    Glass surface
+assets/tidal/             Sand normal + roughness maps (Poly Haven, CC0)
 shaders/glass.gdshader    Frosted-glass panels
 addons/midi_out/          GDExtension manifest + built libraries
 native/                   C++ source of the MIDI output extension (RtMidi)

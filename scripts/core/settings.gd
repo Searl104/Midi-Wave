@@ -13,9 +13,12 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths",
+	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
+	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
+	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_tide", "tidal_refraction",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
+const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
 var bpm := 120.0                ## tempo; wave speed follows it
@@ -30,6 +33,46 @@ var midi_port := ""             ## last opened output port, reopened on launch
 var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
+var look := "Abyssal"           ## surface look, one of LOOKS
+
+## Look controls (Options > Look). Each is a multiplier on the shader's base value (1 = as
+## designed), except tidal_depth, the sand plane's pan/zoom rate. key -> [look, uniform, base].
+const LOOK_PARAMS := {
+	"abyss_sink": ["Abyssal", "sink_speed", 0.018],
+	"abyss_density": ["Abyssal", "snow_density", 1.0],
+	"abyss_glints": ["Abyssal", "glint_amount", 1.0],
+	"abyss_shafts": ["Abyssal", "shaft_strength", 1.0],
+	"abyss_depth": ["Abyssal", "depth_scale", 7.0],
+	"abyss_refraction": ["Abyssal", "refraction", 16.0],
+	"tidal_scale": ["Tidal", "tile_px", 1800.0],
+	"tidal_depth": ["Tidal", "plane_depth", 1.0],
+	"tidal_shine": ["Tidal", "shine", 1.0],
+	"tidal_relief": ["Tidal", "bump", 1.15],
+	"tidal_tide": ["Tidal", "tide_speed", 0.035],
+	"tidal_refraction": ["Tidal", "refraction", 22.0],
+}
+const LOOK_DEFAULTS := {"tidal_depth": 0.65}   ## anything not listed defaults to 1.0
+var abyss_sink := 1.0
+var abyss_density := 1.0
+var abyss_glints := 1.0
+var abyss_shafts := 1.0
+var abyss_depth := 1.0
+var abyss_refraction := 1.0
+var tidal_scale := 1.0
+var tidal_depth := 0.65
+var tidal_shine := 1.0
+var tidal_relief := 1.0
+var tidal_tide := 1.0
+var tidal_refraction := 1.0
+
+
+func look_default(key: String) -> float:
+	return LOOK_DEFAULTS.get(key, 1.0)
+
+
+## Shader uniform value for a look control.
+func look_uniform_value(key: String) -> float:
+	return float(get(key)) * float(LOOK_PARAMS[key][2])
 
 # Snap settings (Options > Snap)
 var snap_enabled := true        ## snap dragged items to touched targets' rings and spokes
@@ -40,6 +83,7 @@ var guides_to_edge := true      ## guides run to the window edge (false: stop at
 var guide_divisions := true     ## draw the faded division rings
 var guide_brightness := 1.0     ## 0.3-1.5
 var snap_memory := true         ## remember the target snapped to on drop for the next drag
+var snap_centres := true        ## snap onto the centre of a note or emitter the item is dropped on
 
 ## Per-channel note length in seconds (index 0 = channel 1); 0 = use the global note_length.
 var channel_lengths: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -118,6 +162,8 @@ func load_settings() -> void:
 		divisions = 4
 	if not SPOKE_OPTIONS.has(spoke_count):
 		spoke_count = 8
+	if not LOOKS.has(look):
+		look = "Abyssal"
 	if channel_lengths.size() != 16:
 		var fixed: Array = []
 		for i in 16:

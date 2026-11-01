@@ -63,6 +63,7 @@ func _build() -> void:
 	var box := _tab("General")
 	_build_snap(_tab("Snap"))
 	_build_channels(_tab("Channels"))
+	_build_look(_tab("Look"))
 
 	_section(box, "MIDI OUTPUT", Palette.BLUE)
 	_ports = OptionButton.new()
@@ -203,14 +204,76 @@ func _build_channels(box: VBoxContainer) -> void:
 						c.value = 0.0))
 
 
+## Look tab: the surface shader and its controls (only the chosen look's are shown).
+var _look_boxes := {}
+var _look_sliders := {}
+
+
+func _build_look(box: VBoxContainer) -> void:
+	_section(box, "SURFACE", Palette.BLUE)
+	_pick(box, "Look", "look", Settings.LOOKS, Settings.LOOKS)
+
+	var pct := func(v: float) -> String: return "%d%%" % roundi(v * 100.0)
+	var abyss := _look_box(box, "Abyssal")
+	_section(abyss, "ABYSSAL", Palette.ACCENT)
+	_look_slider(abyss, "Sinking speed", "abyss_sink", 0.0, 4.0, pct)
+	_look_slider(abyss, "Marine snow", "abyss_density", 0.0, 3.0, pct)
+	_look_slider(abyss, "Glints", "abyss_glints", 0.0, 4.0, pct)
+	_look_slider(abyss, "Light shafts", "abyss_shafts", 0.0, 3.0, pct)
+	_look_slider(abyss, "Depth", "abyss_depth", 0.25, 3.0, pct)
+	_look_slider(abyss, "Refraction", "abyss_refraction", 0.0, 3.0, pct)
+	abyss.add_child(_hint("Depth sets how fast things shrink as they sink: higher feels deeper. Refraction is how much ripples bend the view below."))
+
+	var tidal := _look_box(box, "Tidal")
+	_section(tidal, "TIDAL", Palette.YELLOW)
+	_look_slider(tidal, "Sand scale", "tidal_scale", 0.25, 3.0, pct)
+	_look_slider(tidal, "Floor parallax", "tidal_depth", 0.1, 1.0, pct)
+	_look_slider(tidal, "Shine", "tidal_shine", 0.0, 3.0, pct)
+	_look_slider(tidal, "Ripple relief", "tidal_relief", 0.0, 3.0, pct)
+	_look_slider(tidal, "Tide speed", "tidal_tide", 0.0, 4.0, pct)
+	_look_slider(tidal, "Refraction", "tidal_refraction", 0.0, 3.0, pct)
+	tidal.add_child(_hint("Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
+
+	var glass := _look_box(box, "Glass")
+	glass.add_child(_hint("Glass has no extra controls."))
+
+	box.add_child(_button("Reset look controls", func() -> void:
+		for key in Settings.LOOK_PARAMS:
+			if Settings.LOOK_PARAMS[key][0] == Settings.look:
+				Settings.set_value(key, Settings.look_default(key))
+				_look_sliders[key].value = Settings.look_default(key)))
+	_show_look_box()
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "look":
+			_show_look_box())
+
+
+func _look_box(box: VBoxContainer, look_name: String) -> VBoxContainer:
+	var b := VBoxContainer.new()
+	b.add_theme_constant_override("separation", 8)
+	box.add_child(b)
+	_look_boxes[look_name] = b
+	return b
+
+
+func _look_slider(box: VBoxContainer, label: String, key: String, min_v: float, max_v: float, fmt: Callable) -> void:
+	_look_sliders[key] = _slider(box, label, key, min_v, max_v, 0.05, fmt)
+
+
+func _show_look_box() -> void:
+	for look_name in _look_boxes:
+		_look_boxes[look_name].visible = look_name == Settings.look
+
+
 ## Snap tab: snapping and guide settings (used while dragging a note or emitter).
 func _build_snap(box: VBoxContainer) -> void:
 	_section(box, "SNAPPING", Palette.ACCENT)
 	_check(box, "Snap to touched targets", "snap_enabled")
 	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
 	_check(box, "Snap to spokes", "snap_spokes")
+	_check(box, "Snap to centres", "snap_centres")
 	_check(box, "Remember snap target on drop", "snap_memory")
-	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Hold Shift to place freely."))
+	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
 
 	_section(box, "GUIDES", Palette.YELLOW)
 	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,
@@ -318,7 +381,7 @@ func _section(box: VBoxContainer, text: String, col: Color) -> void:
 
 
 func _slider(box: VBoxContainer, label: String, key: String, min_v: float, max_v: float,
-		step: float, fmt: Callable) -> void:
+		step: float, fmt: Callable) -> HSlider:
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	var name_l := Label.new()
@@ -339,6 +402,7 @@ func _slider(box: VBoxContainer, label: String, key: String, min_v: float, max_v
 		val_l.text = fmt.call(v)
 		Settings.set_value(key, v))
 	box.add_child(s)
+	return s
 
 
 func _button(text: String, on_press: Callable) -> Button:
