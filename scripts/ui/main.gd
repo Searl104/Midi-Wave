@@ -521,7 +521,16 @@ func _rebuild_pitch_items() -> void:
 func _set_menu_octave(o: int) -> void:
 	if radial.get_meta("mode", "") != "pitch":
 		return
+	var old := _menu_octave
 	_menu_octave = clampi(o, 1, 7)
+	# The note keeps its letter (A, C#, ...) and moves to the new octave.
+	if _menu_pitch != -1 and _menu_octave != old:
+		var moved := _menu_pitch + 12 * (_menu_octave - old)
+		if moved >= 0 and moved <= 127:
+			_menu_pitch = moved
+			if _menu_note != -1 and not surface.get_note(_menu_note).is_empty():
+				surface.set_note_pitch(_menu_note, moved)
+				Midi.play_note(moved, 90, 0.25, _menu_channel)
 	_rebuild_pitch_items()
 
 
@@ -554,8 +563,13 @@ func _on_digit(d: int) -> void:
 
 func _open_channel_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
-	var current: int = surface.get_note(note_id).get("channel", 0)
 	radial.set_meta("mode", "channel")
+	_rebuild_channel_items()
+	radial.open(at, hold)
+
+
+func _rebuild_channel_items() -> void:
+	var current: int = surface.get_note(_menu_note).get("channel", 0)
 	radial.inner_items = []
 	radial.center_item = {}
 	radial.outer_items = []
@@ -563,7 +577,7 @@ func _open_channel_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 		radial.outer_items.append({"id": ch, "label": str(ch + 1), "color": Palette.channel_color(ch), "selected": ch == current})
 	radial.title = "MIDI channel"
 	radial.subtitle = ""
-	radial.open(at, hold)
+	radial.refresh()
 
 
 # --- Pulse menu -----------------------------------------------------------------------------
@@ -647,13 +661,17 @@ func _on_radial_outer(id: Variant) -> void:
 		"pitch":
 			var pitch: int = id
 			if _menu_note == -1:
-				surface.add_note_at(_menu_pos, pitch, _menu_channel)
+				# Placed. Further picks (left clicks keep the menu open) retune this note.
+				_menu_note = surface.add_note_at(_menu_pos, pitch, _menu_channel)
+				radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED}
 			else:
 				surface.set_note_pitch(_menu_note, pitch)
 				if surface.get_note(_menu_note).channel != _menu_channel:
 					surface.set_note_channel(_menu_note, _menu_channel)
 			if pitch != _previewed_pitch:
 				Midi.play_note(pitch, 90, 0.25, _menu_channel)   # already heard on hover otherwise
+			_menu_pitch = pitch
+			_rebuild_pitch_items()
 		"channel":
 			var ch: int = id
 			for gid in surface.group_for(_menu_note):
@@ -661,9 +679,11 @@ func _on_radial_outer(id: Variant) -> void:
 			var n := surface.get_note(_menu_note)
 			if not n.is_empty():
 				Midi.play_note(n.note, 90, 0.25, ch)
+			_rebuild_channel_items()
 		"modifier":
 			for gid in surface.group_for(_menu_note):
 				surface.set_modifier(gid, id)
+			_rebuild_modifier_items()
 		"pulse":
 			var n := surface.get_note(_menu_note)
 			if n.is_empty():
@@ -673,6 +693,7 @@ func _on_radial_outer(id: Variant) -> void:
 				surface.set_pulse_params(gid, g.pulse_strength, id)
 				if g.mode == WaveSurface.Mode.NOTE:
 					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
+			_rebuild_pulse_items()
 
 
 func _on_radial_inner(id: Variant) -> void:
@@ -701,5 +722,7 @@ func _on_radial_center(id: Variant) -> void:
 	match id:
 		"delete":
 			surface.remove_note(_menu_note)
+			radial.close()                   # nothing left to edit
 		"mode":
 			surface.cycle_mode(_menu_note)
+			_rebuild_pulse_items()

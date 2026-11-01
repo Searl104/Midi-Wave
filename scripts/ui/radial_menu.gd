@@ -44,6 +44,7 @@ var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
 var _opened_msec := 0
+var _swallow_left_up := false   # a left click closed the menu: keep its release off the surface
 
 
 func _ready() -> void:
@@ -118,19 +119,22 @@ func _set_hover(r: Array) -> void:
 				hover_changed.emit(_hover_ring, items[_hover_index].get("id"))
 
 
-## Activates whatever is at `pos`. Returns false if nothing was there.
-func _activate(pos: Vector2) -> bool:
+## Activates whatever is at `pos`. Returns false if nothing was there. With `keep_open` (a left
+## click) the menu stays open so several items can be picked; the caller refreshes the items.
+func _activate(pos: Vector2, keep_open: bool = false) -> bool:
 	var r := _ring_at(pos)
 	match r[0]:
 		"outer":
 			var id: Variant = outer_items[r[1]].id
-			close()
+			if not keep_open:
+				close()
 			outer_chosen.emit(id)
 		"inner":
 			inner_chosen.emit(inner_items[r[1]].id)
 		"center":
 			var cid: Variant = center_item.id
-			close()
+			if not keep_open:
+				close()
 			center_chosen.emit(cid)
 		_:
 			return false
@@ -144,7 +148,24 @@ func _activate(pos: Vector2) -> bool:
 ## control that took the press must also see its release, or the GUI keeps sending
 ## it the mouse afterwards.
 func _input(event: InputEvent) -> void:
+	var lb := event as InputEventMouseButton
+	if lb and lb.button_index == MOUSE_BUTTON_LEFT and not lb.pressed and _swallow_left_up:
+		_swallow_left_up = false
+		get_viewport().set_input_as_handled()
+		return
 	if not visible:
+		return
+	# Left clicks belong to the menu while it's open, held or not: an item is picked and the
+	# menu stays open for more picks; a click off the ring closes it. None reach the surface.
+	if lb and lb.button_index == MOUSE_BUTTON_LEFT:
+		get_viewport().set_input_as_handled()
+		if lb.pressed:
+			_set_hover(_ring_at(lb.position))
+			if not _activate(lb.position, true):
+				close()
+				_swallow_left_up = true
+			elif not visible:
+				_swallow_left_up = true
 		return
 	var key := event as InputEventKey
 	if key and key.pressed and not key.echo:

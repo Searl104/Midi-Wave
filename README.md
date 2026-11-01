@@ -13,7 +13,8 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
 | Hovering the pitch ring | Plays each note as the pointer moves onto it, on the ring's channel (Options → General → Play notes while hovering the pitch ring turns it off) |
 | C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. While the key is held it stays active for every right-click on a note, and letting go returns to pitch. Pressing the key again or Esc cancels |
-| While the pitch ring is open | A / D or mouse wheel: octave · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
+| Left-click while a ring is open | Pick an item and keep the ring open for more picks (a new note is placed on the first pitch, then retuned by the next). A left click off the ring closes it. Left clicks never reach the surface while a ring is open |
+| While the pitch ring is open | A / D, mouse wheel or the inner ring: octave (an edited note keeps its letter, e.g. C#, and moves to that octave) · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
 | Alt-click a note (alias for C) | Channel ring (1-16); notes are colored by channel |
 | Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only (silent, hollow, no note label) |
 | Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
