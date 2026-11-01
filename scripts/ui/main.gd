@@ -223,6 +223,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif not key.ctrl_pressed and not key.alt_pressed and surface.edit_mode and not radial.visible:
 				arm_ring(RING_KEYS[key.keycode])
 				get_viewport().set_input_as_handled()
+		KEY_COMMA, KEY_PERIOD, KEY_LESS, KEY_GREATER:
+			# < / >: one scale step down / up; Shift: an octave. Selection, else the hovered note.
+			if surface.edit_mode and not key.ctrl_pressed and not key.alt_pressed and not radial.visible:
+				var up := key.keycode == KEY_PERIOD or key.keycode == KEY_GREATER
+				if surface.nudge_pitch(1 if up else -1, key.shift_pressed) == 0 and surface.selection.is_empty() \
+						and surface.hovered_note() == -1:
+					_toast("Hover or select notes, then < > to nudge (Shift: octave)")
+				get_viewport().set_input_as_handled()
 		KEY_G:
 			if surface.edit_mode and not key.alt_pressed:
 				if key.ctrl_pressed:
@@ -252,10 +260,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
 const HINTS_EDIT := {
 	"empty": "Click: wave  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Shift-click: note with last pitch  ·  Ctrl + right-drag: box select  ·  Middle-drag: pan  ·  Tab: play mode  ·  ?: all controls",
-	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  Ctrl-click: make a pulser  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
-	"pulser": "Click: trigger  ·  Drag: move  ·  Ctrl-click: next mode  ·  Ctrl-drag: its reach  ·  E, right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  < >: nudge pitch  ·  Ctrl-click: make a pulser  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"pulser": "Click: trigger  ·  Drag: move  ·  Ctrl-click: next mode  ·  Ctrl-drag: its reach  ·  Right-click: pitch, or the pulse ring if pulse-only (E first: pulse ring)  ·  < >: nudge  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
 	"emitter": "Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under the emitter",
-	"selected": "Drag: move the group  ·  Ring edits, M, Delete and Ctrl+KP apply to all  ·  Ctrl+C: copy  ·  Esc: clear",
+	"selected": "Drag: move the group  ·  Ring edits, < >, M, Delete and Ctrl+KP apply to all  ·  Ctrl+C: copy  ·  Esc: clear",
 	"selection": "%d selected  ·  M: mute all  ·  Delete: remove all  ·  Ctrl+C: copy  ·  Ctrl+V: paste at the mouse  ·  Esc or click empty space: clear",
 	"drag_note": "Snapping to grid points (G over a note or emitter adds a grid)  ·  Drop on a note or emitter: snap to its centre  ·  Shift: free",
 	"drag_emitter": "Place where the wave starts  ·  Snaps to grid points and centres  ·  Drop on its note: re-attach  ·  Shift: free",
@@ -311,7 +319,12 @@ func _release_ring_key(ring: String) -> void:
 func _on_right_click(note_id: int, at: Vector2) -> void:
 	var ring := armed_ring
 	if ring == "":
-		_open_pitch_menu(note_id, at)
+		var n := surface.get_note(note_id)
+		if not n.is_empty() and n.mode == WaveSurface.Mode.PULSE:
+			# A pulse-only note has no pitch to play: its default ring is the pulse ring.
+			_open_pulse_menu(note_id, at, true)
+		else:
+			_open_pitch_menu(note_id, at)
 		return
 	if note_id == -1:
 		_toast("Right-click a note for the %s ring" % RING_NAMES[ring])

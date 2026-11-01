@@ -11,6 +11,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a note | Move it |
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it. On any ring, releasing over an inner-ring item or the centre picks it and closes |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
+| Right-click a pulse-only note | Opens its pulse ring instead (it has no pitch to play); hold, flick and release works the same |
 | Hovering the pitch ring | Plays each note as the pointer moves onto it, on the ring's channel (Options → General → Play notes while hovering the pitch ring turns it off) |
 | C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. While the key is held it stays active for every right-click on a note, and letting go returns to pitch. Pressing the key again or Esc cancels |
 | Left-click while a ring is open | Pick an item and keep the ring open for more picks (a new note is placed on the first pitch, then retuned by the next). A left click off the ring closes it. Left clicks never reach the surface while a ring is open |
@@ -22,6 +23,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Delete | Remove the hovered note (or the selection, if any) |
+| < / > (comma / period) | Nudge the selected notes, or the hovered note, one scale step down / up; with Shift, an octave. Each moved note plays its new pitch; one undo step |
 | M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |

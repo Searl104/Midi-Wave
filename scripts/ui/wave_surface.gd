@@ -362,6 +362,33 @@ func set_note_pitch(id: int, pitch: int) -> void:
 	save_notes()
 
 
+## < / >: moves the selection (or the hovered note) one scale step down / up, or with
+## `octave` a whole octave. A note that would leave the MIDI range stays put. Each moved
+## note plays its new pitch (up to 8) and flashes. Returns how many notes moved.
+func nudge_pitch(steps: int, octave: bool) -> int:
+	var ids: Array = selection.keys() if not selection.is_empty() else ([_hover_id] if _hover_id != -1 else [])
+	var moved := 0
+	var heard := {}
+	for id in ids:
+		var n := get_note(id)
+		if n.is_empty():
+			continue
+		var p: int = n.note + 12 * steps if octave else Scales.step(n.note, steps, Settings.root_note, Settings.scale_name)
+		if p < 0 or p > 127 or p == n.note:
+			continue
+		_silence(n)
+		n.note = p
+		last_pitch = p
+		moved += 1
+		flash_brackets(n)
+		if n.mode != Mode.PULSE and not n.muted and heard.size() < 8 and not heard.has([p, n.channel]):
+			heard[[p, n.channel]] = true
+			Midi.play_note(p, 90, 0.25, n.channel)
+	if moved > 0:
+		save_notes()
+	return moved
+
+
 func set_note_channel(id: int, channel: int) -> void:
 	var n := get_note(id)
 	if n.is_empty():
