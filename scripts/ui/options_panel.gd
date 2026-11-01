@@ -226,12 +226,14 @@ func _build_look(box: VBoxContainer) -> void:
 
 	var tidal := _look_box(box, "Tidal")
 	_section(tidal, "TIDAL", Palette.YELLOW)
+	_look_slider(tidal, "Sand colour", "tidal_color", 0.0, 3.0, pct)
+	_look_slider(tidal, "Caustics", "tidal_caustics", 0.0, 3.0, pct)
 	_look_slider(tidal, "Sand scale", "tidal_scale", 0.25, 3.0, pct)
 	_look_slider(tidal, "Floor parallax", "tidal_depth", 0.1, 1.0, pct)
 	_look_slider(tidal, "Shine", "tidal_shine", 0.0, 3.0, pct)
 	_look_slider(tidal, "Ripple relief", "tidal_relief", 0.0, 3.0, pct)
 	_look_slider(tidal, "Refraction", "tidal_refraction", 0.0, 3.0, pct)
-	tidal.add_child(_hint("Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
+	tidal.add_child(_hint("Sand colour at 0% gives black sand. Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
 
 	var glass := _look_box(box, "Glass")
 	glass.add_child(_hint("Glass has no extra controls."))

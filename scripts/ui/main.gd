@@ -100,6 +100,7 @@ func _apply_look() -> void:
 			mat.shader = load("res://shaders/tidal.gdshader")
 			mat.set_shader_parameter("sand_normal", load("res://assets/tidal/sand_normal.jpg"))
 			mat.set_shader_parameter("sand_rough", load("res://assets/tidal/sand_rough.jpg"))
+			mat.set_shader_parameter("sand_color", load("res://assets/tidal/sand_color.jpg"))
 		_:
 			mat.shader = load("res://shaders/abyssal.gdshader")
 	_apply_look_params()
