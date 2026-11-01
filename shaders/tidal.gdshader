@@ -4,7 +4,8 @@ shader_type canvas_item;
 //  - The sand is a seamless scan (assets/tidal, from Poly Haven's "Aerial Beach 01", CC0): its
 //    colour map, darkened, under a glossy finish from its normal and roughness maps.
 //  - Caustics: light focused by the water dances across the sand.
-//  - It sits on a parallax plane: it pans and zooms at plane_depth of the surface's rate, so it
+//  - It sits on a parallax plane: it pans at plane_depth of the surface's rate (beat spacing, the
+//    canvas zoom, doesn't scale it), so it
 //    stays put under the water like a sea floor.
 //  - Ripples on the water refract the sand, and a passing wave makes its highlights flare.
 
@@ -12,18 +13,17 @@ shader_type canvas_item;
 
 uniform vec2 surface_size = vec2(1280.0, 800.0);
 uniform vec3 accent : source_color = vec3(0.18, 0.48, 1.0);
-uniform vec2 view_px = vec2(0.0);       // pan: view offset in screen px (world offset x zoom)
-uniform float zoom = 1.0;               // canvas zoom (beat spacing / BEAT_UNIT)
+uniform vec2 view_px = vec2(0.0);       // pan: the world point at the window centre, less half the window
 uniform sampler2D sand_normal : hint_normal, repeat_enable, filter_linear_mipmap;
 uniform sampler2D sand_rough : hint_default_white, repeat_enable, filter_linear_mipmap;
 uniform sampler2D sand_color : source_color, hint_default_black, repeat_enable, filter_linear_mipmap;
 uniform float color_amount = 1.0;       // 0 = black sand, 1 = the scan's colour, darkened
 uniform float caustics = 1.0;           // caustic light strength
-uniform float caustic_px = 330.0;       // on-screen size of one caustic tile at zoom 1
+uniform float caustic_px = 330.0;       // on-screen size of one caustic tile
 uniform float caustic_time = 0.0;       // caustic clock, advanced by the app at caustic_speed
 uniform float caustic_speed = 0.35;     // (read by the app, so a speed change never jumps)
-uniform float tile_px = 1800.0;          // on-screen size of one texture tile at zoom 1
-uniform float plane_depth = 0.65;       // pan/zoom rate of the sand relative to the surface
+uniform float tile_px = 1800.0;          // on-screen size of one texture tile
+uniform float plane_depth = 0.65;       // pan rate of the sand relative to the surface
 uniform float bump = 1.15;               // normal map strength
 uniform float refraction = 22.0;        // px of displacement per unit of surface slope
 uniform float shine = 1.0;              // multiplier on the sand's gloss and highlights
@@ -55,10 +55,9 @@ void fragment() {
 	float energy;
 	surface_waves(p, h, grad, energy);
 
-	// --- The sand plane, below the water: slower pan and zoom, refracted by the ripples.
-	float m = pow(max(zoom, 0.05), plane_depth);
+	// --- The sand plane, below the water: slower pan, refracted by the ripples.
 	vec2 pp = p + grad * refraction;
-	vec2 q = (pp - c) / m + view_px * plane_depth / m;      // plane coordinates (px at zoom 1)
+	vec2 q = (pp - c) + view_px * plane_depth;              // plane coordinates (px)
 	vec2 uv = q / tile_px;
 
 	vec3 tn = texture(sand_normal, uv, 0.8).rgb * 2.0 - 1.0;   // OpenGL normal map (y up); bias softens grain

@@ -66,7 +66,8 @@ Positions live in world units where one beat of space is 200 units, and waves cr
 of space per beat, so the layout stays in time at any tempo. **Beat spacing** is the zoom: it
 sets how many screen pixels one beat takes up. Distances, waves, reach, rings and the reach glow
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
-size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
+size, and timing doesn't change. The look's background (Abyssal's depths, Tidal's sand) doesn't zoom;
+only panning moves it. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded).
 
 **Grids.** Press G over a note or emitter to put a grid under it: its timing rings plus 8 spokes
@@ -103,10 +104,10 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 
 **Surface looks** (Options → Look). The Look tab picks the look and shows its controls, each a percentage of the designed look (100%), with a reset button:
 - Abyssal: sinking speed, marine snow, glints, light shafts, depth, refraction.
-- Tidal: sand colour (0% = black sand), caustics, caustics scale, caustics speed, sand scale, floor parallax (how far the sand moves when you pan or zoom; lower feels deeper), shine, ripple relief, refraction.
+- Tidal: sand colour (0% = black sand), caustics, caustics scale, caustics speed, sand scale, floor parallax (how far the sand moves when you pan; lower feels deeper), shine, ripple relief, refraction.
 
 - **Abyssal** (default): a thin glassy surface over endless dark water. Marine snow sinks away forever in parallax layers (deep layers move less when you pan), faint light shafts converge on a dark vanishing point, and rare glints pulse far below in the primary colours. Ripples refract the depths, and a passing wave lights the snow under it.
-- **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans and zooms at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
+- **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
 **Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).

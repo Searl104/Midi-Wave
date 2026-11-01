@@ -104,8 +104,9 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("surface_size", water.size)
 	mat.set_shader_parameter("wave_count", mini(surface.waves.size(), WaveSurface.MAX_WAVES))
 	mat.set_shader_parameter("waves", surface.shader_waves())
-	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
-	mat.set_shader_parameter("zoom", surface.z())
+	# The backgrounds follow panning only: Beat spacing (the zoom) doesn't scale or shift them.
+	# Pan = the world point at the window centre, which zooming about the centre leaves alone.
+	mat.set_shader_parameter("view_px", surface.view_offset + water.size * (0.5 / surface.z() - 0.5))
 	_refresh_hint()
 	if Settings.look == "Tidal":
 		caustic_time = fmod(caustic_time + delta * Settings.look_uniform_value("tidal_caustic_speed"), 10000.0)

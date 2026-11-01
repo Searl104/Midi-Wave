@@ -5,7 +5,8 @@ shader_type canvas_item;
 //  - Marine snow: layers of drifting motes that sink away from the surface forever. Each layer
 //    recedes (shrinks toward the vanishing point, dims, turns bluer), fades out in the deep and
 //    is reborn near the surface with new motes, so the fall never ends.
-//  - Parallax: panning the view moves deep layers less than near ones; zoom fades with depth.
+//  - Parallax: panning the view moves deep layers less than near ones. Beat spacing (the canvas
+//    zoom) doesn't touch the depths: only panning moves them.
 //  - Light shafts: faint rays from the surface converging on the vanishing point at the
 //    centre of the window, where the dark is deepest.
 //  - Bioluminescence: rare glints in the primary colours, pulsing slowly far below.
@@ -16,8 +17,7 @@ shader_type canvas_item;
 
 uniform vec2 surface_size = vec2(1280.0, 800.0);
 uniform vec3 accent : source_color = vec3(0.18, 0.48, 1.0);
-uniform vec2 view_px = vec2(0.0);     // pan: view offset in screen px (world offset x zoom)
-uniform float zoom = 1.0;             // canvas zoom (beat spacing / BEAT_UNIT)
+uniform vec2 view_px = vec2(0.0);     // pan: the world point at the window centre, less half the window
 uniform float sink_speed = 0.018;     // layers per second the snow sinks
 uniform float depth_scale = 7.0;      // how fast things shrink with depth
 uniform float refraction = 16.0;      // px of displacement per unit of surface slope
@@ -76,7 +76,7 @@ void fragment() {
 		float z = fract(phase);                       // 0 = just under the surface, 1 = lost below
 		float gen = floor(phase);                     // new motes each time a layer is reborn
 		float s = 1.0 / (1.0 + z * depth_scale);      // shrink with depth
-		float m = s * pow(max(zoom, 0.05), 1.0 - z);  // on-screen magnification of this layer
+		float m = s;                                  // on-screen magnification of this layer
 		float fade = smoothstep(0.0, 0.12, z) * pow(1.0 - z, 1.6);
 
 		// Refraction grows with depth; parallax shrinks with it.
