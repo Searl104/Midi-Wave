@@ -151,6 +151,7 @@ func _build() -> void:
 		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
 		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
 		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
+		"Ctrl+Z: undo · Ctrl+Shift+Z or Ctrl+Y: redo\n" +
 		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
 		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
 		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +

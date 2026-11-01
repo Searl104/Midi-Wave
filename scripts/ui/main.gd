@@ -179,6 +179,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if key.ctrl_pressed:
 				surface.paste_at(surface.get_local_mouse_position())
 				get_viewport().set_input_as_handled()
+		KEY_Z:
+			if key.ctrl_pressed:
+				_undo_redo(key.shift_pressed)
+				get_viewport().set_input_as_handled()
+		KEY_Y:
+			if key.ctrl_pressed:
+				_undo_redo(true)
+				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()
@@ -189,6 +197,42 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif not surface.selection.is_empty():
 				surface.clear_selection()
 				get_viewport().set_input_as_handled()
+
+
+## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
+func _undo_redo(redo: bool) -> void:
+	var done: bool = surface.redo() if redo else surface.undo()
+	if done:
+		var left: int = surface.redo_steps() if redo else surface.undo_steps()
+		_toast("%s  ·  %d more" % ["Redo" if redo else "Undo", left])
+	else:
+		_toast("Nothing to redo" if redo else "Nothing to undo")
+
+
+var _toast_label: Label
+var _toast_tween: Tween
+
+
+## A short message above the hint bar that fades out on its own.
+func _toast(text: String) -> void:
+	if _toast_label == null:
+		_toast_label = Label.new()
+		_toast_label.add_theme_font_size_override("font_size", 13)
+		_toast_label.add_theme_color_override("font_color", Palette.TEXT)
+		_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		_toast_label.offset_top = -66
+		_toast_label.offset_bottom = -42
+		_toast_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_toast_label.modulate.a = 0.0
+		add_child(_toast_label)
+	_toast_label.text = text
+	_toast_label.modulate.a = 1.0
+	if _toast_tween:
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(1.2)
+	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.5)
 
 
 func _notification(what: int) -> void:

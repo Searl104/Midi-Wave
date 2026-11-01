@@ -108,6 +108,16 @@ var _touched: Dictionary = {}     # object keys ("n<id>" / "e<id>") toggled as s
 var _overlapping: Dictionary = {} # object keys the held item overlaps right now
 var touch_flashes: Array = []     # {pos: Vector2 (world), t: float}
 var held_slots: Dictionary = {}   # keypad slots currently held down
+
+# Undo / redo: every edit goes through save_notes(), which records the layout it replaced.
+# Edits made in the same frame (a group edit touches several notes) form one step.
+const UNDO_LIMIT := 50
+var _undo: Array = []             # layout snapshots (copies of Settings.notes), newest last
+var _redo: Array = []
+var _snapshot: Array = []         # the layout as of the last recorded edit
+var _snapshot_ready := false
+var _last_edit_frame := -1
+var _restoring := false
 var selection: Dictionary = {}    # selected note ids (box select: Ctrl + right-drag)
 var _group_start: Dictionary = {} # id -> [pos, emit] for the group being dragged
 var _box_active := false
@@ -166,6 +176,7 @@ func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
 # --- Notes -------------------------------------------------------------------------------
 
 func load_notes() -> void:
+	_snapshot_ready = false
 	notes.clear()
 	# Notes keep their ids across saves, so snap memories ("n<id>" / "e<id>") stay valid.
 	var used := {}
@@ -205,6 +216,12 @@ func load_notes() -> void:
 		n.mod_on = n.mod_start
 	if notes.is_empty():
 		seed_default_layout()
+	if not _restoring:
+		_undo.clear()
+		_redo.clear()
+	_snapshot = Settings.notes.duplicate(true)
+	_snapshot_ready = true
+	_last_edit_frame = -1
 
 
 func seed_default_layout() -> void:
@@ -230,6 +247,86 @@ func save_notes() -> void:
 			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot, "range": n.range, "muted": n.muted,
 		})
 	Settings.notes = out
+	_record_edit(out)
+	Settings.queue_save()
+	notes_changed.emit()
+
+
+## Remembers the layout an edit replaced so it can be undone. Edits in one frame share a step.
+func _record_edit(layout: Array) -> void:
+	if _restoring or not _snapshot_ready:
+		return
+	if JSON.stringify(layout) == JSON.stringify(_snapshot):
+		return
+	var frame := Engine.get_process_frames()
+	if frame != _last_edit_frame or _undo.is_empty():
+		_undo.append(_snapshot)
+		if _undo.size() > UNDO_LIMIT:
+			_undo.pop_front()
+	_last_edit_frame = frame
+	_redo.clear()
+	_snapshot = layout.duplicate(true)
+
+
+func can_undo() -> bool:
+	return not _undo.is_empty()
+
+
+func can_redo() -> bool:
+	return not _redo.is_empty()
+
+
+func undo_steps() -> int:
+	return _undo.size()
+
+
+func redo_steps() -> int:
+	return _redo.size()
+
+
+## The next edit starts a new undo step even if it lands in the same frame.
+func end_undo_group() -> void:
+	_last_edit_frame = -1
+
+
+func undo() -> bool:
+	if _undo.is_empty() or _press_id != -1:
+		return false
+	_redo.append(_snapshot)
+	_apply_snapshot(_undo.pop_back())
+	return true
+
+
+func redo() -> bool:
+	if _redo.is_empty() or _press_id != -1:
+		return false
+	_undo.append(_snapshot)
+	_apply_snapshot(_redo.pop_back())
+	return true
+
+
+## Rebuilds the notes from a layout snapshot, keeping live play state (toggles, cooldowns) and
+## the selection for notes that survive.
+func _apply_snapshot(snap: Array) -> void:
+	var live := {}
+	for n in notes:
+		_silence(n)
+		live[n.id] = [n.mod, n.mod_on, n.ready_at]
+	var kept: Array = selection.keys()
+	_restoring = true
+	Settings.notes = snap.duplicate(true)
+	load_notes()
+	_restoring = false
+	for n in notes:
+		if live.has(n.id) and live[n.id][0] == n.mod:
+			n.mod_on = live[n.id][1]
+			n.ready_at = live[n.id][2]
+	selection = {}
+	for id in kept:
+		if not get_note(id).is_empty():
+			selection[id] = true
+	_hover_id = -1
+	_last_edit_frame = -1
 	Settings.queue_save()
 	notes_changed.emit()
 
