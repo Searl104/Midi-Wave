@@ -24,7 +24,9 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). Drag onto any note or emitter to snap to its centre. The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
+| G over a note or emitter | Turn a grid on or off under it: its timing rings and spokes, drawn faintly and saved with the layout. Any number can be on · Ctrl+G clears every grid |
+| While dragging a note or emitter | It shows its own timing rings and snaps to the nearest grid point (a ring, a spoke, or where they cross). Drag onto any note or emitter to snap to its centre. Shift places freely |
+| Placing new notes | Quick place, Shift-click and paste put the new note on the nearest grid point under the mouse (when any grid is on) |
 | Shift-right-click a note (alias for F) | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
 | Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
@@ -59,10 +61,21 @@ of space per beat, so the layout stays in time at any tempo. **Beat spacing** is
 sets how many screen pixels one beat takes up. Distances, waves, reach, rings and the reach glow
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
-its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
-toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross. Centre snapping puts the item exactly on top of any note or emitter (touched or not) whose centre is within the snap distance, for stacking an emitter on a note or two emitters on one spot; it takes priority over rings and spokes.
+its own rings (bars brightest, beats bright, divisions faded).
 
-**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
+**Grids.** Press G over a note or emitter to put a grid under it: its timing rings plus 8 spokes
+(every 45°, or 4, 6, 12 or 16). Grids that are on are drawn faintly and saved with the layout, any
+number can be on at once, and Ctrl+G clears them all. While dragging, every grid lights up and the
+dragged item snaps (within 12 screen px) to the nearest grid point: where a ring crosses a spoke,
+else a spoke, else a ring. New notes from quick place, Shift-click or paste land on the nearest grid
+point under the mouse. The rings run out to the edges of the window, a little dimmer past the
+wave's reach. Centre snapping puts the item exactly on top of any note or emitter whose centre is
+within the snap distance, for stacking an emitter on a note or two emitters on one spot; it takes
+priority over grid points. Shift places freely. Grid toggles are undoable like any edit.
+
+**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
+
+Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 

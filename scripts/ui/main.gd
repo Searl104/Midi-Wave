@@ -195,6 +195,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif not key.ctrl_pressed and not key.alt_pressed and surface.edit_mode and not radial.visible:
 				arm_ring(RING_KEYS[key.keycode])
 				get_viewport().set_input_as_handled()
+		KEY_G:
+			if surface.edit_mode and not key.alt_pressed:
+				if key.ctrl_pressed:
+					var cleared: int = surface.clear_grids()
+					_toast("Grids cleared" if cleared > 0 else "No grids on")
+				else:
+					match surface.toggle_grid_at_hover():
+						"on": _toast("Grid on")
+						"off": _toast("Grid off")
+						_: _toast("Hover a note or emitter, then G for its grid")
+				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()

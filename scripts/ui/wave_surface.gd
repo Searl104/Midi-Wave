@@ -42,12 +42,14 @@ extends Control
 ## state, then flips; off silences both its sound and its pulse. Each toggle has a start
 ## state (set by the user, or by Save state); Stop returns every toggle to it.
 ##
-## Touch to snap: while dragging, the held object shows its own rings; touching another
-## object toggles that object's snap rings and its 8 spokes (every 45 degrees). The held item
-## snaps only to touched objects: to a ring, to a spoke, or to where the two cross.
-## Touches reset on drop, except the target the item was snapped to when dropped: it is
-## remembered (per note and per emitter, saved with the layout) and starts toggled on that
-## item's next drag.
+## Grids: G over a note or emitter turns on a grid centred on it (its timing rings and spokes);
+## Ctrl+G turns every grid off. Any number can be on; they are saved with the layout and drawn
+## faintly. A dragged item snaps to the nearest grid point (a ring, a spoke, or where they cross),
+## and new notes (quick place, Shift-click, paste) land on the nearest grid point under the mouse.
+##
+## Touch to snap (deprecated, off unless touch_snap=true in the settings file): touching another
+## object while dragging toggles it as a snap target too. Touches reset on drop, except the target
+## snapped to when dropped, which is remembered for that item's next drag.
 
 signal pitch_menu_requested(note_id: int, at: Vector2)    # note_id -1 = place a new note at `at`
 signal channel_menu_requested(note_id: int, at: Vector2)
@@ -204,6 +206,8 @@ func load_notes() -> void:
 		n.slot = clampi(int(d.get("slot", 0)), 0, 9)
 		n.range = maxf(float(d.get("range", 0.0)), 0.0)
 		n.muted = bool(d.get("muted", false))
+		n.grid = bool(d.get("grid", false))
+		n.grid_emit = bool(d.get("grid_emit", false))
 		n.snap_note = str(d.get("snap_note", ""))
 		n.snap_emit = str(d.get("snap_emit", ""))
 		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
@@ -253,6 +257,7 @@ func save_notes() -> void:
 			"attached": n.attached, "ex": n.emit.x, "ey": n.emit.y,
 			"mod": n.mod, "mod_start": n.mod_start,
 			"id": n.id, "snap_note": n.snap_note, "snap_emit": n.snap_emit, "slot": n.slot, "range": n.range, "muted": n.muted,
+			"grid": n.grid, "grid_emit": n.grid_emit,
 		})
 	Settings.notes = out
 	_record_edit(out)
@@ -340,7 +345,7 @@ func _apply_snapshot(snap: Array) -> void:
 
 
 func add_note_at(screen_pos: Vector2, pitch: int, channel: int) -> int:
-	var id := _add(to_world(screen_pos), Scales.quantize(pitch, Settings.root_note, Settings.scale_name), channel)
+	var id := _add(grid_snap(to_world(screen_pos)), Scales.quantize(pitch, Settings.root_note, Settings.scale_name), channel)
 	last_pitch = pitch
 	last_channel = channel
 	save_notes()
@@ -649,6 +654,9 @@ func paste_at(screen_pos: Vector2) -> int:
 	if _clipboard.is_empty():
 		return 0
 	var centre := to_world(screen_pos)
+	# The first copied note lands on the nearest grid point; the rest keep their places around it.
+	var first: Vector2 = centre + _clipboard[0].off
+	centre += grid_snap(first) - first
 	selection.clear()
 	for c in _clipboard:
 		var id := _add(centre + c.off, c.note, c.channel)
@@ -765,6 +773,8 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"hold_next": 0,                     # next refire time while its slot key is held
 		"range": 0.0,                       # own wave reach in world units (0 = global Reach)
 		"muted": false,                     # M: no sound; the mode (and any pulse) is kept
+		"grid": false,                      # G: a snap grid (rings + spokes) centred on the note
+		"grid_emit": false,                 # G on a detached emitter: a grid centred on it
 	})
 	return id
 
@@ -980,6 +990,94 @@ func touch_targets(exclude_id: int) -> Dictionary:
 	return out
 
 
+## Grid origins that are on, keyed like touch targets ("n<id>" / "e<id>") with world positions.
+## The held note (and its emitter) and the rest of a dragged group are left out.
+func grid_targets(exclude_id: int = -1) -> Dictionary:
+	var out := {}
+	for m in notes:
+		if m.id == exclude_id or _group_start.has(m.id):
+			continue
+		if m.grid:
+			out["n%d" % m.id] = m.pos
+		if m.grid_emit and m.mode != Mode.NOTE and not m.attached:
+			out["e%d" % m.id] = m.emit
+	return out
+
+
+func has_grids() -> bool:
+	return not grid_targets().is_empty()
+
+
+## G: turns the grid under the hovered note or emitter on or off. Returns "on", "off" or ""
+## (nothing under the mouse). An attached emitter shares its note's grid.
+func toggle_grid_at_hover() -> String:
+	var id := _hover_handle if _hover_handle != -1 else _hover_id
+	var n := get_note(id)
+	if n.is_empty():
+		return ""
+	var on: bool
+	if _hover_handle != -1 and not n.attached:
+		n.grid_emit = not n.grid_emit
+		on = n.grid_emit
+	else:
+		n.grid = not n.grid
+		on = n.grid
+	flash_brackets(n)
+	save_notes()
+	return "on" if on else "off"
+
+
+## Ctrl+G: turns every grid off. Returns how many were on.
+func clear_grids() -> int:
+	var count := 0
+	for n in notes:
+		if n.grid or n.grid_emit:
+			count += int(n.grid) + int(n.grid_emit)
+			n.grid = false
+			n.grid_emit = false
+	if count > 0:
+		save_notes()
+	return count
+
+
+## The nearest grid point to world point `p`, for placing new notes: the nearest place where a
+## ring crosses a spoke when one is close (within the snap distance, or half a ring step), else
+## the nearest ring along the line from a grid's origin. Returns `p` when snapping is off or no
+## grid is on (or in reach).
+func grid_snap(p: Vector2) -> Vector2:
+	if not Settings.snap_enabled:
+		return p
+	var grids := grid_targets()
+	var step := ring_step()
+	var use_spokes: bool = Settings.snap_spokes and Settings.spoke_count > 0
+	var ss := TAU / maxf(float(Settings.spoke_count), 1.0)
+	var near := maxf(Settings.snap_distance / z(), step * 0.5)
+	var best_cross := p
+	var cross_d := INF
+	var best_ring := p
+	var ring_d := INF
+	for key in grids:
+		var a: Vector2 = grids[key]
+		var v := p - a
+		var d := v.length()
+		if not Settings.guides_to_edge and d >= Settings.wave_range:
+			continue
+		var r := maxf(roundf(d / step), 1.0) * step
+		var ang := v.angle() if d > 0.001 else -PI / 2.0
+		var on_ring := a + Vector2.from_angle(ang) * r
+		if on_ring.distance_to(p) < ring_d:
+			ring_d = on_ring.distance_to(p)
+			best_ring = on_ring
+		if use_spokes:
+			var cross := a + Vector2.from_angle(roundf(ang / ss) * ss) * r
+			if cross.distance_to(p) < cross_d:
+				cross_d = cross.distance_to(p)
+				best_cross = cross
+	if cross_d <= near:
+		return best_cross
+	return best_ring
+
+
 ## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
 ## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
 ## Returns {pos, centres, readout, loop, snapped, centre, ref_point}; centres[0] is the held item.
@@ -992,6 +1090,10 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	for key in touched:
 		if targets.has(key):
 			pairs.append([targets[key], int(key.substr(1)), key])
+	var grids := grid_targets(n.id)
+	for key in grids:
+		if not touched.has(key):
+			pairs.append([grids[key], int(key.substr(1)), key])
 
 	var step_px := ring_step()
 	var best: Array = []
@@ -1037,6 +1139,24 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 				centre_d = dc
 				centre = [targets[key], int(key.substr(1)), key]
 
+	# Grid points: where any target's ring crosses one of its own spokes, nearest within tolerance.
+	var cross: Array = []
+	var cross_pos := p
+	var cross_d := tol
+	for pr in (pairs if Settings.snap_spokes and Settings.spoke_count > 0 else []):
+		var v2 := p - (pr[0] as Vector2)
+		var d2 := v2.length()
+		if d2 < 1.0 or (not Settings.guides_to_edge and d2 >= reach):
+			continue
+		var r2 := roundf(d2 / step_px) * step_px
+		if r2 < step_px * 0.5:
+			continue
+		var pt: Vector2 = pr[0] + Vector2.from_angle(roundf(v2.angle() / spoke_step) * spoke_step) * r2
+		if pt.distance_to(p) <= cross_d:
+			cross_d = pt.distance_to(p)
+			cross_pos = pt
+			cross = pr
+
 	var out_pos := p
 	var snapped := false
 	var ref: Array = []
@@ -1044,6 +1164,10 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 		out_pos = centre[0]
 		snapped = true
 		ref = centre
+	elif not free and not cross.is_empty():
+		out_pos = cross_pos
+		snapped = true
+		ref = cross
 	elif not free and not best.is_empty() and best_fix <= tol:
 		# On a ring; if also near one of the same target's spokes, land on the crossing.
 		var a: Vector2 = best[0]
@@ -1234,6 +1358,8 @@ func _drag_range(n: Dictionary, p: Vector2, free: bool) -> void:
 ## The held item touching another object toggles that object's snap rings. A toggle
 ## happens when an overlap begins, so touch and move off; touching again toggles back.
 func _update_touches(n: Dictionary, p: Vector2) -> void:
+	if not Settings.touch_snap:
+		return
 	var now_over := _overlaps_at(n, p)
 	for key in now_over:
 		if not _overlapping.has(key):
@@ -1347,7 +1473,7 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	var n := get_note(id)
 	if not n.is_empty():
 		var remembered: String = n.snap_emit if kind == "emitter" else n.snap_note
-		if Settings.snap_memory and remembered != "" and touch_targets(id).has(remembered):
+		if Settings.touch_snap and Settings.snap_memory and remembered != "" and touch_targets(id).has(remembered):
 			_touched[remembered] = true
 	# Whatever the held item already overlaps at the start doesn't count as a touch.
 	_overlapping = _overlaps_at(n, n.pos if kind == "note" else emitter_world_pos(n)) if not n.is_empty() else {}
@@ -1370,7 +1496,7 @@ func _end_press() -> void:
 		if not n.is_empty():
 			if _dragging:
 				var snapped_to: String = drag_info.get("snap_key", "") if drag_info.get("snapped", false) else ""
-				if not Settings.snap_memory:
+				if not (Settings.snap_memory and Settings.touch_snap):
 					snapped_to = ""
 				if _press_kind == "emitter":
 					n.snap_emit = snapped_to
@@ -1421,6 +1547,11 @@ func _draw() -> void:
 
 	if not drag_info.is_empty() and not drag_info.get("range_edit", false):
 		_draw_rings()
+	else:
+		# Grids that are on stay faintly visible (beats and bars) when nothing is being dragged.
+		var grids := grid_targets()
+		for key in grids:
+			_draw_guide(grids[key], 0.32 * Settings.guide_brightness, false)
 
 	for w in waves:
 		var o := to_screen(w.origin)
@@ -1527,50 +1658,13 @@ func _draw_limit_rings() -> void:
 func _draw_rings() -> void:
 	# Rings run out to the edges of the window (not just the wave's reach). Rings past the
 	# reach are drawn a little dimmer: waves fade out before getting there.
-	var step_px := ring_step()
-	var div: int = Settings.divisions
-	var step_s := step_px * z()                       # ring spacing on screen
-	var reach_s := Settings.wave_range * z()
 	var dragged := get_note(_press_id)
 	var focus: Variant = drag_info.get("ref_point")
-	var corners := [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]
 	for c in drag_info.centres:
 		var centre_w: Vector2 = c
-		var centre := to_screen(centre_w)
-		var far := 0.0
-		for corner in corners:
-			far = maxf(far, centre.distance_to(corner))
-		if not Settings.guides_to_edge:
-			far = minf(far, reach_s)
-		var count := mini(int(ceil(far / step_s)), 600)
 		var is_held: bool = centre_w == drag_info.centres[0]
 		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness
-		if Settings.spoke_count > 0:
-			# Spokes (default 8, every 45 degrees) out to the guide limit, on the held item
-			# and on every snap target.
-			var spokes: int = Settings.spoke_count
-			for i in spokes:
-				var sd := Vector2.from_angle(i * TAU / spokes)
-				draw_line(centre + sd * (NOTE_RADIUS + 10.0), centre + sd * far,
-						Color(Palette.ACCENT.lightened(0.3), minf((0.5 if i % 2 == 0 else 0.32) * weight, 1.0)), 1.0, true)
-		for k in range(1, count + 1):
-			var r := k * step_s
-			var fade := (1.0 - 0.55 * minf(r / maxf(far, 1.0), 1.0)) * weight
-			if r > reach_s:
-				fade *= 0.6
-			var col: Color
-			var width := 1.0
-			if k % (div * 4) == 0:
-				col = Color(Palette.ACCENT.lightened(0.45), 0.85 * fade)    # bar
-				width = 2.0
-			elif k % div == 0:
-				col = Color(Palette.ACCENT.lightened(0.3), 0.62 * fade)     # beat
-				width = 1.5
-			else:
-				if step_s < 6.0 or not Settings.guide_divisions:
-					continue                                                 # off, or too dense to read
-				col = Color(1, 1, 1, 0.16 * fade)                            # division
-			draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
+		_draw_guide(centre_w, weight, Settings.guide_divisions)
 	if not dragged.is_empty() and drag_info.snapped:
 		var at := to_screen(drag_info.pos)
 		var sc := Color(Palette.ACCENT.lightened(0.3), 0.6)
@@ -1581,6 +1675,47 @@ func _draw_rings() -> void:
 			for dv in [Vector2.RIGHT, Vector2.DOWN]:
 				draw_line(at - dv * arm, at - dv * (NOTE_RADIUS + 8.0), sc, 1.5, true)
 				draw_line(at + dv * (NOTE_RADIUS + 8.0), at + dv * arm, sc, 1.5, true)
+
+
+## One object's timing rings and spokes, out to the window edge (or the wave's reach).
+func _draw_guide(centre_w: Vector2, weight: float, divisions: bool) -> void:
+	var step_s := ring_step() * z()                   # ring spacing on screen
+	var div: int = Settings.divisions
+	var reach_s := Settings.wave_range * z()
+	var corners := [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]
+	var centre := to_screen(centre_w)
+	var far := 0.0
+	for corner in corners:
+		far = maxf(far, centre.distance_to(corner))
+	if not Settings.guides_to_edge:
+		far = minf(far, reach_s)
+	var count := mini(int(ceil(far / step_s)), 600)
+	if Settings.spoke_count > 0:
+		# Spokes (default 8, every 45 degrees) out to the guide limit, on the held item
+		# and on every snap target.
+		var spokes: int = Settings.spoke_count
+		for i in spokes:
+			var sd := Vector2.from_angle(i * TAU / spokes)
+			draw_line(centre + sd * (NOTE_RADIUS + 10.0), centre + sd * far,
+					Color(Palette.ACCENT.lightened(0.3), minf((0.5 if i % 2 == 0 else 0.32) * weight, 1.0)), 1.0, true)
+	for k in range(1, count + 1):
+		var r := k * step_s
+		var fade := (1.0 - 0.55 * minf(r / maxf(far, 1.0), 1.0)) * weight
+		if r > reach_s:
+			fade *= 0.6
+		var col: Color
+		var width := 1.0
+		if k % (div * 4) == 0:
+			col = Color(Palette.ACCENT.lightened(0.45), 0.85 * fade)    # bar
+			width = 2.0
+		elif k % div == 0:
+			col = Color(Palette.ACCENT.lightened(0.3), 0.62 * fade)     # beat
+			width = 1.5
+		else:
+			if step_s < 6.0 or not divisions:
+				continue                                                 # off, or too dense to read
+			col = Color(1, 1, 1, 0.16 * fade)                            # division
+		draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
 
 
 ## Touched objects get a highlight ring; a touch shows a brief flash.

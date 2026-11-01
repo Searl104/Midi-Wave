@@ -148,7 +148,7 @@ func _build() -> void:
 		"Delete: remove the hovered note or the selection\n" +
 		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
 		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
-		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
+		"G over a note or emitter: grid on / off under it · Ctrl+G: clear all grids · drags and new notes snap to grid points · Shift places freely · see the Snap tab\n" +
 		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
 		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
 		"Ctrl+Z: undo · Ctrl+Shift+Z or Ctrl+Y: redo\n" +
@@ -272,15 +272,14 @@ func _show_look_box() -> void:
 ## Snap tab: snapping and guide settings (used while dragging a note or emitter).
 func _build_snap(box: VBoxContainer) -> void:
 	_section(box, "SNAPPING", Palette.ACCENT)
-	_check(box, "Snap to touched targets", "snap_enabled")
+	_check(box, "Snap to grids", "snap_enabled")
 	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
 	_check(box, "Snap to spokes", "snap_spokes")
 	_check(box, "Snap to centres", "snap_centres")
-	_check(box, "Remember snap target on drop", "snap_memory")
-	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
+	box.add_child(_hint("G over a note or emitter turns a grid on under it (its timing rings and spokes); Ctrl+G clears every grid. Dragged items snap to the nearest grid point, and new notes are placed on the nearest grid point under the mouse. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
 
 	_section(box, "GUIDES", Palette.YELLOW)
-	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,
+	_pick(box, "Spokes per grid", "spoke_count", Settings.SPOKE_OPTIONS,
 			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
 	_pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
 	_check(box, "Division rings", "guide_divisions")
