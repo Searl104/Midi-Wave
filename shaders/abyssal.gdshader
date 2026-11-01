@@ -7,7 +7,8 @@ shader_type canvas_item;
 //    is reborn near the surface with new motes, so the fall never ends.
 //  - Parallax: panning the view moves deep layers less than near ones. Beat spacing (the canvas
 //    zoom) doesn't touch the depths: only panning moves them.
-//  - Light shafts: faint rays from the surface converging on the vanishing point at the
+//  - Light shafts: layers of narrow beams from the surface that live and fade, sway and carry
+//    drifting specks, converging on (and fading before) the vanishing point at the
 //    centre of the window, where the dark is deepest.
 //  - Bioluminescence: rare glints in the primary colours, pulsing slowly far below.
 // The surface refracts everything under it, more with depth, and a passing wave briefly
@@ -58,15 +59,48 @@ void fragment() {
 	vec3 shallows = vec3(0.026, 0.05, 0.075);
 	vec3 col = mix(abyss, shallows, smoothstep(0.05, 1.0, rn));
 
-	// --- Light shafts from the surface, converging on the vanishing point.
-	vec2 pr = p + grad * refraction * 0.6;
-	vec2 rv = pr - c;
-	float ang = atan(rv.y, rv.x) / 6.2831853 + 0.5;       // 0-1 around the centre
+	// --- Light shafts from the surface, falling away into the deep. Three layers at different
+	// depths: each is a fan of narrow beams converging on the vanishing point. Beams are born,
+	// brighten and fade out on their own slow clocks, sway with the swell above, and carry
+	// drifting specks of light down their length, so the fan never sits still. Deeper layers
+	// pan less (parallax), start further in, and are dimmer and bluer; every beam fades out
+	// before it reaches the dark centre, which reads as distance rather than glare.
 	float t = TIME;
-	float rays = noise1(ang * 48.0 + t * 0.05, 48.0) * noise1(ang * 19.0 - t * 0.03 + 7.0, 19.0);
-	rays = pow(rays, 2.2);
-	float ray_fall = smoothstep(0.08, 0.95, length(rv) / diag);   // fades into the deep
-	col += vec3(0.20, 0.38, 0.55) * rays * ray_fall * 0.3 * shaft_strength;
+	vec2 pr = p + grad * refraction * 0.6;
+	vec3 shaft_col = vec3(0.0);
+	for (int L = 0; L < 3; L++) {
+		float fl = float(L);
+		float depth = 0.25 + 0.3 * fl;                       // 0.25, 0.55, 0.85
+		float near = 1.0 - depth;
+		// Parallax: near layers shift and turn more as the view pans.
+		vec2 rv = pr - c + view_px * 0.12 * near;
+		float rn2 = length(rv) / diag;
+		float turn = view_px.x / diag * 0.05 * near;
+		float sway = 0.006 * sin(t * 0.21 + fl * 2.1) + 0.004 * sin(t * 0.13 + fl * 4.7);
+		float n_beams = 22.0 + 9.0 * fl;
+		float a = (atan(rv.y, rv.x) / 6.2831853 + 0.5 + turn + sway) * n_beams;
+		float id = mod(floor(a), n_beams);
+		float f = fract(a) - 0.5;
+		float h1 = hash(vec2(id, fl + 1.3));
+		float h2 = hash(vec2(id, fl + 7.9));
+		float h3 = hash(vec2(id, fl + 13.1));
+		// Each beam's own life: fades in and out over tens of seconds.
+		float life = noise1(t * (0.025 + 0.05 * h3) + h1 * 97.0, 4096.0);
+		life = smoothstep(0.45, 0.95, life);
+		// A narrow beam with soft edges, off-centre in its slot.
+		float w = mix(0.14, 0.38, h2);
+		float beam = smoothstep(w, 0.0, abs(f - (h1 - 0.5) * 0.4));
+		beam *= beam;                                      // soft, diffuse edges
+		// Starts near the edge (the surface), reaches less far in the deeper the layer.
+		float reach = smoothstep(0.2 + 0.25 * depth, 0.9 + 0.15 * depth, rn2);
+		// Specks drifting down the beam toward the deep.
+		float specks = 0.55 + 0.45 * noise1(rn2 * 26.0 + t * (0.35 + 0.25 * h3) + id * 3.7, 4096.0);
+		float k = beam * life * reach * specks * (0.35 + 0.65 * near);
+		shaft_col += mix(vec3(0.24, 0.42, 0.58), vec3(0.10, 0.22, 0.45), depth) * k;
+	}
+	// The swell above makes the shafts flicker a little where ripples pass.
+	shaft_col *= 1.0 + clamp(energy, 0.0, 1.5) * 0.6;
+	col += shaft_col * 0.62 * shaft_strength;
 
 	// --- Marine snow, sinking forever.
 	float wave_light = clamp(energy, 0.0, 1.5);
