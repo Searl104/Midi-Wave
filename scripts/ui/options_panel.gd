@@ -230,7 +230,6 @@ func _build_look(box: VBoxContainer) -> void:
 	_look_slider(tidal, "Floor parallax", "tidal_depth", 0.1, 1.0, pct)
 	_look_slider(tidal, "Shine", "tidal_shine", 0.0, 3.0, pct)
 	_look_slider(tidal, "Ripple relief", "tidal_relief", 0.0, 3.0, pct)
-	_look_slider(tidal, "Tide speed", "tidal_tide", 0.0, 4.0, pct)
 	_look_slider(tidal, "Refraction", "tidal_refraction", 0.0, 3.0, pct)
 	tidal.add_child(_hint("Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
 

@@ -65,10 +65,10 @@ Notes off screen keep playing; a marker on the window edge shows them firing.
 
 **Surface looks** (Options → Look). The Look tab picks the look and shows its controls, each a percentage of the designed look (100%), with a reset button:
 - Abyssal: sinking speed, marine snow, glints, light shafts, depth, refraction.
-- Tidal: sand scale, floor parallax (how far the sand moves when you pan or zoom; lower feels deeper), shine, ripple relief, tide speed, refraction.
+- Tidal: sand scale, floor parallax (how far the sand moves when you pan or zoom; lower feels deeper), shine, ripple relief, refraction.
 
 - **Abyssal** (default): a thin glassy surface over endless dark water. Marine snow sinks away forever in parallax layers (deep layers move less when you pan), faint light shafts converge on a dark vanishing point, and rare glints pulse far below in the primary colours. Ripples refract the depths, and a passing wave lights the snow under it.
-- **Tidal**: black, glossy sand ripples on a plane below the water. The sand pans and zooms at 65% of the surface's rate, like a sea floor; a slow tide line sweeps across it, wet sand turning glassy and drying back duller. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
+- **Tidal**: black, glossy sand ripples on a plane below the water. The sand pans and zooms at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
 **Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).

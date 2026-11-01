@@ -5,7 +5,6 @@ shader_type canvas_item;
 //    only through its normal and roughness maps, so it reads as polished black obsidian.
 //  - It sits on a parallax plane: it pans and zooms at plane_depth of the surface's rate, so it
 //    stays put under the water like a sea floor.
-//  - A slow tide line sweeps across it: wet sand turns glassy, then dries back to a duller shine.
 //  - Ripples on the water refract the sand, and a passing wave makes its highlights flare.
 
 #include "res://shaders/waves.gdshaderinc"
@@ -20,7 +19,6 @@ uniform float tile_px = 1800.0;          // on-screen size of one texture tile a
 uniform float plane_depth = 0.65;       // pan/zoom rate of the sand relative to the surface
 uniform float bump = 1.15;               // normal map strength
 uniform float refraction = 22.0;        // px of displacement per unit of surface slope
-uniform float tide_speed = 0.035;       // tide cycles per second
 uniform float shine = 1.0;              // multiplier on the sand's gloss and highlights
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -44,12 +42,7 @@ void fragment() {
 	vec3 n = normalize(vec3(tn.x * bump, -tn.y * bump, max(tn.z, 0.05)));   // screen y points down
 	float rough = texture(sand_rough, uv, 0.8).r;
 
-	// Tide: a soft wet band sweeping slowly across the sand, plus a thin bright tide line.
-	vec2 tide_dir = normalize(vec2(0.35, 1.0));
-	float tx = dot(q, tide_dir) / 2600.0 - TIME * tide_speed;
-	float wet = smoothstep(0.15, 0.85, 0.5 + 0.5 * sin(tx * 6.2831853));
-	float line = exp(-pow((fract(tx) - 0.62) * 34.0, 2.0));
-	rough = mix(rough, rough * 0.25, wet);
+	rough *= 0.6;                                            // a steady damp gloss
 
 	// --- Lighting: near-black glossy material, key light from the top-left.
 	vec3 light = normalize(vec3(-0.45, -0.6, 0.66));
@@ -62,12 +55,11 @@ void fragment() {
 	// A soft environment: the reflected view ray picks up a cool sky toward the light.
 	vec3 r = reflect(-view, n);
 	float sky = smoothstep(-0.2, 0.9, dot(normalize(r.xy + 1e-4), normalize(light.xy))) * length(r.xy);
-	float wet_shine = mix(0.35, 1.0, wet) * shine;
+	float wet_shine = 0.7 * shine;
 
 	vec3 col = vec3(0.010, 0.011, 0.014) * (0.6 + ndl);               // black base
 	col += vec3(0.16, 0.19, 0.24) * sky * (1.0 - rough) * wet_shine;      // glossy sheen on the flanks
 	col += vec3(0.85, 0.9, 1.0) * spec * wet_shine;                       // crest highlights
-	col += vec3(0.25, 0.32, 0.4) * line * (0.4 + 0.6 * ndl) * 0.25;   // tide line
 	col *= 1.0 + clamp(energy, 0.0, 1.5) * 0.9;                       // a passing wave flares it
 
 	// Depth under the water: darker toward the window edges.

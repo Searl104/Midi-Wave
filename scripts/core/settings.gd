@@ -15,7 +15,7 @@ const KEYS := [
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
 	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
-	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_tide", "tidal_refraction",
+	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
 const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
@@ -48,7 +48,6 @@ const LOOK_PARAMS := {
 	"tidal_depth": ["Tidal", "plane_depth", 1.0],
 	"tidal_shine": ["Tidal", "shine", 1.0],
 	"tidal_relief": ["Tidal", "bump", 1.15],
-	"tidal_tide": ["Tidal", "tide_speed", 0.035],
 	"tidal_refraction": ["Tidal", "refraction", 22.0],
 }
 const LOOK_DEFAULTS := {"tidal_depth": 0.65}   ## anything not listed defaults to 1.0
@@ -62,7 +61,6 @@ var tidal_scale := 1.0
 var tidal_depth := 0.65
 var tidal_shine := 1.0
 var tidal_relief := 1.0
-var tidal_tide := 1.0
 var tidal_refraction := 1.0
 
 
