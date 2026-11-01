@@ -7,7 +7,7 @@ const SECTIONS := [
 		["Click empty space", "Send a wave"],
 		["Click a note", "Plain note: a wave from it · pulser: trigger it"],
 		["KP1–KP9", "Trigger that key's notes (hold: pulsers refire)"],
-		["Space, KP0", "Stop: clear waves, reset toggles, ready pulsers"],
+		["Space, KP0", "Stop: clear waves, reset toggles (cooldowns keep running)"],
 		["Ctrl+S", "Save state: toggles' current state becomes their start"],
 		["Tab", "Edit / Play mode (Play locks the layout)"],
 	]],

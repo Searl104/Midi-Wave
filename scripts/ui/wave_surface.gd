@@ -519,13 +519,13 @@ func trigger_note(id: int) -> void:
 	waves.append_array(spawned)
 
 
-## Stop: clear all waves, return every modifier to its start state and every pulser to ready.
+## Stop: clear all waves and return every modifier to its start state. Pulser cooldowns keep
+## running, so a pulser that just fired can't be re-fired straight away by a reset.
 func stop() -> void:
 	waves.clear()
 	for n in notes:
 		n.mod_on = n.mod_start
-		n.ready_at = 0
-		n.dim_flash = 0.0
+		n.dim_flash = 0.0       # cooldowns keep running: a pulser that just fired stays cooling down
 
 
 ## Alpha of a hollow note's centre dot: bright unless muted (pulse-only pulsers are always

@@ -31,7 +31,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Shift-right-click a note (alias for F) | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state (a toast confirms it) |
 | Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
-| Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
+| Space, KP0 or Stop | Clear all waves, return every toggle to its start state. Cooldowns keep running, so a pulser that just fired still waits out its cooldown |
 | KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
 | Pads on a MIDI controller | Fire keypad keys 1–9 like the numpad, including hold-to-refire (see MIDI input below) |
 | Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
