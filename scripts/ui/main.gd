@@ -49,6 +49,7 @@ func _ready() -> void:
 	surface = WaveSurface.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(surface)
+	surface.mode_changed.connect(_on_mode_changed)
 	surface.pitch_menu_requested.connect(_open_pitch_menu)
 	surface.channel_menu_requested.connect(_open_channel_menu)
 	surface.pulse_menu_requested.connect(_open_pulse_menu)
@@ -150,14 +151,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if pad >= KEY_KP_1 and pad <= KEY_KP_9:
 		var slot: int = pad - KEY_KP_0
 		if key.ctrl_pressed:
-			if surface.hovered_note() != -1:
+			if surface.edit_mode and surface.hovered_note() != -1:
 				surface.toggle_slot(surface.hovered_note(), slot)
 		else:
 			surface.press_slot(slot)
 		get_viewport().set_input_as_handled()
 		return
 	match key.keycode:
-		KEY_TAB, KEY_O:
+		KEY_TAB:
+			surface.set_edit_mode(not surface.edit_mode)
+			get_viewport().set_input_as_handled()
+		KEY_O:
 			options.toggle()
 			get_viewport().set_input_as_handled()
 		KEY_SPACE:
@@ -168,23 +172,23 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				surface.save_state()
 				get_viewport().set_input_as_handled()
 		KEY_M:
-			if not key.ctrl_pressed:
+			if not key.ctrl_pressed and surface.edit_mode:
 				surface.toggle_mute()
 				get_viewport().set_input_as_handled()
 		KEY_C:
-			if key.ctrl_pressed:
+			if key.ctrl_pressed and surface.edit_mode:
 				surface.copy_selection()
 				get_viewport().set_input_as_handled()
 		KEY_V:
-			if key.ctrl_pressed:
+			if key.ctrl_pressed and surface.edit_mode:
 				surface.paste_at(surface.get_local_mouse_position())
 				get_viewport().set_input_as_handled()
 		KEY_Z:
-			if key.ctrl_pressed:
+			if key.ctrl_pressed and surface.edit_mode:
 				_undo_redo(key.shift_pressed)
 				get_viewport().set_input_as_handled()
 		KEY_Y:
-			if key.ctrl_pressed:
+			if key.ctrl_pressed and surface.edit_mode:
 				_undo_redo(true)
 				get_viewport().set_input_as_handled()
 		KEY_HOME:
@@ -197,6 +201,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif not surface.selection.is_empty():
 				surface.clear_selection()
 				get_viewport().set_input_as_handled()
+
+
+const HINT_EDIT := "Edit mode  ·  Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Shift-right-click: modifier  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: play mode  ·  O: options"
+const HINT_PLAY := "Play mode  ·  Click: wave or trigger  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: edit mode  ·  O: options"
+
+
+func _on_mode_changed(edit: bool) -> void:
+	if radial and radial.visible:
+		radial.close()
+	hint_label.text = HINT_EDIT if edit else HINT_PLAY
+	hint_label.modulate.a = 1.0
+	_toast("Edit mode" if edit else "Play mode  ·  layout locked")
 
 
 ## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
@@ -294,7 +310,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Shift-right-click: modifier  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: options"
+	hint_label.text = HINT_EDIT
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

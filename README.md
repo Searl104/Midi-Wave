@@ -30,7 +30,8 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
 | KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
 | Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
-| Tab or O | Options · Esc closes menus |
+| Tab | Switch Edit / Play mode. Play mode locks the layout: clicks send waves or trigger notes, the keypad, Space and panning work, but nothing can be moved, placed, retuned, muted, deleted or undone |
+| O | Options · Esc closes menus |
 
 ### Pulsers
 

@@ -155,7 +155,7 @@ func _build() -> void:
 		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
 		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
 		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +
-		"Tab: options"))
+		"Tab: switch Edit / Play mode (Play locks the layout; clicks, keypad, Space and panning still work) · O: options"))
 
 
 ## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.

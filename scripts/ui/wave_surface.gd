@@ -54,6 +54,12 @@ signal channel_menu_requested(note_id: int, at: Vector2)
 signal pulse_menu_requested(note_id: int, at: Vector2)
 signal modifier_menu_requested(note_id: int, at: Vector2)
 signal notes_changed
+signal mode_changed(edit: bool)
+
+## Edit mode (default) lets you change the layout. Play mode only plays it: clicks send waves
+## or trigger notes, the keypad plays slots, Space stops, the view pans and zooms, and nothing
+## can be moved, placed, retuned, muted, deleted or undone.
+var edit_mode := true
 
 enum Mode { NOTE, NOTE_PULSE, PULSE }
 
@@ -678,6 +684,17 @@ func clear_notes() -> void:
 	save_notes()
 
 
+func set_edit_mode(on: bool) -> void:
+	if on == edit_mode:
+		return
+	edit_mode = on
+	_end_press()
+	_box_active = false
+	if not on:
+		selection.clear()
+	mode_changed.emit(on)
+
+
 func get_note(id: int) -> Dictionary:
 	for n in notes:
 		if n.id == id:
@@ -1133,7 +1150,7 @@ func _gui_input(event: InputEvent) -> void:
 			_pan_last = mm.position
 			return
 		if _press_id != -1:
-			if not _dragging and mm.position.distance_to(_press_pos) > DRAG_THRESHOLD:
+			if edit_mode and not _dragging and mm.position.distance_to(_press_pos) > DRAG_THRESHOLD:
 				_dragging = true
 			if _dragging:
 				_drag_to(mm.position, mm.shift_pressed)
@@ -1230,6 +1247,17 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 	var pos := mb.position
 	var handle := handle_at(pos)
 	var hit := note_at(pos)
+	if not edit_mode and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		# Play mode: a click plays whatever is under it; nothing is edited.
+		if mb.alt_pressed or mb.shift_pressed or handle != -1 or (mb.ctrl_pressed and hit != -1):
+			return
+		if hit != -1:
+			_begin_press(hit, "note", pos)
+		else:
+			spawn_wave(pos)
+		return
+	if not edit_mode and mb.button_index == MOUSE_BUTTON_RIGHT:
+		return
 	match mb.button_index:
 		MOUSE_BUTTON_LEFT:
 			if mb.pressed:
@@ -1352,7 +1380,7 @@ func _end_press() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
-	if key and key.pressed and not key.echo and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE):
+	if key and key.pressed and not key.echo and edit_mode and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE):
 		if not selection.is_empty():
 			delete_selection()
 			get_viewport().set_input_as_handled()
