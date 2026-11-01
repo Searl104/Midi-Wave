@@ -41,7 +41,9 @@ func _ready() -> void:
 	add_child(water)
 	Settings.changed.connect(func(key: String) -> void:
 		if key == "look":
-			_apply_look())
+			_apply_look()
+		elif Settings.LOOK_PARAMS.has(key):
+			_apply_look_params())
 
 	surface = WaveSurface.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -100,6 +102,15 @@ func _apply_look() -> void:
 			mat.set_shader_parameter("sand_rough", load("res://assets/tidal/sand_rough.jpg"))
 		_:
 			mat.shader = load("res://shaders/abyssal.gdshader")
+	_apply_look_params()
+
+
+## Pushes the Options > Look controls into the surface shader.
+func _apply_look_params() -> void:
+	var mat := water.material as ShaderMaterial
+	for key in Settings.LOOK_PARAMS:
+		if Settings.LOOK_PARAMS[key][0] == Settings.look:
+			mat.set_shader_parameter(Settings.LOOK_PARAMS[key][1], Settings.look_uniform_value(key))
 
 
 ## Arrow keys pan the view (not while a radial menu is open: it uses Left / Right for octave).

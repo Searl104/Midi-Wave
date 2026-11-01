@@ -21,6 +21,7 @@ uniform float plane_depth = 0.65;       // pan/zoom rate of the sand relative to
 uniform float bump = 1.15;               // normal map strength
 uniform float refraction = 22.0;        // px of displacement per unit of surface slope
 uniform float tide_speed = 0.035;       // tide cycles per second
+uniform float shine = 1.0;              // multiplier on the sand's gloss and highlights
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -61,11 +62,11 @@ void fragment() {
 	// A soft environment: the reflected view ray picks up a cool sky toward the light.
 	vec3 r = reflect(-view, n);
 	float sky = smoothstep(-0.2, 0.9, dot(normalize(r.xy + 1e-4), normalize(light.xy))) * length(r.xy);
-	float shine = mix(0.35, 1.0, wet);
+	float wet_shine = mix(0.35, 1.0, wet) * shine;
 
 	vec3 col = vec3(0.010, 0.011, 0.014) * (0.6 + ndl);               // black base
-	col += vec3(0.16, 0.19, 0.24) * sky * (1.0 - rough) * shine;      // glossy sheen on the flanks
-	col += vec3(0.85, 0.9, 1.0) * spec * shine;                       // crest highlights
+	col += vec3(0.16, 0.19, 0.24) * sky * (1.0 - rough) * wet_shine;      // glossy sheen on the flanks
+	col += vec3(0.85, 0.9, 1.0) * spec * wet_shine;                       // crest highlights
 	col += vec3(0.25, 0.32, 0.4) * line * (0.4 + 0.6 * ndl) * 0.25;   // tide line
 	col *= 1.0 + clamp(energy, 0.0, 1.5) * 0.9;                       // a passing wave flares it
 

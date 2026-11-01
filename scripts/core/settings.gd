@@ -14,6 +14,8 @@ const KEYS := [
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
 	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
+	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
+	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_tide", "tidal_refraction",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
 const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
@@ -32,6 +34,45 @@ var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world u
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
 var look := "Abyssal"           ## surface look, one of LOOKS
+
+## Look controls (Options > Look). Each is a multiplier on the shader's base value (1 = as
+## designed), except tidal_depth, the sand plane's pan/zoom rate. key -> [look, uniform, base].
+const LOOK_PARAMS := {
+	"abyss_sink": ["Abyssal", "sink_speed", 0.018],
+	"abyss_density": ["Abyssal", "snow_density", 1.0],
+	"abyss_glints": ["Abyssal", "glint_amount", 1.0],
+	"abyss_shafts": ["Abyssal", "shaft_strength", 1.0],
+	"abyss_depth": ["Abyssal", "depth_scale", 7.0],
+	"abyss_refraction": ["Abyssal", "refraction", 16.0],
+	"tidal_scale": ["Tidal", "tile_px", 1800.0],
+	"tidal_depth": ["Tidal", "plane_depth", 1.0],
+	"tidal_shine": ["Tidal", "shine", 1.0],
+	"tidal_relief": ["Tidal", "bump", 1.15],
+	"tidal_tide": ["Tidal", "tide_speed", 0.035],
+	"tidal_refraction": ["Tidal", "refraction", 22.0],
+}
+const LOOK_DEFAULTS := {"tidal_depth": 0.65}   ## anything not listed defaults to 1.0
+var abyss_sink := 1.0
+var abyss_density := 1.0
+var abyss_glints := 1.0
+var abyss_shafts := 1.0
+var abyss_depth := 1.0
+var abyss_refraction := 1.0
+var tidal_scale := 1.0
+var tidal_depth := 0.65
+var tidal_shine := 1.0
+var tidal_relief := 1.0
+var tidal_tide := 1.0
+var tidal_refraction := 1.0
+
+
+func look_default(key: String) -> float:
+	return LOOK_DEFAULTS.get(key, 1.0)
+
+
+## Shader uniform value for a look control.
+func look_uniform_value(key: String) -> float:
+	return float(get(key)) * float(LOOK_PARAMS[key][2])
 
 # Snap settings (Options > Snap)
 var snap_enabled := true        ## snap dragged items to touched targets' rings and spokes

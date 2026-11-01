@@ -21,6 +21,9 @@ uniform float zoom = 1.0;             // canvas zoom (beat spacing / BEAT_UNIT)
 uniform float sink_speed = 0.018;     // layers per second the snow sinks
 uniform float depth_scale = 7.0;      // how fast things shrink with depth
 uniform float refraction = 16.0;      // px of displacement per unit of surface slope
+uniform float snow_density = 1.0;     // multiplier on how many motes each layer keeps
+uniform float glint_amount = 1.0;     // multiplier on how many bioluminescent glints appear
+uniform float shaft_strength = 1.0;   // multiplier on the light shafts
 
 const int LAYERS = 12;
 const float CELL = 110.0;             // layer-space spacing of motes
@@ -63,7 +66,7 @@ void fragment() {
 	float rays = noise1(ang * 48.0 + t * 0.05, 48.0) * noise1(ang * 19.0 - t * 0.03 + 7.0, 19.0);
 	rays = pow(rays, 2.2);
 	float ray_fall = smoothstep(0.08, 0.95, length(rv) / diag);   // fades into the deep
-	col += vec3(0.20, 0.38, 0.55) * rays * ray_fall * 0.3;
+	col += vec3(0.20, 0.38, 0.55) * rays * ray_fall * 0.3 * shaft_strength;
 
 	// --- Marine snow, sinking forever.
 	float wave_light = clamp(energy, 0.0, 1.5);
@@ -85,7 +88,7 @@ void fragment() {
 		vec2 seed = cell + vec2(fi * 17.0, gen * 31.0);
 		vec2 rnd = hash2(seed);
 		// Deep layers pack more cells onto the screen; thin them so density stays even.
-		float keep = 0.5 * pow(s, 1.7);
+		float keep = 0.5 * snow_density * pow(s, 1.7);
 		float present = step(1.0 - keep, hash(seed + 5.3));
 		vec2 local = (fract(q / CELL) - 0.5 - (rnd - 0.5) * 0.7) * CELL * m;   // screen px
 		float d = length(local);
@@ -101,7 +104,7 @@ void fragment() {
 
 		// Bioluminescence: a rare glint, pulsing, in one of the three primaries.
 		float g = hash(seed + 11.7);
-		if (g > 1.0 - 0.05 * pow(s, 1.7) && z > 0.2) {
+		if (g > 1.0 - 0.05 * glint_amount * pow(s, 1.7) && z > 0.2) {
 			float pick = hash(seed + 23.9);
 			vec3 hue = pick < 0.34 ? vec3(0.18, 0.48, 1.0) : (pick < 0.67 ? vec3(1.0, 0.25, 0.27) : vec3(1.0, 0.82, 0.2));
 			float pulse = 0.5 + 0.5 * sin(t * (0.6 + rnd.y * 0.9) + g * 40.0);
