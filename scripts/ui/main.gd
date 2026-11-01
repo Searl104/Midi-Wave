@@ -159,6 +159,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not key.pressed:
 		if pad >= KEY_KP_1 and pad <= KEY_KP_9:
 			surface.release_slot(pad - KEY_KP_0)
+		elif RING_KEYS.has(key.keycode):
+			_release_ring_key(RING_KEYS[key.keycode])
 		return
 	if key.echo:
 		return
@@ -267,6 +269,7 @@ func _on_mode_changed(edit: bool) -> void:
 	if radial and radial.visible:
 		radial.close()
 	armed_ring = ""
+	_held_ring = ""
 	_refresh_hint()
 	_toast("Edit mode" if edit else "Play mode  ·  layout locked")
 
@@ -281,11 +284,27 @@ const RING_NAMES := {"channel": "Channel", "pulse": "Pulse", "modifier": "Modifi
 const RING_KEY_LABELS := {"channel": "C", "pulse": "E", "modifier": "F"}
 
 var armed_ring := ""        ## "" = pitch (the default), else "channel", "pulse" or "modifier"
+var _held_ring := ""        ## the ring whose key is held down: it stays active until the key is let go
+var _held_used := false     ## the held ring was opened at least once while its key was down
 
 
 ## Picks the ring the next right-click opens. Picking the armed ring again cancels it.
 func arm_ring(ring: String) -> void:
 	armed_ring = "" if ring == armed_ring else ring
+	_held_ring = armed_ring
+	_held_used = false
+	_refresh_hint()
+
+
+## Letting go of C / E / F. A ring used while its key was held ends with the key; a quick tap
+## (not used yet) stays armed for one right-click.
+func _release_ring_key(ring: String) -> void:
+	if _held_ring != ring:
+		return
+	_held_ring = ""
+	if _held_used and armed_ring == ring:
+		armed_ring = ""
+	_held_used = false
 	_refresh_hint()
 
 
@@ -297,7 +316,10 @@ func _on_right_click(note_id: int, at: Vector2) -> void:
 	if note_id == -1:
 		_toast("Right-click a note for the %s ring" % RING_NAMES[ring])
 		return
-	armed_ring = ""                  # used once, then back to pitch
+	if _held_ring == ring:
+		_held_used = true            # key still held: the ring stays active until it's let go
+	else:
+		armed_ring = ""              # tapped: used once, then back to pitch
 	_refresh_hint()
 	# Opened as a held ring: flick and release to choose (the quick ring); a tap keeps it open.
 	match ring:
@@ -311,7 +333,10 @@ func _on_right_click(note_id: int, at: Vector2) -> void:
 
 func _refresh_hint() -> void:
 	var text: String
-	if armed_ring != "":
+	if armed_ring != "" and _held_ring == armed_ring and _held_used:
+		text = "%s ring while %s is held  ·  Right-click notes  ·  let go of %s for pitch" % [
+				RING_NAMES[armed_ring], RING_KEY_LABELS[armed_ring], RING_KEY_LABELS[armed_ring]]
+	elif armed_ring != "":
 		var k: String = RING_KEY_LABELS[armed_ring]
 		text = "%s ring armed  ·  Right-click a note (or hold %s and right-drag, release to choose)  ·  %s or Esc cancels" % [
 				RING_NAMES[armed_ring], k, k]

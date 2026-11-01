@@ -6,7 +6,8 @@ extends Control
 ## Two ways to use it:
 ## - Click mode: it stays open; click an item.
 ## - Hold mode (quick place): opened on a right-button press; hover an item and release.
-##   Releasing without moving drops into click mode. Releasing in the dead zone cancels.
+##   Releasing over any item (outer, inner or centre) picks it and closes. A quick release
+##   without moving drops into click mode. Releasing in the dead zone cancels.
 ## While open: A / D emit `wheel(-1 / +1)`, number keys emit `digit(n)`, Esc closes.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
@@ -26,6 +27,7 @@ const OUTER_R0 := 78.0
 const OUTER_R1 := 148.0
 const SOLO_R0 := 44.0
 const TAP_SLOP := 6.0
+const TAP_MS := 250          ## a release sooner than this without moving is a tap (menu stays open)
 
 var title := ""
 var subtitle := ""
@@ -41,6 +43,7 @@ var _moved := false
 var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
+var _opened_msec := 0
 
 
 func _ready() -> void:
@@ -56,6 +59,7 @@ func open(at: Vector2, hold: bool = false) -> void:
 	_press_pos = at
 	_moved = false
 	holding = hold
+	_opened_msec = Time.get_ticks_msec()
 	_open_t = 0.0
 	_set_hover(_ring_at(at))
 	show()
@@ -158,13 +162,13 @@ func _input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
 		holding = false
-		if not _moved:
-			return                      # a tap: stay open in click mode
-		var r := _ring_at(mb.position)
-		if r[0] == "inner":
-			_activate(mb.position)      # change octave, stay open in click mode
-		elif not _activate(mb.position):
-			close()                     # released in the dead zone: cancel
+		if not _moved and Time.get_ticks_msec() - _opened_msec < TAP_MS:
+			return                      # a quick tap: stay open in click mode
+		# A held release picks whatever is under the pointer (outer, inner or centre) and
+		# closes; released in the dead zone it cancels.
+		_activate(mb.position)
+		if visible:
+			close()
 
 
 func _handle_key(key: InputEventKey) -> bool:
