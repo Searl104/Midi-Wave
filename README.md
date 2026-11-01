@@ -23,7 +23,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
+| While dragging a note or emitter | It shows its own timing rings. Touch another note or emitter to snap to its rings (touch again to drop it). Drag onto any note or emitter to snap to its centre. The target you were snapped to when you let go is remembered for the next drag. Shift places freely |
 | Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
 | Ctrl+S or Save state | Make every toggle's current state its start state |
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
@@ -57,9 +57,9 @@ sets how many screen pixels one beat takes up. Distances, waves, reach, rings an
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded); touching another note or emitter
-toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross.
+toggles that object's rings on, and the dragged item snaps only to touched objects (within 12 screen px). The rings run out to the edges of the window, a little dimmer past the wave's reach, and you can snap to any of them. Each touched target also shows 8 spokes (every 45°); the dragged item snaps to a spoke, or to where a ring and a spoke cross. Centre snapping puts the item exactly on top of any note or emitter (touched or not) whose centre is within the snap distance, for stacking an emitter on a note or two emitters on one spot; it takes priority over rings and spokes.
 
-**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
+**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per target (none, 4, 8, 12, 16), guides to the window edge or only the wave's reach, division rings on/off, guide brightness, and whether the snap target is remembered on drop. Touches reset on drop, except the target the item was snapped to when dropped: it is remembered (separately for a note and its emitter, saved with the layout) and starts toggled on that item's next drag.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 

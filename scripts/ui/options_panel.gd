@@ -209,8 +209,9 @@ func _build_snap(box: VBoxContainer) -> void:
 	_check(box, "Snap to touched targets", "snap_enabled")
 	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
 	_check(box, "Snap to spokes", "snap_spokes")
+	_check(box, "Snap to centres", "snap_centres")
 	_check(box, "Remember snap target on drop", "snap_memory")
-	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Hold Shift to place freely."))
+	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
 
 	_section(box, "GUIDES", Palette.YELLOW)
 	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,

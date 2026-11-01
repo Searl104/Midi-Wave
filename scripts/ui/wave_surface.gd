@@ -848,7 +848,8 @@ func touch_targets(exclude_id: int) -> Dictionary:
 
 ## Works out rings, snapping and the readout for dragging note `n` (`kind` "note" or
 ## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
-## Returns {pos, centres, readout, loop, snapped, ref_point}; centres[0] is the held item.
+## Returns {pos, centres, readout, loop, snapped, centre, ref_point}; centres[0] is the held item.
+## Centre snapping (onto any note or emitter within the snap distance) beats rings and spokes.
 func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
 	var reach := Settings.wave_range
 	free = free or not Settings.snap_enabled
@@ -892,10 +893,24 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 			spoke = pr
 			spoke_ang = snapped_ang
 
+	# Centre: any note or emitter (touched or not) whose centre is within the snap distance.
+	var centre: Array = []
+	var centre_d := tol
+	if not free and Settings.snap_centres:
+		for key in targets:
+			var dc := p.distance_to(targets[key])
+			if dc <= centre_d:
+				centre_d = dc
+				centre = [targets[key], int(key.substr(1)), key]
+
 	var out_pos := p
 	var snapped := false
 	var ref: Array = []
-	if not free and not best.is_empty() and best_fix <= tol:
+	if not centre.is_empty():
+		out_pos = centre[0]
+		snapped = true
+		ref = centre
+	elif not free and not best.is_empty() and best_fix <= tol:
 		# On a ring; if also near one of the same target's spokes, land on the crossing.
 		var a: Vector2 = best[0]
 		var radius := roundf(p.distance_to(a) / step_px) * step_px
@@ -930,7 +945,11 @@ func compute_drag(n: Dictionary, kind: String, p: Vector2, free: bool, touched: 
 	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
 			"ref_point": ref[0] if not ref.is_empty() else null,
 			"snap_key": ref[2] if snapped else ""}
-	if not ref.is_empty():
+	info["centre"] = not centre.is_empty()
+	if not centre.is_empty():
+		info.readout = "centre"
+		info.loop = _loop_text(n, kind, out_pos, get_note(ref[1]))
+	elif not ref.is_empty():
 		var d := out_pos.distance_to(ref[0])
 		info.readout = "%s · %d ms" % [format_beats(d / Settings.BEAT_UNIT), roundi(d / Settings.wave_speed * 1000.0)]
 		info.loop = _loop_text(n, kind, out_pos, get_note(ref[1]))
@@ -1399,7 +1418,14 @@ func _draw_rings() -> void:
 			draw_arc(centre, r, 0.0, TAU, clampi(int(r / 5.0), 48, 720), col, width, true)
 	if not dragged.is_empty() and drag_info.snapped:
 		var at := to_screen(drag_info.pos)
-		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.3), 0.6), 1.0, true)
+		var sc := Color(Palette.ACCENT.lightened(0.3), 0.6)
+		draw_arc(at, NOTE_RADIUS + 14.0, 0.0, TAU, 40, sc, 1.0, true)
+		if drag_info.get("centre", false):
+			# Centre snap: a crosshair through the shared centre.
+			var arm := NOTE_RADIUS + 22.0
+			for dv in [Vector2.RIGHT, Vector2.DOWN]:
+				draw_line(at - dv * arm, at - dv * (NOTE_RADIUS + 8.0), sc, 1.5, true)
+				draw_line(at + dv * (NOTE_RADIUS + 8.0), at + dv * arm, sc, 1.5, true)
 
 
 ## Touched objects get a highlight ring; a touch shows a brief flash.
