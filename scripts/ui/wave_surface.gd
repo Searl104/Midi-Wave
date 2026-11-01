@@ -83,6 +83,8 @@ const FRACTIONS := {
 
 var waves: Array = []      # {origin: Vector2 (world), r: float, strength: float, source: int, hits: Dictionary}
 var notes: Array = []      # see _add(); pos / emit in world px
+var bracket_flashes: Array = []   # {pos: Vector2 (world), half: float, t: float}: a keyboard action landed here
+const BRACKET_FLASH_TIME := 0.4
 var splashes: Array = []   # {pos: Vector2 (world), t: float, color: Color, strength: float}
 
 var view_offset := Vector2.ZERO   ## world position of the window's top-left corner
@@ -436,6 +438,7 @@ func toggle_slot(id: int, slot: int) -> void:
 	var target: int = 0 if n.slot == slot else slot
 	for gid in group_for(id):
 		get_note(gid).slot = target
+		flash_brackets(get_note(gid))
 	save_notes()
 
 
@@ -598,6 +601,7 @@ func toggle_mute() -> int:
 		n.muted = mute
 		if mute:
 			_silence(n)
+		flash_brackets(n)
 	save_notes()
 	return ids.size()
 
@@ -611,6 +615,7 @@ func delete_selection() -> void:
 		for i in notes.size():
 			if notes[i].id == id:
 				_silence(notes[i])
+				flash_brackets(notes[i])
 				notes.remove_at(i)
 				break
 	selection.clear()
@@ -668,6 +673,7 @@ func remove_note(id: int) -> void:
 	for i in notes.size():
 		if notes[i].id == id:
 			_silence(notes[i])
+			flash_brackets(notes[i])
 			notes.remove_at(i)
 			break
 	if _hover_id == id:
@@ -898,6 +904,13 @@ func step(delta: float) -> void:
 			f += 1
 
 	var s := 0
+	var bf := 0
+	while bf < bracket_flashes.size():
+		bracket_flashes[bf].t += delta
+		if bracket_flashes[bf].t >= BRACKET_FLASH_TIME:
+			bracket_flashes.remove_at(bf)
+		else:
+			bf += 1
 	while s < splashes.size():
 		splashes[s].t += delta
 		if splashes[s].t >= SPLASH_TIME:
@@ -1441,10 +1454,17 @@ func _draw() -> void:
 			if hp.x > -40.0 and hp.y > -40.0 and hp.x < size.x + 40.0 and hp.y < size.y + 40.0:
 				_draw_handle(hp, Palette.channel_color(n.channel), n.id == _hover_handle)
 
+	# Hover and selection are boxes (white corner brackets), so rings only ever mean state.
 	for n in notes:
-		if selection.has(n.id) and is_on_screen(n.pos, NOTE_RADIUS + 40.0):
-			var sr := NOTE_RADIUS + (MOD_RING + 6.0 if n.mod != "" else 12.0)
-			draw_arc(note_screen_pos(n), sr, 0.0, TAU, 48, Color(1, 1, 1, 0.75), 1.5, true)
+		if not is_on_screen(n.pos, NOTE_RADIUS + 40.0):
+			continue
+		if selection.has(n.id):
+			_draw_brackets(note_screen_pos(n), bracket_half(n) + 2.0, 2.0, 0.95, 0.42)
+		elif n.id == _hover_id and _press_id == -1:
+			_draw_brackets(note_screen_pos(n), bracket_half(n), 1.0, 0.55, 0.28)
+	for bfl in bracket_flashes:
+		var k: float = bfl.t / BRACKET_FLASH_TIME
+		_draw_brackets(to_screen(bfl.pos), bfl.half + 2.0 + 10.0 * ease(k, 0.4), 2.0, 0.9 * (1.0 - k), 0.42)
 	if _box_active:
 		var box := Rect2(_box_start, _box_end - _box_start).abs()
 		draw_rect(box, Color(Palette.ACCENT, 0.08))
@@ -1653,8 +1673,6 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 		if pf > 0.0:
 			draw_arc(p, ring_r + 8.0 * (1.0 - pf), 0.0, TAU, 48, Color(Palette.YELLOW, 0.5 * pf), 2.0, true)
 
-	if n.id == _hover_id:
-		draw_arc(p, NOTE_RADIUS + (12.0 if n.mode != Mode.NOTE else 5.0), 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.0, true)
 	var toggled_off: bool = n.mod == "toggle" and not n.mod_on
 	var label_col := Palette.TEXT_DIM if (muted or toggled_off) else Palette.TEXT
 	if shows_pitch(n):
@@ -1717,6 +1735,29 @@ func _draw_round_rect(r: Rect2, radius: float, fill: Color, border: Color) -> vo
 	sb.set_corner_radius_all(int(radius))
 	sb.anti_aliasing = true
 	draw_style_box(sb, r)
+
+
+## Half the side of a note's bracket box: clear of its pulse and modifier rings and badges.
+func bracket_half(n: Dictionary) -> float:
+	if n.mod != "":
+		return NOTE_RADIUS + MOD_RING + 6.0
+	return NOTE_RADIUS + (11.0 if n.mode != Mode.NOTE else 7.0)
+
+
+## Briefly flashes a note's brackets: shows where a keyboard action (M, Delete, Ctrl+KP) landed.
+func flash_brackets(n: Dictionary) -> void:
+	if not n.is_empty():
+		bracket_flashes.append({"pos": n.pos, "half": bracket_half(n), "t": 0.0})
+
+
+## Four white corner brackets around `at`. `arm` is each bracket's length as a share of the side.
+func _draw_brackets(at: Vector2, half: float, width: float, alpha: float, arm: float) -> void:
+	var col := Color(1, 1, 1, alpha)
+	var l := half * 2.0 * arm
+	for sx in [-1.0, 1.0]:
+		for sy in [-1.0, 1.0]:
+			var c := at + Vector2(sx, sy) * half
+			draw_polyline(PackedVector2Array([c - Vector2(sx * l, 0), c, c - Vector2(0, sy * l)]), col, width, true)
 
 
 func _draw_handle(at: Vector2, col: Color, hovered: bool) -> void:

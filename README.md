@@ -65,6 +65,8 @@ toggles that object's rings on, and the dragged item snaps only to touched objec
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
+Hover and selection are drawn as white corner brackets (thin for hover, bright for selected), so rings only ever mean state: pulse cooldown, modifier, snap guides. M, Delete and Ctrl+KP act on the bracketed note, and its brackets flash when the key lands.
+
 **Surface looks** (Options → Look). The Look tab picks the look and shows its controls, each a percentage of the designed look (100%), with a reset button:
 - Abyssal: sinking speed, marine snow, glints, light shafts, depth, refraction.
 - Tidal: sand colour (0% = black sand), caustics, caustics scale, caustics speed, sand scale, floor parallax (how far the sand moves when you pan or zoom; lower feels deeper), shine, ripple relief, refraction.
