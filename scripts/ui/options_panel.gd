@@ -228,6 +228,7 @@ func _build_look(box: VBoxContainer) -> void:
 	_section(tidal, "TIDAL", Palette.YELLOW)
 	_look_slider(tidal, "Sand colour", "tidal_color", 0.0, 3.0, pct)
 	_look_slider(tidal, "Caustics", "tidal_caustics", 0.0, 3.0, pct)
+	_look_slider(tidal, "Caustics scale", "tidal_caustic_scale", 0.25, 4.0, pct)
 	_look_slider(tidal, "Sand scale", "tidal_scale", 0.25, 3.0, pct)
 	_look_slider(tidal, "Floor parallax", "tidal_depth", 0.1, 1.0, pct)
 	_look_slider(tidal, "Shine", "tidal_shine", 0.0, 3.0, pct)
