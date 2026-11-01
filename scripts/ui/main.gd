@@ -87,10 +87,19 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("zoom", surface.z())
 
 
-## Surface shader for the chosen look: Abyssal (endless depth) or Glass (flat dark glass).
+## Surface shader for the chosen look: Abyssal (endless depth), Tidal (black glossy sand
+## below the water) or Glass (flat dark glass).
 func _apply_look() -> void:
-	var path := "res://shaders/water.gdshader" if Settings.look == "Glass" else "res://shaders/abyssal.gdshader"
-	(water.material as ShaderMaterial).shader = load(path)
+	var mat := water.material as ShaderMaterial
+	match Settings.look:
+		"Glass":
+			mat.shader = load("res://shaders/water.gdshader")
+		"Tidal":
+			mat.shader = load("res://shaders/tidal.gdshader")
+			mat.set_shader_parameter("sand_normal", load("res://assets/tidal/sand_normal.jpg"))
+			mat.set_shader_parameter("sand_rough", load("res://assets/tidal/sand_rough.jpg"))
+		_:
+			mat.shader = load("res://shaders/abyssal.gdshader")
 
 
 ## Arrow keys pan the view (not while a radial menu is open: it uses Left / Right for octave).

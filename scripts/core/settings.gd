@@ -16,7 +16,7 @@ const KEYS := [
 	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
-const LOOKS := ["Abyssal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
+const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
 var bpm := 120.0                ## tempo; wave speed follows it

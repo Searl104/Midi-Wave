@@ -65,6 +65,7 @@ Notes off screen keep playing; a marker on the window edge shows them firing.
 
 **Surface looks** (Options → General → Surface):
 - **Abyssal** (default): a thin glassy surface over endless dark water. Marine snow sinks away forever in parallax layers (deep layers move less when you pan), faint light shafts converge on a dark vanishing point, and rare glints pulse far below in the primary colours. Ripples refract the depths, and a passing wave lights the snow under it.
+- **Tidal**: black, glossy sand ripples on a plane below the water. The sand pans and zooms at 65% of the surface's rate, like a sea floor; a slow tide line sweeps across it, wet sand turning glassy and drying back duller. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
 **Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
@@ -96,7 +97,9 @@ scripts/
   ui/glass_theme.gd       UI theme
 shaders/waves.gdshaderinc Ripple maths shared by the surface shaders
 shaders/abyssal.gdshader  Abyssal surface: endless depth under the water
+shaders/tidal.gdshader    Tidal surface: black glossy sand below the water
 shaders/water.gdshader    Glass surface
+assets/tidal/             Sand normal + roughness maps (Poly Haven, CC0)
 shaders/glass.gdshader    Frosted-glass panels
 addons/midi_out/          GDExtension manifest + built libraries
 native/                   C++ source of the MIDI output extension (RtMidi)
