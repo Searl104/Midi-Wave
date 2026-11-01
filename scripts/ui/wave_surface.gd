@@ -30,7 +30,7 @@ extends Control
 ##         ctrl-right-click = pulse radial
 ##         shift-click = new note · shift-right-click = modifier radial
 ##         Delete = remove note (or the selection) · middle-drag = pan
-##         M = mute / unmute the selection or hovered note (keeps the mode; pulses still fire)
+##         M = mute / unmute the selection or hovered note (no sound, no pulse; the mode is kept)
 ##         ctrl + right-drag on empty space = box select; Esc clears it
 ##
 ## Selection: dragging a selected note moves the whole group (snapping applies to the note
@@ -479,7 +479,7 @@ func release_all_slots() -> void:
 
 ## KP1-9: every note in the slot is clicked once (a pulser fires directly, a plain note
 ## sends a wave from where it sits). Muted notes are skipped: the keypad doesn't fire them,
-## though a wave reaching a muted pulser still makes it pulse.
+## and a wave reaching a muted note does nothing either (no sound, no pulse).
 func trigger_slot(slot: int) -> int:
 	var count := 0
 	for n in notes.duplicate():
@@ -586,7 +586,8 @@ func select_in_rect(screen_rect: Rect2, add: bool = false) -> void:
 
 
 ## M: mute the selection (or the hovered note). If any of them is unmuted they all mute,
-## otherwise they all unmute. Muting keeps the mode: a muted pulser still pulses.
+## otherwise they all unmute. A muted note makes no sound and sends no pulse; its mode is kept
+## for when it's unmuted.
 func toggle_mute() -> int:
 	var ids: Array = []
 	if not selection.is_empty():
@@ -793,7 +794,7 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 		"slot": 0,                          # keypad trigger slot 1-9, 0 = none
 		"hold_next": 0,                     # next refire time while its slot key is held
 		"range": 0.0,                       # own wave reach in world units (0 = global Reach)
-		"muted": false,                     # M: no sound; the mode (and any pulse) is kept
+		"muted": false,                     # M: no sound and no pulse; the mode is kept
 		"grid": false,                      # G: a snap grid (rings + spokes) centred on the note
 		"grid_emit": false,                 # G on a detached emitter: a grid centred on it
 	})
@@ -963,7 +964,10 @@ func _trigger(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
 
 
 func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
-	if n.mode != Mode.PULSE and not n.muted:
+	if n.muted:
+		n.dim_flash = 1.0            # muted: no sound and no pulse (a toggle still advances)
+		return
+	if n.mode != Mode.PULSE:
 		_play(n, amp, now)
 	if n.mode == Mode.NOTE or now < n.ready_at:
 		return

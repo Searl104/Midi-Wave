@@ -22,7 +22,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Delete | Remove the hovered note (or the selection, if any) |
-| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound but keeps its mode, so a muted pulser still pulses. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
+| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |

@@ -24,7 +24,7 @@ const SECTIONS := [
 		["Ctrl-click", "Mode: Note → Note + Pulse → Pulse only"],
 		["Drag the ◆", "Place where a pulser's wave starts"],
 		["Ctrl-drag a pulser", "Its own wave reach (back onto it: global)"],
-		["M", "Mute / unmute (pulses still fire)"],
+		["M", "Mute / unmute (no sound, no pulse)"],
 		["Ctrl+KP1–KP9", "Assign / unassign a keypad key"],
 		["Delete", "Remove the note"],
 	]],
