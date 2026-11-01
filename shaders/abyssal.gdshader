@@ -72,8 +72,8 @@ void fragment() {
 		float fl = float(L);
 		float depth = 0.25 + 0.3 * fl;                       // 0.25, 0.55, 0.85
 		float near = 1.0 - depth;
-		// Parallax: near layers shift and turn more as the view pans.
-		vec2 rv = pr - c + view_px * 0.12 * near;
+		// Always converging on the window centre; panning only turns the fan (near layers more).
+		vec2 rv = pr - c;
 		float rn2 = length(rv) / diag;
 		float turn = view_px.x / diag * 0.05 * near;
 		float sway = 0.006 * sin(t * 0.21 + fl * 2.1) + 0.004 * sin(t * 0.13 + fl * 4.7);
