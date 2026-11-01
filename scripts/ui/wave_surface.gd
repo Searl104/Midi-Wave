@@ -1306,6 +1306,13 @@ func _draw() -> void:
 		else:
 			_draw_edge_marker(n)
 
+	# Emitter diamonds go over every note, so a note can never hide one.
+	for n in notes:
+		if n.mode != Mode.NOTE:
+			var hp := handle_screen_pos(n)
+			if hp.x > -40.0 and hp.y > -40.0 and hp.x < size.x + 40.0 and hp.y < size.y + 40.0:
+				_draw_handle(hp, Palette.channel_color(n.channel), n.id == _hover_handle)
+
 	for n in notes:
 		if selection.has(n.id) and is_on_screen(n.pos, NOTE_RADIUS + 40.0):
 			var sr := NOTE_RADIUS + (MOD_RING + 6.0 if n.mod != "" else 12.0)
@@ -1517,7 +1524,6 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 				Color(Palette.YELLOW, 0.55 + 0.45 * pf), 2.0, true)
 		if pf > 0.0:
 			draw_arc(p, ring_r + 8.0 * (1.0 - pf), 0.0, TAU, 48, Color(Palette.YELLOW, 0.5 * pf), 2.0, true)
-		_draw_handle(handle_screen_pos(n), col, n.id == _hover_handle)
 
 	if n.id == _hover_id:
 		draw_arc(p, NOTE_RADIUS + (12.0 if n.mode != Mode.NOTE else 5.0), 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.0, true)
