@@ -19,6 +19,7 @@ var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
 var cheat_sheet: CheatSheet
+var midi_in: MidiInput
 var _hint_key := ""
 
 var _menu_note := -1          # note being edited, -1 = placing a new one
@@ -80,6 +81,16 @@ func _ready() -> void:
 
 	cheat_sheet = CheatSheet.new()
 	add_child(cheat_sheet)
+
+	midi_in = MidiInput.new()
+	add_child(midi_in)
+	midi_in.slot_pressed.connect(surface.press_slot)
+	midi_in.slot_released.connect(surface.release_slot)
+	midi_in.learned.connect(func(base: int) -> void:
+		_toast("Pads: key 1 = %s, keys 2-9 follow" % MidiMessage.note_name(base)))
+	options.midi_learn_requested.connect(func() -> void:
+		midi_in.learning = true
+		_toast("Hit the pad for keypad key 1"))
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()

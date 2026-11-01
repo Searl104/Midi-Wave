@@ -32,6 +32,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
 | Space, KP0 or Stop | Clear all waves, return every toggle to its start state, ready every pulser |
 | KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
+| Pads on a MIDI controller | Fire keypad keys 1–9 like the numpad, including hold-to-refire (see MIDI input below) |
 | Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
 | Tab | Switch Edit / Play mode. Play mode locks the layout: clicks send waves or trigger notes, the keypad, Space and panning work, but nothing can be moved, placed, retuned, muted, deleted or undone |
 | O | Options · Esc closes menus |
@@ -80,6 +81,16 @@ Touch to snap, the older way of picking snap targets (touch an object while drag
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
+### MIDI input: pads fire the keypad
+
+**Options → General → MIDI input (pads)** picks a controller (Refresh lists them). Its notes
+C1–G#1 (36–44) fire keypad keys 1–9 the same way the numpad does: note-on presses the key and
+note-off releases it, so holding a pad refires that key's pulsers. **Learn** sets key 1 to the next
+pad you hit; the next eight notes are keys 2–9. Events from any other input, including the loopMIDI
+port MIDI Wave sends to, are ignored. It uses Godot's own MIDI input, which opens every input at
+once, so inputs stay closed while this is Off. Windows lets only one app open a controller, so
+turn it off in FL Studio's MIDI inputs first.
+
 Hover a note to see its pitch and channel number. **Options → General → Colour-blind palette** swaps the 16 channel colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
 
 Hover and selection are drawn as white corner brackets (thin for hover, bright for selected), so rings only ever mean state: pulse cooldown, modifier, snap guides. M, Delete and Ctrl+KP act on the bracketed note, and its brackets flash when the key lands.
@@ -118,6 +129,7 @@ scripts/
   ui/wave_surface.gd      Waves, hit detection, MIDI triggering, drawing
   ui/radial_menu.gd       Ring picker used for pitch and channel
   ui/cheat_sheet.gd       The ? / F1 overlay listing every control
+  midi/midi_in.gd         Controller pads -> keypad slots (Godot's built-in MIDI input)
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
 shaders/waves.gdshaderinc Ripple maths shared by the surface shaders

@@ -5,10 +5,13 @@ extends PanelContainer
 
 signal clear_notes_requested
 signal reset_layout_requested
+signal midi_learn_requested
 
 const WIDTH := 330.0
 
 var _ports: OptionButton
+var _in_ports: OptionButton
+var _in_status: Label
 var _port_status: Label
 
 
@@ -81,6 +84,31 @@ func _build() -> void:
 	port_row.add_child(_port_status)
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
+
+	_section(box, "MIDI INPUT (PADS)", Palette.BLUE)
+	_in_ports = OptionButton.new()
+	_in_ports.clip_text = true
+	_in_ports.fit_to_longest_item = false
+	_in_ports.focus_mode = Control.FOCUS_NONE
+	_in_ports.item_selected.connect(func(i: int) -> void:
+		Settings.set_value("midi_in_port", "" if i == 0 else _in_ports.get_item_text(i))
+		_update_in_status())
+	box.add_child(_in_ports)
+	var in_row := HBoxContainer.new()
+	box.add_child(in_row)
+	_in_status = Label.new()
+	_in_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_in_status.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_in_status.add_theme_font_size_override("font_size", 12)
+	_in_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	in_row.add_child(_in_status)
+	in_row.add_child(_button("Refresh", refresh_inputs))
+	in_row.add_child(_button("Learn", func() -> void: midi_learn_requested.emit()))
+	box.add_child(_hint("Pads fire keypad keys 1-9 (hold to refire pulsers). Learn: hit the pad for key 1; the next eight notes are keys 2-9. Windows lets only one app open a controller, so turn it off in your DAW's MIDI inputs first."))
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "midi_in_base":
+			_update_in_status())
+	refresh_inputs(Settings.midi_in_port != "")   # listing opens every input, so only on request
 
 	_section(box, "TIMING", Palette.ACCENT)
 	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
@@ -266,6 +294,27 @@ func _build_snap(box: VBoxContainer) -> void:
 	_pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
 	_check(box, "Division rings", "guide_divisions")
 	_slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
+
+
+func refresh_inputs(listing: bool = true) -> void:
+	_in_ports.clear()
+	_in_ports.add_item("Off")
+	var names: PackedStringArray = MidiInput.list_inputs() if listing else PackedStringArray()
+	for n in names:
+		_in_ports.add_item(n)
+	var at := names.find(Settings.midi_in_port)
+	_in_ports.select(at + 1 if at != -1 else 0)
+	_update_in_status()
+
+
+func _update_in_status() -> void:
+	if _in_status == null:
+		return
+	if Settings.midi_in_port == "":
+		_in_status.text = "Off · Refresh lists your controllers" if _in_ports.item_count <= 1 else "Off"
+	else:
+		var b: int = Settings.midi_in_base
+		_in_status.text = "Keys 1-9 = %s to %s" % [MidiMessage.note_name(b), MidiMessage.note_name(b + 8)]
 
 
 func refresh_ports() -> void:
