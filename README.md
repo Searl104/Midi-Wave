@@ -71,7 +71,7 @@ only panning moves it. Reach is shown in beats. While you drag a note or emitter
 its own rings (bars brightest, beats bright, divisions faded).
 
 **Grids.** Press G over a note or emitter to put a grid under it: its timing rings plus 8 spokes
-(every 45°, or 4, 6, 12 or 16). Grids that are on are drawn faintly and saved with the layout, any
+(every 45°, or 4, 6, 12 or 16). Grids that are on are drawn faintly (with their division rings, if Division rings is on) and saved with the layout, any
 number can be on at once, and Ctrl+G clears them all. While dragging, every grid lights up and the
 dragged item snaps (within 12 screen px) to the nearest grid point: where a ring crosses a spoke,
 else a spoke, else a ring. New notes from quick place, Shift-click or paste land on the nearest grid

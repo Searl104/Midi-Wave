@@ -17,6 +17,8 @@ const KEYS := [
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
+const BEAT_SPACING_MIN := 10.0   ## px per beat: the Beat spacing (zoom) slider's range
+const BEAT_SPACING_MAX := 400.0
 const SPOKE_OPTIONS := [0, 4, 6, 8, 12, 16]
 const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
 
@@ -178,6 +180,7 @@ func load_settings() -> void:
 		scale_name = "Minor Pentatonic"
 	if not DIVISION_OPTIONS.has(divisions):
 		divisions = 4
+	beat_spacing = clampf(beat_spacing, BEAT_SPACING_MIN, BEAT_SPACING_MAX)
 	if not SPOKE_OPTIONS.has(spoke_count):
 		spoke_count = 8
 	if not LOOKS.has(look):

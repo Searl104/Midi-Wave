@@ -113,7 +113,7 @@ func _build() -> void:
 
 	_section(box, "TIMING", Palette.ACCENT)
 	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
-	_slider(box, "Beat spacing (zoom)", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String:
+	_slider(box, "Beat spacing (zoom)", "beat_spacing", Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX, 1.0, func(v: float) -> String:
 		return "%d px · %d%%" % [v, roundi(v / Settings.BEAT_UNIT * 100.0)])
 	var div_row := HBoxContainer.new()
 	box.add_child(div_row)

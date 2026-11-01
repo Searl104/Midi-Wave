@@ -1603,7 +1603,7 @@ func _draw() -> void:
 		# Grids that are on stay faintly visible (beats and bars) when nothing is being dragged.
 		var grids := grid_targets()
 		for key in grids:
-			_draw_guide(grids[key], 0.32 * Settings.guide_brightness, false)
+			_draw_guide(grids[key], 0.32 * Settings.guide_brightness, Settings.guide_divisions)
 
 	for w in waves:
 		var o := to_screen(w.origin)
