@@ -13,9 +13,10 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
 	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres",
+	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
 ]
 const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
+const LOOKS := ["Abyssal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
 var bpm := 120.0                ## tempo; wave speed follows it
@@ -30,6 +31,7 @@ var midi_port := ""             ## last opened output port, reopened on launch
 var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
+var look := "Abyssal"           ## surface look, one of LOOKS
 
 # Snap settings (Options > Snap)
 var snap_enabled := true        ## snap dragged items to touched targets' rings and spokes
@@ -119,6 +121,8 @@ func load_settings() -> void:
 		divisions = 4
 	if not SPOKE_OPTIONS.has(spoke_count):
 		spoke_count = 8
+	if not LOOKS.has(look):
+		look = "Abyssal"
 	if channel_lengths.size() != 16:
 		var fixed: Array = []
 		for i in 16:

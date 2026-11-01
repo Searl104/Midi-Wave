@@ -81,6 +81,9 @@ func _build() -> void:
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
 
+	_section(box, "LOOK", Palette.BLUE)
+	_pick(box, "Surface", "look", Settings.LOOKS, Settings.LOOKS)
+
 	_section(box, "TIMING", Palette.ACCENT)
 	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
 	_slider(box, "Beat spacing (zoom)", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String:

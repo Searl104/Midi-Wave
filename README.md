@@ -63,9 +63,13 @@ toggles that object's rings on, and the dragged item snaps only to touched objec
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
+**Surface looks** (Options → General → Surface):
+- **Abyssal** (default): a thin glassy surface over endless dark water. Marine snow sinks away forever in parallax layers (deep layers move less when you pan), faint light shafts converge on a dark vanishing point, and rare glints pulse far below in the primary colours. Ripples refract the depths, and a passing wave lights the snow under it.
+- **Glass**: the original flat dark glass.
+
 **Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
 
-Options (General tab): MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
+Options (General tab): surface look, MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
 wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
 Changing the scale snaps every note to it. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
@@ -90,7 +94,9 @@ scripts/
   ui/radial_menu.gd       Ring picker used for pitch and channel
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
-shaders/water.gdshader    The liquid surface
+shaders/waves.gdshaderinc Ripple maths shared by the surface shaders
+shaders/abyssal.gdshader  Abyssal surface: endless depth under the water
+shaders/water.gdshader    Glass surface
 shaders/glass.gdshader    Frosted-glass panels
 addons/midi_out/          GDExtension manifest + built libraries
 native/                   C++ source of the MIDI output extension (RtMidi)

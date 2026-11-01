@@ -35,10 +35,13 @@ func _ready() -> void:
 	water.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	water.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var water_mat := ShaderMaterial.new()
-	water_mat.shader = load("res://shaders/water.gdshader")
 	water_mat.set_shader_parameter("accent", Palette.ACCENT)
 	water.material = water_mat
+	_apply_look()
 	add_child(water)
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "look":
+			_apply_look())
 
 	surface = WaveSurface.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -80,6 +83,14 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("surface_size", water.size)
 	mat.set_shader_parameter("wave_count", mini(surface.waves.size(), WaveSurface.MAX_WAVES))
 	mat.set_shader_parameter("waves", surface.shader_waves())
+	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
+	mat.set_shader_parameter("zoom", surface.z())
+
+
+## Surface shader for the chosen look: Abyssal (endless depth) or Glass (flat dark glass).
+func _apply_look() -> void:
+	var path := "res://shaders/water.gdshader" if Settings.look == "Glass" else "res://shaders/abyssal.gdshader"
+	(water.material as ShaderMaterial).shader = load(path)
 
 
 ## Arrow keys pan the view (not while a radial menu is open: it uses Left / Right for octave).
