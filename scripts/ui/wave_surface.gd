@@ -729,13 +729,17 @@ func step(delta: float) -> void:
 	var now := clock_usec
 	var speed := Settings.wave_speed
 	var spawned: Array = []
+	var fresh_from := waves.size()   # waves at or past this index were fired this frame
 	var i := 0
 	while i < waves.size():
 		var w: Dictionary = waves[i]
-		w.r += delta * speed
+		if i < fresh_from:
+			w.r += delta * speed
 		var wr := wave_range_of(w)
 		if w.r >= wr:
 			waves.remove_at(i)
+			if i < fresh_from:
+				fresh_from -= 1
 			continue
 		for n in notes:
 			if n.id == w.source or w.hits.has(n.id):
@@ -747,8 +751,12 @@ func step(delta: float) -> void:
 				var amp := amplitude(w.strength, d, wr)
 				if amp >= MIN_AMPLITUDE:
 					_trigger(n, amp, now, spawned)
+		# Waves fired by pulsers join the loop now, at radius 0, so a note sitting on the
+		# emitter is hit this same frame: a stacked chain plays as one chord instead of one
+		# link per frame. Cooldowns and MAX_WAVES keep this from running away.
+		waves.append_array(spawned)
+		spawned.clear()
 		i += 1
-	waves.append_array(spawned)
 
 	# Held keypad slots: pulsers refire each time their cooldown runs out (a refire that a
 	# toggle silences still waits a full cooldown before the next).
