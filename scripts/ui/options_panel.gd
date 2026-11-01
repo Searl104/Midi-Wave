@@ -135,27 +135,7 @@ func _build() -> void:
 	notes_row.add_child(_button("Default layout", func() -> void: reset_layout_requested.emit()))
 
 	_section(box, "CONTROLS", Palette.TEXT_DIM)
-	box.add_child(_hint(
-		"Click: send a wave (click a pulser to trigger it without a wave)\n" +
-		"Drag a note: move it\n" +
-		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
-		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
-		"C / E / F then right-click a note: channel / pulse / modifier ring, once (hold the key and right-drag: quick ring) · Alt-click: channel\n" +
-		"Ctrl-click: Note → Note + Pulse → Pulse only · Ctrl-drag from a pulser: set its own wave reach (back onto the note resets it)\n" +
-		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
-		"Drag the diamond on a pulser: place where its wave starts\n" +
-		"Shift-click: place a note with the last pitch\n" +
-		"Delete: remove the hovered note or the selection\n" +
-		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
-		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
-		"G over a note or emitter: grid on / off under it · Ctrl+G: clear all grids · drags and new notes snap to grid points · Shift places freely · see the Snap tab\n" +
-		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
-		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
-		"Ctrl+Z: undo · Ctrl+Shift+Z or Ctrl+Y: redo\n" +
-		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
-		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
-		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +
-		"Tab: switch Edit / Play mode (Play locks the layout; clicks, keypad, Space and panning still work) · O: options"))
+	box.add_child(_hint("Press ? or F1 for every control, grouped by task. The bar at the bottom of the window shows what you can do with whatever is under the mouse."))
 
 
 ## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.

@@ -698,6 +698,27 @@ func clear_notes() -> void:
 	save_notes()
 
 
+## What the pointer is over or doing, for the hint bar: "box", "drag_note", "drag_emitter",
+## "range", "emitter", "selected", "note", "pulser", "selection" (something selected, pointer on
+## empty space) or "empty".
+func hint_context() -> String:
+	if _box_active:
+		return "box"
+	if _press_id != -1 and (_dragging or _press_kind == "range"):
+		if _press_kind == "range":
+			return "range"
+		return "drag_emitter" if _press_kind == "emitter" else "drag_note"
+	if _hover_handle != -1:
+		return "emitter"
+	if _hover_id != -1:
+		if selection.has(_hover_id):
+			return "selected"
+		return "note" if get_note(_hover_id).get("mode", Mode.NOTE) == Mode.NOTE else "pulser"
+	if not selection.is_empty():
+		return "selection"
+	return "empty"
+
+
 func set_edit_mode(on: bool) -> void:
 	if on == edit_mode:
 		return

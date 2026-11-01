@@ -35,6 +35,7 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
 | Tab | Switch Edit / Play mode. Play mode locks the layout: clicks send waves or trigger notes, the keypad, Space and panning work, but nothing can be moved, placed, retuned, muted, deleted or undone |
 | O | Options · Esc closes menus |
+| ? or F1 | All controls, grouped by task. The bar at the bottom of the window always shows the actions for whatever is under the mouse (empty space, a note, a pulser, a ◆, the selection, a drag) |
 
 ### Pulsers
 
@@ -114,6 +115,7 @@ scripts/
   ui/main.gd              Builds the scene, wires radial menus to note edits
   ui/wave_surface.gd      Waves, hit detection, MIDI triggering, drawing
   ui/radial_menu.gd       Ring picker used for pitch and channel
+  ui/cheat_sheet.gd       The ? / F1 overlay listing every control
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
 shaders/waves.gdshaderinc Ripple maths shared by the surface shaders

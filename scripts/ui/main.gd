@@ -18,6 +18,8 @@ var radial: RadialMenu
 var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
+var cheat_sheet: CheatSheet
+var _hint_key := ""
 
 var _menu_note := -1          # note being edited, -1 = placing a new one
 var _menu_pos := Vector2.ZERO
@@ -76,6 +78,9 @@ func _ready() -> void:
 	radial.wheel.connect(func(dir: int) -> void: _set_menu_octave(_menu_octave + dir))
 	radial.digit.connect(_on_digit)
 
+	cheat_sheet = CheatSheet.new()
+	add_child(cheat_sheet)
+
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()
 	_update_status()
@@ -89,6 +94,7 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("waves", surface.shader_waves())
 	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
 	mat.set_shader_parameter("zoom", surface.z())
+	_refresh_hint()
 	if Settings.look == "Tidal":
 		caustic_time = fmod(caustic_time + delta * Settings.look_uniform_value("tidal_caustic_speed"), 10000.0)
 		mat.set_shader_parameter("caustic_time", caustic_time)
@@ -143,6 +149,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			surface.release_slot(pad - KEY_KP_0)
 		return
 	if key.echo:
+		return
+	if key.keycode == KEY_F1 or key.unicode == 63:      # F1 or "?"
+		cheat_sheet.toggle()
+		get_viewport().set_input_as_handled()
+		return
+	if cheat_sheet.visible and key.keycode == KEY_ESCAPE:
+		cheat_sheet.hide()
+		get_viewport().set_input_as_handled()
 		return
 	if pad == KEY_KP_0:
 		surface.stop()
@@ -221,8 +235,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
-const HINT_EDIT := "Edit mode  ·  Click: wave  ·  Right-click: ring (hold: quick place / tune)  ·  C / E / F: channel / pulse / modifier ring  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: play mode  ·  O: options"
-const HINT_PLAY := "Play mode  ·  Click: wave or trigger  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: edit mode  ·  O: options"
+## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
+const HINTS_EDIT := {
+	"empty": "Click: wave  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Shift-click: note with last pitch  ·  Ctrl + right-drag: box select  ·  Middle-drag: pan  ·  Tab: play mode  ·  ?: all controls",
+	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  Ctrl-click: make a pulser  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"pulser": "Click: trigger  ·  Drag: move  ·  Ctrl-click: next mode  ·  Ctrl-drag: its reach  ·  E, right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"emitter": "Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under the emitter",
+	"selected": "Drag: move the group  ·  Ring edits, M, Delete and Ctrl+KP apply to all  ·  Ctrl+C: copy  ·  Esc: clear",
+	"selection": "%d selected  ·  M: mute all  ·  Delete: remove all  ·  Ctrl+C: copy  ·  Ctrl+V: paste at the mouse  ·  Esc or click empty space: clear",
+	"drag_note": "Snapping to grid points (G over a note or emitter adds a grid)  ·  Drop on a note or emitter: snap to its centre  ·  Shift: free",
+	"drag_emitter": "Place where the wave starts  ·  Snaps to grid points and centres  ·  Drop on its note: re-attach  ·  Shift: free",
+	"range": "Set this emitter's reach (snaps to beat divisions)  ·  Back onto the note: global reach  ·  Shift: free",
+	"box": "Release to select  ·  Hold Shift to add to the selection",
+}
+const HINT_PLAY := "Play mode  ·  Click: wave or trigger  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: edit mode  ·  ?: all controls"
 
 
 func _on_mode_changed(edit: bool) -> void:
@@ -272,13 +298,23 @@ func _on_right_click(note_id: int, at: Vector2) -> void:
 
 
 func _refresh_hint() -> void:
+	var text: String
 	if armed_ring != "":
 		var k: String = RING_KEY_LABELS[armed_ring]
-		hint_label.text = "%s ring armed  ·  Right-click a note (or hold %s and right-drag, release to choose)  ·  %s or Esc cancels" % [
+		text = "%s ring armed  ·  Right-click a note (or hold %s and right-drag, release to choose)  ·  %s or Esc cancels" % [
 				RING_NAMES[armed_ring], k, k]
+	elif not surface.edit_mode:
+		text = HINT_PLAY
 	else:
-		hint_label.text = HINT_EDIT if surface.edit_mode else HINT_PLAY
-	hint_label.modulate.a = 1.0
+		var ctx: String = surface.hint_context()
+		text = HINTS_EDIT[ctx]
+		if ctx == "selection":
+			text = text % surface.selection.size()
+		elif ctx == "empty" and surface.has_grids():
+			text = text.replace("Shift-click: note with last pitch", "New notes land on grid points  ·  Ctrl+G: clear grids")
+	if text != _hint_key:
+		_hint_key = text
+		hint_label.text = text
 
 
 ## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
@@ -376,7 +412,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = HINT_EDIT
+	hint_label.text = HINTS_EDIT["empty"]
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -385,9 +421,7 @@ func _build_hud() -> void:
 	hint_label.offset_bottom = -14
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hint_label)
-	var tw := create_tween()
-	tw.tween_interval(8.0)
-	tw.tween_property(hint_label, "modulate:a", 0.35, 2.0)
+	hint_label.modulate.a = 0.85                 # stays up: it follows what is under the mouse
 
 
 func _update_status() -> void:
