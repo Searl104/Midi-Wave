@@ -10,10 +10,10 @@ extends Control
 ## The canvas is unbounded and pans (middle-drag, arrow keys); there is no zoom.
 ## Waves and notes keep playing off screen; edge markers show off-screen notes firing.
 ##
-## A note is one object with three modes:
-##   NOTE        plays its note when a wave hits it
-##   NOTE_PULSE  plays its note and emits a new wave from its emitter
-##   PULSE       silent; only emits
+## An object is one of two types:
+##   NOTE   plays its note when a wave hits it
+##   RELAY  silent; emits a new wave from its emitter (a pulser)
+## (Older saves had a third, a note that also pulsed; it loads as a Note and a Relay stacked.)
 ## A pulsing note emits at its own fixed strength, at most once per cooldown (in beats, so
 ## it follows the tempo; at least an eighth of a beat), and never
 ## reacts to waves it emitted itself. Its emitter starts on the note (attached); dragging
@@ -63,7 +63,8 @@ signal mode_changed(edit: bool)
 ## can be moved, placed, retuned, muted, deleted or undone.
 var edit_mode := true
 
-enum Mode { NOTE, NOTE_PULSE, PULSE }
+enum Mode { NOTE = 0, RELAY = 2 }   # 1 was the old note + pulse hybrid (see load_notes)
+const LEGACY_NOTE_PULSE := 1
 
 const MAX_WAVES := 64           ## must match MAX_WAVES in water.gdshader
 const NOTE_RADIUS := 22.0
@@ -191,6 +192,7 @@ func load_notes() -> void:
 	notes.clear()
 	# Notes keep their ids across saves, so snap memories ("n<id>" / "e<id>") stay valid.
 	var used := {}
+	var hybrids: Array = []             # ids saved as the old note + pulse hybrid
 	for d in Settings.notes:
 		var saved := int(d.get("id", 0))
 		if saved > 0 and not used.has(saved):
@@ -211,7 +213,10 @@ func load_notes() -> void:
 		n.grid_emit = bool(d.get("grid_emit", false))
 		n.snap_note = str(d.get("snap_note", ""))
 		n.snap_emit = str(d.get("snap_emit", ""))
-		n.mode = clampi(int(d.get("mode", Mode.NOTE)), Mode.NOTE, Mode.PULSE)
+		var saved_mode := int(d.get("mode", Mode.NOTE))
+		n.mode = Mode.RELAY if saved_mode == Mode.RELAY or saved_mode == LEGACY_NOTE_PULSE else Mode.NOTE
+		if saved_mode == LEGACY_NOTE_PULSE:
+			hybrids.append(n.id)
 		n.pulse_strength = clampf(float(d.get("pulse_strength", DEFAULT_PULSE_STRENGTH)), 0.05, 1.0)
 		# Cooldowns are in beats (tempo-locked). Older saves stored seconds: convert at the saved tempo.
 		var cd := DEFAULT_COOLDOWN
@@ -227,6 +232,16 @@ func load_notes() -> void:
 			n.mod = ""
 		n.mod_start = bool(d.get("mod_start", true))
 		n.mod_on = n.mod_start
+	# An old note + pulse hybrid becomes a Relay plus a plain Note on the same spot, so it still
+	# sounds and still pulses.
+	for hid in hybrids:
+		var h := get_note(hid)
+		var nid := _add(h.pos, h.note, h.channel)
+		var nn := get_note(nid)
+		for key in ["slot", "muted", "mod", "mod_start", "mod_on"]:
+			nn[key] = h[key]
+	if not hybrids.is_empty():
+		save_notes()
 	if notes.is_empty():
 		seed_default_layout()
 	if not _restoring:
@@ -388,7 +403,7 @@ func nudge_pitch(steps: int, octave: bool) -> int:
 		last_pitch = p
 		moved += 1
 		flash_brackets(n)
-		if n.mode != Mode.PULSE and not n.muted and heard.size() < 8 and not heard.has([p, n.channel]):
+		if n.mode != Mode.RELAY and not n.muted and heard.size() < 8 and not heard.has([p, n.channel]):
 			heard[[p, n.channel]] = true
 			Midi.play_note(p, 90, 0.25, n.channel)
 	if moved > 0:
@@ -406,12 +421,12 @@ func set_note_channel(id: int, channel: int) -> void:
 	save_notes()
 
 
-## NOTE -> NOTE_PULSE -> PULSE -> NOTE. A pulse that gets switched on is ready to fire.
+## Note <-> Relay. A relay that gets switched on is ready to fire.
 func cycle_mode(id: int) -> void:
 	var n := get_note(id)
 	if n.is_empty():
 		return
-	var mode: int = (n.mode + 1) % 3
+	var mode: int = Mode.RELAY if n.mode == Mode.NOTE else Mode.NOTE
 	for gid in group_for(id):
 		set_note_mode(gid, mode)
 
@@ -420,9 +435,13 @@ func set_note_mode(id: int, mode: int) -> void:
 	var n := get_note(id)
 	if n.is_empty():
 		return
+	if mode == LEGACY_NOTE_PULSE:
+		mode = Mode.RELAY            # the hybrid is gone: a pulsing note is a relay
+	if mode != Mode.RELAY:
+		mode = Mode.NOTE
 	if n.mode == Mode.NOTE and mode != Mode.NOTE:
 		n.ready_at = 0
-	if mode == Mode.PULSE:
+	if mode == Mode.RELAY:
 		_silence(n)
 	n.mode = mode
 	save_notes()
@@ -562,15 +581,15 @@ func stop() -> void:
 		n.dim_flash = 0.0       # cooldowns keep running: a pulser that just fired stays cooling down
 
 
-## Alpha of a hollow note's centre dot: bright unless muted (pulse-only pulsers are always
+## Alpha of a hollow note's centre dot: bright unless muted (relays are always
 ## hollow, so the dot is what shows their mute state).
 func center_dot_alpha(n: Dictionary) -> float:
 	return 0.18 if n.muted else 0.9
 
 
-## Pulse-only pulsers play no note, so they hide their pitch (it is kept for switching back).
+## Relays play no note, so they hide their pitch (it is kept for switching back).
 func shows_pitch(n: Dictionary) -> bool:
-	return n.mode != Mode.PULSE
+	return n.mode != Mode.RELAY
 
 
 ## Tooltip text for a note: pitch, channel and modifier state.
@@ -579,9 +598,7 @@ func hover_text(n: Dictionary) -> String:
 	if shows_pitch(n):
 		text = "%s · ch %d" % [MidiMessage.note_name(n.note), n.channel + 1]
 	else:
-		text = "pulse only · ch %d" % (n.channel + 1)
-	if n.mode == Mode.NOTE_PULSE:
-		text += " · pulse"
+		text = "relay · ch %d" % (n.channel + 1)
 	if n.mode != Mode.NOTE and is_retrigger(n):
 		text += " · retrigger"
 	if n.muted:
@@ -1014,7 +1031,7 @@ func _on_hit(n: Dictionary, amp: float, now: int, spawned: Array) -> void:
 	if n.muted:
 		n.dim_flash = 1.0            # muted: no sound and no pulse (a toggle still advances)
 		return
-	if n.mode != Mode.PULSE:
+	if n.mode != Mode.RELAY:
 		_play(n, amp, now)
 	if n.mode == Mode.NOTE or now < n.ready_at:
 		return
@@ -1880,7 +1897,7 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	var p := note_screen_pos(n)
 	var col := Palette.channel_color(n.channel)
 	var f: float = n.flash
-	var muted: bool = n.mode == Mode.PULSE or n.muted
+	var muted: bool = n.mode == Mode.RELAY or n.muted
 
 	if f > 0.0:
 		draw_circle(p, NOTE_RADIUS + 16.0 * f, Color(col, 0.18 * f))
@@ -1888,7 +1905,7 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	draw_circle(p, NOTE_RADIUS + 3.0, Color(0, 0, 0, 0.35))                                   # shadow
 	if muted:
 		draw_circle(p, NOTE_RADIUS, Color(Palette.BG, 0.9))                                    # hollow
-		# Centre dot doubles as the mute indicator: bright on an unmuted pulse-only pulser.
+		# Centre dot doubles as the mute indicator: bright on an unmuted relay.
 		draw_circle(p, NOTE_RADIUS * 0.35, Color(col, center_dot_alpha(n)))
 	else:
 		draw_circle(p, NOTE_RADIUS, Palette.GLASS.lerp(col, 0.12 + f * 0.35))                  # body
@@ -1897,7 +1914,7 @@ func _draw_note(n: Dictionary, font: Font, now: int) -> void:
 	if Palette.channel_marked(n.channel):
 		draw_arc(p, NOTE_RADIUS - 4.5, 0.0, TAU, 40, Color(col, 0.45 if muted else 0.9), 1.5, true)
 	if n.muted:
-		# Muted: a slash, so it reads differently from a hollow pulse-only pulser.
+		# Muted: a slash, so it reads differently from a hollow relay.
 		var sl := Vector2(1, -1).normalized() * (NOTE_RADIUS - 3.0)
 		draw_line(p - sl, p + sl, Color(col, 0.85), 2.0, true)
 

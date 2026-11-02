@@ -11,20 +11,20 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Drag a note | Move it |
 | Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it. On any ring, releasing over an inner-ring item or the centre picks it and closes |
 | Right-click tap | Opens the same pitch ring and keeps it open for clicking |
-| Right-click a pulse-only note | Opens its pulse ring instead (it has no pitch to play); hold, flick and release works the same |
+| Right-click a relay | Opens its pulse ring instead (it has no pitch to play); hold, flick and release works the same |
 | Hovering the pitch ring | Plays each note as the pointer moves onto it, on the ring's channel (Options → General → Play notes while hovering the pitch ring turns it off) |
 | C / E / F, then right-click a note | Summon the channel, pulse or modifier ring instead of pitch. Right-click always opens the active ring; pitch is the default, and a ring picked with a key is used once, then pitch returns. While the key is held it stays active for every right-click on a note, and letting go returns to pitch. Pressing the key again or Esc cancels |
 | Left-click while a ring is open | Pick an item and keep the ring open for more picks (a new note is placed on the first pitch, then retuned by the next). A left click off the ring closes it. Left clicks never reach the surface while a ring is open |
 | While the pitch ring is open | A / D, mouse wheel or the inner ring: octave (an edited note keeps its letter, e.g. C#, and moves to that octave) · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
 | Alt-click a note (alias for C) | Channel ring (1-16); notes are colored by channel |
-| Ctrl-click a note | Cycle Note → Note + Pulse → Pulse only (silent, hollow, no note label) |
+| Ctrl-click a note | Switch between the two types: **Note** (plays its pitch) and **Relay** (silent, hollow, no label; sends a pulse from its emitter). Older saves' note + pulse hybrids load as a Note and a Relay stacked on the same spot |
 | Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
 | Ctrl-right-click a note (alias for E) | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
 | Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
 | Shift-click | Place a note with the last pitch and channel |
 | Delete | Remove the hovered note (or the selection, if any) |
 | < / > (comma / period) | Nudge the selected notes, or the hovered note, one scale step down / up; with Shift, an octave. Each moved note plays its new pitch; one undo step |
-| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
+| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow relays also show a bright centre dot when unmuted, a faint one when muted |
 | Ctrl + right-drag on empty space | Box select notes, and any detached emitter diamonds inside the box on their own (Shift adds to the selection); Esc or a click on empty space clears it |
 | Drag a selected diamond | Moves every selected diamond, plus any selected notes (with their emitters), keeping their shape. A selected note's drag carries selected diamonds the same way |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |

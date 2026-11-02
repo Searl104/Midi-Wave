@@ -9,7 +9,7 @@ const PAN_SPEED := 700.0       ## px per second for arrow-key panning
 const COOLDOWNS := [0.0, 0.125, 1.0 / 6.0, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
 const COOLDOWN_LABELS := ["Retrig", "⅛", "⅙", "¼", "⅓", "½", "⅔", "¾", "1", "1½", "2", "3", "4"]
 const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
-const MODE_LABELS := ["Note", "N+Pulse", "Pulse"]
+const MODE_LABELS := ["Note", "", "Relay"]   ## by Mode value (1 was the old hybrid)
 
 var water: ColorRect
 var caustic_time := 0.0          ## Tidal caustic clock, advanced at the Caustics speed setting
@@ -261,8 +261,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
 const HINTS_EDIT := {
 	"empty": "Click: wave  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Shift-click: note with last pitch  ·  Ctrl + right-drag: box select  ·  Middle-drag: pan  ·  Tab: play mode  ·  ?: all controls",
-	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  < >: nudge pitch  ·  Ctrl-click: make a pulser  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
-	"pulser": "Click: trigger  ·  Drag: move  ·  Ctrl-click: next mode  ·  Ctrl-drag: its reach  ·  Right-click: pitch, or the pulse ring if pulse-only (E first: pulse ring)  ·  < >: nudge  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  < >: nudge pitch  ·  Ctrl-click: make it a relay  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
+	"pulser": "Relay  ·  Click: trigger  ·  Drag: move  ·  Ctrl-click: make it a note  ·  Ctrl-drag: its reach  ·  Right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
 	"emitter": "Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under the emitter",
 	"selected": "Drag: move the group  ·  Ring edits, < >, M, Delete and Ctrl+KP apply to all  ·  Ctrl+C: copy  ·  Esc: clear",
 	"selection": "%d selected  ·  M: mute all  ·  Delete: remove all  ·  Ctrl+C: copy  ·  Ctrl+V: paste at the mouse  ·  Esc or click empty space: clear",
@@ -321,8 +321,8 @@ func _on_right_click(note_id: int, at: Vector2) -> void:
 	var ring := armed_ring
 	if ring == "":
 		var n := surface.get_note(note_id)
-		if not n.is_empty() and n.mode == WaveSurface.Mode.PULSE:
-			# A pulse-only note has no pitch to play: its default ring is the pulse ring.
+		if not n.is_empty() and n.mode == WaveSurface.Mode.RELAY:
+			# A relay has no pitch to play: its default ring is the pulse ring.
 			_open_pulse_menu(note_id, at, true)
 		else:
 			_open_pitch_menu(note_id, at)
@@ -621,7 +621,7 @@ func _rebuild_pulse_items() -> void:
 				"selected": absf(n.pulse_strength - s) < 0.001})
 	radial.center_item = {"id": "mode", "label": MODE_LABELS[n.mode], "color": Palette.channel_color(n.channel)}
 	radial.title = "Pulse · cooldown in beats or Retrigger (outer) · strength (inner)"
-	radial.subtitle = "Centre: Note → Note + Pulse → Pulse only"
+	radial.subtitle = "Centre: switch Note ↔ Relay"
 	radial.refresh()
 
 
@@ -708,7 +708,7 @@ func _on_radial_outer(id: Variant) -> void:
 				var g := surface.get_note(gid)
 				surface.set_pulse_params(gid, g.pulse_strength, id)
 				if g.mode == WaveSurface.Mode.NOTE:
-					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
+					surface.set_note_mode(gid, WaveSurface.Mode.RELAY)   # tuning a pulse turns it on
 			_rebuild_pulse_items()
 
 
@@ -728,7 +728,7 @@ func _on_radial_inner(id: Variant) -> void:
 				var g := surface.get_note(gid)
 				surface.set_pulse_params(gid, id, g.cooldown)
 				if g.mode == WaveSurface.Mode.NOTE:
-					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)
+					surface.set_note_mode(gid, WaveSurface.Mode.RELAY)
 			_rebuild_pulse_items()
 
 

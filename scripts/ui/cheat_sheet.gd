@@ -21,7 +21,7 @@ const SECTIONS := [
 		["Right-click a note", "Pitch ring (hold: retune; release on centre: delete)"],
 		["C / E / F, right-click", "Channel / pulse / modifier ring, once"],
 		["Hold C / E / F", "That ring for every right-click until let go"],
-		["Ctrl-click", "Mode: Note → Note + Pulse → Pulse only"],
+		["Ctrl-click", "Switch Note ↔ Relay"],
 		["Drag the ◆", "Place where a pulser's wave starts"],
 		["Ctrl-drag a pulser", "Its own wave reach (back onto it: global)"],
 		["< / >", "Nudge a scale step (Shift: an octave)"],
