@@ -7,7 +7,7 @@ const TIPS := {
 	"wave_strength": "How strong a wave starts, which sets velocity. Also the strength of taps and bindings.",
 	"wave_range": "How far a wave travels before fading to nothing. Relays can set their own.",
 	"falloff_curve": "How a wave fades with distance. 1 is even; higher drops faster near its source.",
-	"note_length": "How long a note is held. Channels left on Default use this.",
+	"note_beats": "How long a note is held, in eighth notes up to a 4-beat measure. Follows the tempo.",
 	"bpm": "Beats per minute. Wave speed follows it, so the layout stays in time.",
 	"divisions": "How many timing rings fall within each beat, and so how fine snapping is.",
 	"beat_spacing": "Screen pixels per beat. Scales distances, not icons or timing.",
@@ -41,6 +41,14 @@ const TIPS := {
 	"tidal_relief": "How deep the sand ripples look.",
 	"tidal_refraction": "How much ripples bend the view of the sand.",
 }
+
+
+## "½ beat", "1 beat", "2½ beats".
+static func beats_text(beats: float) -> String:
+	var whole := floori(beats)
+	var half := beats - whole >= 0.25
+	var number := ("%d" % whole if whole > 0 else "") + ("½" if half else "")
+	return number + (" beat" if beats <= 1.0 else " beats")
 
 
 static func check(box: VBoxContainer, label: String, key: String) -> CheckButton:

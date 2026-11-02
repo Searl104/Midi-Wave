@@ -17,7 +17,7 @@ func has_options() -> bool:
 
 func build_options(box: VBoxContainer) -> void:
 	PanelBuilder.section(box, "NOTE LENGTH", Palette.RED)
-	PanelBuilder.slider(box, "Default", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)
+	PanelBuilder.slider(box, "Default", "note_beats", Settings.LENGTH_STEP, Settings.LENGTH_MAX, Settings.LENGTH_STEP, PanelBuilder.beats_text)
 	var sliders: Array = []
 	for ch in 16:
 		sliders.append(_channel_row(box, ch))
@@ -30,7 +30,7 @@ func build_options(box: VBoxContainer) -> void:
 func _channel_row(box: VBoxContainer, ch: int) -> HSlider:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	row.tooltip_text = "How long notes on channel %d are held. All the way left uses Default." % (ch + 1)
+	row.tooltip_text = "How long notes on channel %d are held, in eighth notes. All the way left uses Default." % (ch + 1)
 	box.add_child(row)
 	var dot := ColorRect.new()
 	dot.color = Palette.channel_color(ch)
@@ -44,24 +44,24 @@ func _channel_row(box: VBoxContainer, ch: int) -> HSlider:
 	var s := HSlider.new()
 	s.tooltip_text = row.tooltip_text
 	s.min_value = 0.0
-	s.max_value = 4.0
-	s.step = 0.01
-	s.value = float(Settings.channel_lengths[ch])
+	s.max_value = Settings.LENGTH_MAX
+	s.step = Settings.LENGTH_STEP
+	s.value = float(Settings.channel_beats[ch])
 	s.focus_mode = Control.FOCUS_NONE
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(s)
 	var val_l := Label.new()
-	val_l.custom_minimum_size.x = 56
+	val_l.custom_minimum_size.x = 64
 	val_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	val_l.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	row.add_child(val_l)
 	var show_value := func(v: float) -> void:
-		val_l.text = "Default" if v <= 0.0 else "%.2f s" % v
+		val_l.text = "Default" if v <= 0.0 else PanelBuilder.beats_text(v)
 	show_value.call(s.value)
 	s.value_changed.connect(func(v: float) -> void:
 		show_value.call(v)
-		Settings.set_channel_length(ch, v))
+		Settings.set_channel_beats(ch, v))
 	return s
 
 

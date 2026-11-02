@@ -10,13 +10,15 @@ const BEAT_UNIT := 200.0        ## world units per beat; beat spacing / BEAT_UNI
 const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version-1 layouts
 const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
-	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
+	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
 	"root_note", "scale_name", "midi_port", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_lengths", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
+const LENGTH_STEP := 0.5         ## note lengths snap to eighth notes, in beats
+const LENGTH_MAX := 4.0          ## a 4-beat measure
 const BEAT_SPACING_MIN := 10.0   ## px per beat: the Beat spacing (zoom) slider's range
 const BEAT_SPACING_MAX := 400.0
 const SPOKE_OPTIONS := [0, 4, 6, 8, 12, 16]
@@ -28,7 +30,7 @@ var beat_spacing := 200.0       ## on-screen px per beat: the canvas zoom (timin
 var divisions := 4              ## faded division rings per beat
 var wave_range := 900.0         ## world units at which the wave reaches 0 (BEAT_UNIT per beat)
 var falloff_curve := 1.6        ## 1 = linear, higher = drops faster near the source
-var note_length := 0.35         ## seconds a triggered note is held
+var note_beats := 0.5           ## how long a note is held, in beats: a tempo-locked Default
 var root_note := 0              ## 0-11, C = 0
 var scale_name := "Minor Pentatonic"
 var midi_port := ""             ## last opened output port, reopened on launch
@@ -107,23 +109,30 @@ var touch_snap := false
 var snap_memory := true         ## remember the target snapped to on drop for the next drag
 var snap_centres := true        ## snap onto the centre of a note or emitter the item is dropped on
 
-## Per-channel note length in seconds (index 0 = channel 1); 0 = use the global note_length.
-var channel_lengths: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+## Per-channel note length in beats (index 0 = channel 1); 0 = use note_beats.
+var channel_beats: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
-## How long a note on `channel` (0-15) is held.
+## A length as saved: a whole number of eighth notes, up to a 4-beat measure.
+static func snap_length(beats: float) -> float:
+	return clampf(snappedf(beats, LENGTH_STEP), LENGTH_STEP, LENGTH_MAX)
+
+
+## How long a note on `channel` (0-15) is held, in seconds at the current tempo.
 func note_length_for(channel: int) -> float:
-	if channel >= 0 and channel < channel_lengths.size() and float(channel_lengths[channel]) > 0.0:
-		return float(channel_lengths[channel])
-	return note_length
+	var beats := note_beats
+	if channel >= 0 and channel < channel_beats.size() and float(channel_beats[channel]) > 0.0:
+		beats = float(channel_beats[channel])
+	return beats * beat_seconds()
 
 
-func set_channel_length(channel: int, seconds: float) -> void:
+func set_channel_beats(channel: int, beats: float) -> void:
 	if channel < 0 or channel > 15:
 		return
-	channel_lengths[channel] = maxf(seconds, 0.0)
-	changed.emit("channel_lengths")
+	channel_beats[channel] = maxf(beats, 0.0)
+	changed.emit("channel_beats")
 	queue_save()
+
 
 ## Wave speed in world units per second, locked to tempo: one beat of space per beat.
 ## Setting it sets the tempo.
@@ -187,11 +196,24 @@ func load_settings() -> void:
 		spoke_count = 8
 	if not LOOKS.has(look):
 		look = "Abyssal"
-	if channel_lengths.size() != 16:
+	_migrate_note_lengths(cfg)
+	if channel_beats.size() != 16:
 		var fixed: Array = []
 		for i in 16:
-			fixed.append(float(channel_lengths[i]) if i < channel_lengths.size() else 0.0)
-		channel_lengths = fixed
+			fixed.append(float(channel_beats[i]) if i < channel_beats.size() else 0.0)
+		channel_beats = fixed
+
+
+## Saves before lengths were in beats stored seconds: convert at the saved tempo and snap.
+func _migrate_note_lengths(cfg: ConfigFile) -> void:
+	if cfg.has_section_key("app", "note_beats"):
+		return
+	var per_beat := beat_seconds()
+	note_beats = snap_length(float(cfg.get_value("app", "note_length", note_beats * per_beat)) / per_beat)
+	var old: Array = cfg.get_value("app", "channel_lengths", [])
+	for i in mini(old.size(), 16):
+		channel_beats[i] = 0.0 if float(old[i]) <= 0.0 else snap_length(float(old[i]) / per_beat)
+	queue_save()
 
 
 ## Version 1 stored positions as fractions of the window and wave speed in px/s.

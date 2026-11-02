@@ -36,6 +36,7 @@ func _ready() -> void:
 	_group_rings()
 	_grid_tool()
 	_tool_options()
+	_note_lengths()
 	_tweaks()
 	_saves()
 	_default_ring()
@@ -1173,6 +1174,44 @@ func _tool_options() -> void:
 	radial.close()
 	Settings.set_value("scale_name", scale_before)
 	surface.clear_notes()
+
+
+func _note_lengths() -> void:
+	_check(Settings.note_beats == 0.5, "the default is an eighth note")
+	var bpm: float = Settings.bpm
+	_check(is_equal_approx(Settings.note_length_for(0), 0.5 * 60.0 / bpm), "lengths are in beats")
+	Settings.bpm = 60.0
+	_check(is_equal_approx(Settings.note_length_for(0), 0.5), "and follow the tempo")
+	Settings.set_channel_beats(3, 2.5)
+	_check(is_equal_approx(Settings.note_length_for(3), 2.5) and is_equal_approx(Settings.note_length_for(4), 0.5), "a channel can differ")
+	Settings.set_channel_beats(3, 0.0)
+	Settings.bpm = bpm
+	for pair in [[0.1, 0.5], [0.74, 0.5], [0.76, 1.0], [1.3, 1.5], [9.0, 4.0]]:
+		_check(Settings.snap_length(pair[0]) == pair[1], "%s snaps to %s" % pair)
+	for pair in [[0.5, "½ beat"], [1.0, "1 beat"], [1.5, "1½ beats"], [4.0, "4 beats"]]:
+		_check(PanelBuilder.beats_text(pair[0]) == pair[1], "reads %s" % pair[1])
+	var box := VBoxContainer.new()
+	add_child(box)
+	tools.get_tool("channel").build_options(box)
+	var sliders := box.find_children("*", "HSlider", true, false)
+	_check(sliders.size() == 17, "Default and 16 channels")
+	_check(sliders[0].step == 0.5 and sliders[0].min_value == 0.5 and sliders[0].max_value == 4.0, "Default runs ½ to 4 in ½ steps")
+	_check(sliders[1].step == 0.5 and sliders[1].min_value == 0.0 and sliders[1].max_value == 4.0, "a channel adds Default at the bottom")
+	box.queue_free()
+	# Old saves.
+	var cfg := ConfigFile.new()
+	var old: Array = []
+	old.resize(16)
+	old.fill(0.0)
+	old[1] = 1.3
+	cfg.set_value("app", "note_length", 0.35)
+	cfg.set_value("app", "channel_lengths", old)
+	var was: float = Settings.note_beats
+	var was_channels: Array = Settings.channel_beats.duplicate()
+	Settings._migrate_note_lengths(cfg)
+	_check(Settings.note_beats == 0.5 and Settings.channel_beats[1] == 2.5 and Settings.channel_beats[0] == 0.0, "old seconds convert and snap")
+	Settings.note_beats = was
+	Settings.channel_beats = was_channels
 
 
 func _tweaks() -> void:

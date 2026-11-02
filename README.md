@@ -34,7 +34,7 @@ else. Esc closes it too.
 | Bind | MIDI input (also in Options) |
 | Grid | Clear All, snapping and guides |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
-| Channel | Default note length, and a note length per channel |
+| Channel | Default note length, and a note length per channel, in eighth notes up to 4 beats |
 | Zoom | Beat spacing |
 
 ## Rings
@@ -211,4 +211,4 @@ Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extensio
 
 A wave's radius grows at *speed* = 200 world units × BPM / 60 (one beat of space per beat; relay waves too). Distances below are in world units. Its amplitude at distance *d* is
 `strength × (1 − d / reach) ^ curve`, reaching 0 at *reach*. When the ring passes a note, the note plays
-once per wave at velocity `amplitude × 127`, and turns off after *note length*.
+once per wave at velocity `amplitude × 127`, and turns off after its note length, set in beats so it follows the tempo.
