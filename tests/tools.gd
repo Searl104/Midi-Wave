@@ -32,6 +32,7 @@ func _ready() -> void:
 	_quick_pick()
 	_ring_options()
 	_tab()
+	_bindings()
 	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
@@ -50,7 +51,7 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 8, "eight tools")
+	_check(tools.tools.size() == 9, "nine tools")
 	_check(tools.get_tool("pulse") == null, "no Pulse tool")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
@@ -754,6 +755,130 @@ func _tab() -> void:
 	tools.handle_input(ctrl)
 	_check(tools.current_id() == "draw", "Ctrl+Tab does nothing")
 	tools.set_tool("select")
+
+
+func _kp(digit: int, down: bool = true) -> void:
+	var e := InputEventKey.new()
+	e.physical_keycode = (KEY_KP_0 + digit) as Key
+	e.pressed = down
+	tools.handle_input(e)
+
+
+func _bindings() -> void:
+	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
+	var b := surface.add_note_at(Vector2(500, 300), 62, 0)
+	var r := surface.add_note_at(Vector2(700, 300), 64, 0)
+	surface.add_modifier(r, "relay")
+	surface.set_relay_sound(r, false)
+	var ao := surface.get_note(a)
+	var bind: BindTool = tools.get_tool("bind")
+	# Stop.
+	tools.set_tool("tap")
+	for code in [KEY_SPACE, KEY_KP_ENTER]:
+		surface.spawn_wave(Vector2(100, 100))
+		_key(code)
+		_check(surface.waves.is_empty(), "%s stops" % OS.get_keycode_string(code))
+	# Arm and bind.
+	tools.set_tool("bind")
+	surface.history.end_group()
+	var steps := surface.history.undo_steps()
+	_click(Vector2(300, 300))
+	_check(bind.armed() and ao.binding == "", "a click arms")
+	_kp(3)
+	_kp(3, false)
+	_check(ao.binding == "kp3" and not bind.armed(), "a key binds and disarms")
+	_check(surface.history.undo_steps() == steps + 1, "binding can be undone")
+	surface.history.end_group()
+	_click(Vector2(300, 300))
+	tools.binding_pressed("midi36")
+	tools.binding_released("midi36")
+	_check(ao.binding == "midi36", "a new binding replaces the old")
+	_check(ao.binding_label() == MidiMessage.note_name(36) and ao.hover_text().contains("MIDI"), "MIDI label")
+	surface.history.end_group()
+	_click(Vector2(300, 300))
+	_kp(0)
+	_kp(0, false)
+	_check(ao.binding == "kp0", "KP0 binds")
+	surface.history.end_group()
+	var count := Settings.notes.size()
+	# Shared, and a group; Esc and empty space disarm; Delete clears without removing.
+	_click(Vector2(500, 300))
+	_kp(0)
+	_kp(0, false)
+	_check(surface.get_note(b).binding == "kp0", "many notes can share one")
+	surface.history.end_group()
+	_click(Vector2(300, 300))
+	_key(KEY_DELETE)
+	_check(ao.binding == "" and not bind.armed() and Settings.notes.size() == count, "Delete clears the binding")
+	surface.history.end_group()
+	_click(Vector2(300, 300))
+	_key(KEY_ESCAPE)
+	_check(not bind.armed(), "Esc disarms")
+	_click(Vector2(300, 300))
+	_click(Vector2(100, 600))
+	_check(not bind.armed(), "empty space disarms")
+	_click(Vector2(300, 300))
+	tools.set_tool("select")
+	_check(not bind.armed(), "leaving the tool disarms")
+	surface.selection.notes = {a: true, b: true}
+	tools.set_tool("bind")
+	_click(Vector2(300, 300))
+	_kp(7)
+	_kp(7, false)
+	_check(ao.binding == "kp7" and surface.get_note(b).binding == "kp7", "a selected note binds its group")
+	surface.selection.clear()
+	surface.history.end_group()
+	# Firing: as a tap, in any tool.
+	surface.set_binding(r, "kp7")
+	surface.get_note(r).emitter().own_reach = 60.0   # its waves stay clear of the notes
+	surface.history.end_group()
+	var sent: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			sent.append(m)
+	Midi.message_sent.connect(spy)
+	tools.set_tool("tap")
+	surface.get_note(a).muted = true
+	surface.step(1.0)
+	_kp(7)
+	_check(sent.size() == 2, "fires as a tap, overriding mute")
+	_check(surface.waves.size() == 1 and surface.waves[0].source == r, "only the relay sends a wave")
+	# Held: the relay refires, notes don't.
+	surface.stop()
+	var refired := 0
+	for i in 150:
+		surface.step(1.0 / 60.0)
+		refired = maxi(refired, surface.waves.size())
+	_check(refired >= 1 and sent.size() == 2, "held: the relay refires, notes don't")
+	_kp(7, false)
+	surface.stop()
+	for i in 150:
+		surface.step(1.0 / 60.0)
+	_check(surface.waves.is_empty(), "released: no more")
+	surface.get_note(r).emitter().cooldown = 0.0
+	surface.step(1.0)
+	_kp(7)
+	surface.stop()
+	for i in 150:
+		surface.step(1.0 / 60.0)
+	_check(surface.waves.is_empty(), "retrigger doesn't refire")
+	_kp(7, false)
+	# MIDI fires the same way.
+	sent.clear()
+	surface.set_binding(b, "midi40")
+	tools.binding_pressed("midi40")
+	tools.binding_released("midi40")
+	_check(sent.size() == 1, "MIDI fires")
+	Midi.message_sent.disconnect(spy)
+	# Saves.
+	Settings.notes = [{"x": 0.0, "y": 0.0, "note": 60, "channel": 0, "slot": 4, "id": 2}]
+	surface.load_notes()
+	_check(surface.get_note(2).binding == "kp4", "old slots carry over")
+	surface.save_notes()
+	_check(Settings.notes[0].binding == "kp4" and not Settings.notes[0].has("slot"), "saved as a binding")
+	tools.set_tool("select")
+	surface.stop()
+	surface.clear_notes()
 
 
 func _saves() -> void:

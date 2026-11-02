@@ -25,7 +25,7 @@ var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id();
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
-	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), PitchTool.new(surface),
+	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), PitchTool.new(surface),
 			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
@@ -93,8 +93,39 @@ func set_tool(id: String) -> void:
 	tool_changed.emit(id)
 
 
-## Tab flips to Tap and back. Undo and redo work in every editing tool. Esc closes an open ring.
+## A binding input went down: the armed Bind tool takes it, otherwise it fires.
+func binding_pressed(binding: String) -> void:
+	if current is BindTool and current.armed():
+		current.bind(binding)
+	else:
+		surface.press_binding(binding)
+
+
+func binding_released(binding: String) -> void:
+	surface.release_binding(binding)
+
+
+## Which keypad digit a key is, or -1. Matched by physical key, so Num Lock doesn't matter.
+func _keypad_digit(key: InputEventKey) -> int:
+	var pad: int = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+	return pad - KEY_KP_0 if pad >= KEY_KP_0 and pad <= KEY_KP_9 else -1
+
+
+## Stop, Tab, keypad bindings and undo. Tab flips to Tap and back; undo and redo work in every
+## editing tool; Esc closes an open ring. The active tool gets any other key.
 func _handle_key(key: InputEventKey) -> bool:
+	var digit := _keypad_digit(key)
+	if digit != -1:
+		if key.pressed and not key.echo:
+			binding_pressed("kp%d" % digit)
+		elif not key.pressed:
+			binding_released("kp%d" % digit)
+		return true
+	if not key.pressed or key.echo:
+		return false
+	if key.keycode == KEY_SPACE or key.keycode == KEY_KP_ENTER or key.physical_keycode == KEY_KP_ENTER:
+		surface.stop()
+		return true
 	if key.keycode == KEY_TAB and not key.ctrl_pressed and not key.alt_pressed:
 		if not springing():
 			toggle_tap()
@@ -120,7 +151,7 @@ func _handle_key(key: InputEventKey) -> bool:
 ## Takes an input event from the surface. Returns true if it was used.
 func handle_input(event: InputEvent) -> bool:
 	var key := event as InputEventKey
-	if key and key.pressed and not key.echo and _handle_key(key):
+	if key and _handle_key(key):
 		return true
 	var mb := event as InputEventMouseButton
 	var middle := mb != null and mb.button_index == MOUSE_BUTTON_MIDDLE

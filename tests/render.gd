@@ -33,8 +33,8 @@ func _ready() -> void:
 	s.add_modifier(b, "toggle")
 	s.add_modifier(c, "toggle")
 	s.set_modifier_state(c, false)
-	s.toggle_slot(a, 3)
-	s.toggle_slot(c, 9)
+	s.set_binding(a, "kp3")
+	s.set_binding(c, "midi36")
 	s.set_pulse_params(r2, 0.6, 1.0)
 	s.get_note(r2).muted = true
 	_detach(s, r2, Vector2(900, 550))

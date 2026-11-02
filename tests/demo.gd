@@ -118,7 +118,7 @@ func _groups() -> void:
 	var slots := {}
 	for o in surface.notes:
 		has_emitter_grid = has_emitter_grid or (o.emitter() != null and o.emitter().grid != null and not o.emitter().attached)
-		if o.slot > 0:
-			slots[o.slot] = true
+		if o.binding != "":
+			slots[o.binding] = true
 	_check(has_emitter_grid, "emitter grid on")
-	_check(slots.size() == 5, "five slots in use")
+	_check(slots.size() == 5, "five bindings in use")

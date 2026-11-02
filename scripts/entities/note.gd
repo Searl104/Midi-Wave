@@ -10,7 +10,7 @@ var pos := Vector2.ZERO            ## world units
 var note := 60                     ## MIDI pitch
 var channel := 0
 var muted := false                 ## no sound and no pulse from waves
-var slot := 0                      ## keypad trigger slot 1-9, 0 = none
+var binding := ""                  ## what fires it: "kp0"-"kp9", "midi<note>", or "" for none
 var snap_note := ""                ## target last snapped to when dropped
 var grid: Grid = null              ## snap grid centred here, if on
 var modifiers: Array[Modifier] = []
@@ -61,7 +61,10 @@ func add_modifier(m: Modifier) -> void:
 ## Reads a saved layout entry; `p` is its position. Saves before modifier lists used "mode"
 ## (2 = relay, 1 = the old note + pulse hybrid) and a single "mod".
 func load_dict(d: Dictionary, p: Vector2) -> void:
-	slot = clampi(int(d.get("slot", 0)), 0, 9)
+	binding = str(d.get("binding", ""))
+	var old_slot := clampi(int(d.get("slot", 0)), 0, 9)     # saves before bindings had slots 1-9
+	if old_slot > 0:
+		binding = "kp%d" % old_slot
 	muted = bool(d.get("muted", false))
 	grid = Grid.new() if bool(d.get("grid", false)) else null
 	snap_note = str(d.get("snap_note", ""))
@@ -92,7 +95,7 @@ func to_dict() -> Dictionary:
 		mods.append(m.to_dict())
 	return {
 		"x": pos.x, "y": pos.y, "note": note, "channel": channel, "mods": mods,
-		"id": id, "snap_note": snap_note, "slot": slot, "muted": muted, "grid": grid != null,
+		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "grid": grid != null,
 	}
 
 
@@ -125,15 +128,7 @@ func _act(surface: WaveSurface, amp: float, now: int, spawned: Array) -> void:
 		r.emitter.fire(surface, self, now, spawned)
 
 
-## A click, or a keypad slot: a relay fires directly; a plain note sends a wave from itself.
-func clicked(surface: WaveSurface) -> void:
-	if relay():
-		surface.trigger_note(id)
-	else:
-		surface.add_wave(Wave.new(pos, Settings.wave_strength, -1))
-
-
-## Tapped with the Tap tool: a hit of its own, at click strength with no wave, that overrides mute.
+## Tapped, or fired by its binding: a hit of its own, at click strength with no wave, that overrides mute.
 func tap(surface: WaveSurface) -> void:
 	if not _passes_modifiers():
 		dim_flash = 1.0
@@ -196,8 +191,8 @@ func hover_text() -> String:
 		text += m.describe()
 	if r and r.emitter.own_reach > 0.0:
 		text += " · reach " + Snapping.format_beats(r.emitter.own_reach / Settings.BEAT_UNIT)
-	if slot > 0:
-		text += " · key %d" % slot
+	if binding != "":
+		text += " · " + ("MIDI " if binding.begins_with("midi") else "KP") + binding_label()
 	return text
 
 
@@ -255,13 +250,28 @@ func draw(surface: WaveSurface, font: Font, now: int) -> void:
 		surface.draw_circle(p, RADIUS + 4.0, Color(1, 1, 1, 0.12 * dim_flash))     # a silenced hit
 	for m in modifiers:
 		m.draw(surface, p, col)
-	if slot > 0:
-		# Keypad slot badge, top left (opposite the emitter handle).
+	if binding != "":
+		# Binding badge, top left (opposite the emitter handle). Wider for a MIDI note name.
 		var out := RADIUS + (Modifier.RING + 8.0 if has_ring() else 8.0)
 		var b := p + Vector2(-1, -1).normalized() * out
-		surface.draw_circle(b, 8.0, Color(0.075, 0.08, 0.11, 1.0))
-		surface.draw_arc(b, 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.35), 1.0, true)
-		surface.draw_string(font, b + Vector2(-8, 4), str(slot), HORIZONTAL_ALIGNMENT_CENTER, 16, 11, Palette.TEXT)
+		var label := binding_label()
+		var half := 8.0 if label.length() == 1 else 12.0
+		var box := Rect2(b - Vector2(half, 8), Vector2(half * 2.0, 16))
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.075, 0.08, 0.11, 1.0)
+		sb.border_color = Color(1, 1, 1, 0.35)
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(8)
+		sb.anti_aliasing = true
+		surface.draw_style_box(sb, box)
+		surface.draw_string(font, b + Vector2(-half, 4), label, HORIZONTAL_ALIGNMENT_CENTER, half * 2.0, 11, Palette.TEXT)
+
+
+## What the badge shows: the keypad digit, or the MIDI note's name.
+func binding_label() -> String:
+	if binding.begins_with("kp"):
+		return binding.substr(2)
+	return MidiMessage.note_name(int(binding.substr(4)))
 
 
 ## The modifier whose tab is at a screen position, or null.

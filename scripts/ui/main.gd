@@ -66,13 +66,8 @@ func _ready() -> void:
 
 	midi_in = MidiInput.new()
 	add_child(midi_in)
-	midi_in.slot_pressed.connect(surface.press_slot)
-	midi_in.slot_released.connect(surface.release_slot)
-	midi_in.learned.connect(func(base: int) -> void:
-		_toast("Pads: key 1 = %s, keys 2-9 follow" % MidiMessage.note_name(base)))
-	options.midi_learn_requested.connect(func() -> void:
-		midi_in.learning = true
-		_toast("Hit the pad for keypad key 1"))
+	midi_in.note_pressed.connect(func(pitch: int) -> void: surface.tools.binding_pressed("midi%d" % pitch))
+	midi_in.note_released.connect(func(pitch: int) -> void: surface.tools.binding_released("midi%d" % pitch))
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()
@@ -167,6 +162,7 @@ func _notification(what: int) -> void:
 	# A button released while the window is unfocused never arrives.
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
 		surface.tools.end_spring()
+		surface.release_all_bindings()
 
 
 func _reopen_last_port() -> void:
@@ -210,7 +206,7 @@ func _build_hud() -> void:
 
 	var stop := Button.new()
 	stop.text = "Stop"
-	stop.tooltip_text = "Clear every wave and return to the save state"
+	stop.tooltip_text = "Clear every wave and return to the save state (Space, KP Enter)"
 	stop.focus_mode = Control.FOCUS_NONE
 	stop.pressed.connect(func() -> void: surface.stop())
 	top.add_child(stop)

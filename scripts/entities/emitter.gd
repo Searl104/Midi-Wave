@@ -17,7 +17,7 @@ var own_reach := 0.0               ## wave reach in world units (0 = the global 
 var grid: Grid = null              ## snap grid centred here, if on and detached
 var snap := ""                     ## target last snapped to when dropped
 var ready_at := 0                  ## clock time it can fire again
-var hold_next := 0                 ## next refire time while its slot key is held
+var hold_next := 0                 ## next refire time while its binding is held
 var pulse_flash := 0.0
 
 

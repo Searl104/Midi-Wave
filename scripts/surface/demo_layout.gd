@@ -114,14 +114,14 @@ func _chain(c: Vector2) -> void:
 
 
 ## A grid on a note and one on a detached emitter, with objects on their rings and spokes. Every
-## object here is on a keypad slot, so controller pads 1-5 fire them.
+## object here has a binding, so KP1-5 fire them.
 func _grids(c: Vector2) -> void:
 	_driver(c)
 	_sender(c + Vector2(-70, -30), c + Vector2(50, -20), 11, 160.0)
 	var g := c + Vector2(0, -80)
-	marks["grid"] = _add(g, 0, 11, NOTE, {"grid": true, "slot": 1})
-	marks["on_ring"] = _add(g + Vector2(100, 0), 1, 12, NOTE, {"slot": 2})
-	marks["on_spoke"] = _add(g + Vector2.from_angle(PI / 4.0) * 100.0, 2, 13, NOTE, {"slot": 3})
+	marks["grid"] = _add(g, 0, 11, NOTE, {"grid": true, "binding": "kp1"})
+	marks["on_ring"] = _add(g + Vector2(100, 0), 1, 12, NOTE, {"binding": "kp2"})
+	marks["on_spoke"] = _add(g + Vector2.from_angle(PI / 4.0) * 100.0, 2, 13, NOTE, {"binding": "kp3"})
 	var emit := c + Vector2(100, 90)
-	_sender(c + Vector2(-70, 90), emit, 14, 60.0, 1.0, 1.0, {"grid_emit": true, "slot": 4})
-	marks["emitter_grid"] = _add(emit + Vector2(0, -50), 4, 15, NOTE, {"slot": 5})
+	_sender(c + Vector2(-70, 90), emit, 14, 60.0, 1.0, 1.0, {"grid_emit": true, "binding": "kp4"})
+	marks["emitter_grid"] = _add(emit + Vector2(0, -50), 4, 15, NOTE, {"binding": "kp5"})

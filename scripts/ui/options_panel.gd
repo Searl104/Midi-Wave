@@ -6,7 +6,6 @@ extends PanelContainer
 signal clear_notes_requested
 signal reset_layout_requested
 signal test_layout_requested
-signal midi_learn_requested
 
 const WIDTH := 330.0
 
@@ -105,11 +104,7 @@ func _build() -> void:
 	_in_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	in_row.add_child(_in_status)
 	in_row.add_child(_button("Refresh", refresh_inputs))
-	in_row.add_child(_button("Learn", func() -> void: midi_learn_requested.emit()))
-	box.add_child(_hint("Pads fire keypad keys 1-9 (hold to refire pulsers). Learn: hit the pad for key 1; the next eight notes are keys 2-9. Windows lets only one app open a controller, so turn it off in your DAW's MIDI inputs first."))
-	Settings.changed.connect(func(key: String) -> void:
-		if key == "midi_in_base":
-			_update_in_status())
+	box.add_child(_hint("The Bind tool links a note to any Note On from this controller. Windows lets only one app open a controller, so turn it off in your DAW's MIDI inputs first."))
 	refresh_inputs(Settings.midi_in_port != "")   # listing opens every input, so only on request
 
 	_section(box, "TIMING", Palette.ACCENT)
@@ -316,8 +311,7 @@ func _update_in_status() -> void:
 	if Settings.midi_in_port == "":
 		_in_status.text = "Off · Refresh lists your controllers" if _in_ports.item_count <= 1 else "Off"
 	else:
-		var b: int = Settings.midi_in_base
-		_in_status.text = "Keys 1-9 = %s to %s" % [MidiMessage.note_name(b), MidiMessage.note_name(b + 8)]
+		_in_status.text = "Listening to %s" % Settings.midi_in_port
 
 
 func refresh_ports() -> void:

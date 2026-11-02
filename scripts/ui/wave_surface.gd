@@ -18,7 +18,7 @@ const EDGE_INSET := 16.0
 
 var waves: Array = []           # of Wave
 var notes: Array = []           # of Note
-var held_slots: Dictionary = {} # keypad slots currently held down
+var held_bindings: Dictionary = {}   # bindings currently held down
 
 var tools: ToolManager
 var drag: ObjectDrag
@@ -445,15 +445,13 @@ func save_state() -> void:
 	save_notes()
 
 
-## Puts an object (and its group) in a keypad slot; again takes it out.
-func toggle_slot(id: int, slot: int) -> void:
+## Sets what fires an object ("" clears it).
+func set_binding(id: int, binding: String) -> void:
 	var o := get_note(id)
-	if o == null or slot < 1 or slot > 9:
+	if o == null:
 		return
-	var target: int = 0 if o.slot == slot else slot
-	for gid in selection.group_for(id):
-		get_note(gid).slot = target
-		effects.flash_brackets(get_note(gid))
+	o.binding = binding
+	effects.flash_brackets(o)
 	save_notes()
 
 
@@ -547,12 +545,6 @@ func add_wave(w: Wave) -> void:
 		waves.pop_front()
 
 
-func click_note(id: int) -> void:
-	var o := get_note(id)
-	if o:
-		o.clicked(self)
-
-
 ## Triggers an object as if a wave at click strength had just reached it. Modifiers and cooldown
 ## apply as for any hit. No click wave is sent.
 func trigger_note(id: int) -> void:
@@ -564,32 +556,23 @@ func trigger_note(id: int) -> void:
 	waves.append_array(spawned)
 
 
-## Slot press: fires the slot once, then while it stays held its relays refire each time their
-## cooldown runs out. Plain notes fire only on the press.
-func press_slot(slot: int) -> void:
-	held_slots[slot] = true
-	trigger_slot(slot)
-	for o in notes:
-		if o.slot == slot and o.relay():
-			o.emitter().hold_next = clock_usec + o.emitter().cooldown_usec()
-
-
-func release_slot(slot: int) -> void:
-	held_slots.erase(slot)
-
-
-func release_all_slots() -> void:
-	held_slots.clear()
-
-
-## Every object in the slot is clicked once. Muted ones are skipped.
-func trigger_slot(slot: int) -> int:
-	var count := 0
+## A binding went down: every object on it fires as a tap, and while it stays held its relays
+## refire each time their cooldown runs out.
+func press_binding(binding: String) -> void:
+	held_bindings[binding] = true
 	for o in notes.duplicate():
-		if o.slot == slot and not o.muted:
-			click_note(o.id)
-			count += 1
-	return count
+		if o.binding == binding:
+			o.tap(self)
+			if o.relay():
+				o.emitter().hold_next = clock_usec + o.emitter().cooldown_usec()
+
+
+func release_binding(binding: String) -> void:
+	held_bindings.erase(binding)
+
+
+func release_all_bindings() -> void:
+	held_bindings.clear()
 
 
 ## Stop: clears all waves and returns every modifier to its start state. Cooldowns keep running,
@@ -640,14 +623,14 @@ func step(delta: float) -> void:
 		spawned.clear()
 		i += 1
 
-	# Held slots: relays refire each time their cooldown runs out (a refire that a toggle
-	# silences still waits a full cooldown before the next).
-	if not held_slots.is_empty():
+	# Held bindings: relays refire each time their cooldown runs out (a refire that a toggle
+	# silences still waits a full cooldown before the next). Retrigger relays don't refire.
+	if not held_bindings.is_empty():
 		for o in notes.duplicate():
 			var e: Emitter = o.emitter()
-			if held_slots.has(o.slot) and e and not o.muted and not e.is_retrigger() and now >= e.hold_next:
+			if e and held_bindings.has(o.binding) and not e.is_retrigger() and now >= e.hold_next:
 				e.hold_next = now + e.cooldown_usec()
-				trigger_note(o.id)
+				o.tap(self)
 
 	for o in notes:
 		o.tick(delta, now)

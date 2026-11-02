@@ -1,18 +1,15 @@
 class_name MidiInput
 extends Node
-## MIDI-input triggering (R7): pads on a controller fire the keypad slots.
+## MIDI input: Note On and Note Off from the chosen controller.
 ##
 ## Uses Godot's own MIDI input (no native extension). Godot can only open every MIDI input at
 ## once, so inputs stay closed until a controller is chosen in Options; events from any other
-## input (including the loopMIDI port this app sends to) are ignored. Notes base..base+8 fire
-## slots 1-9: note-on presses the slot, note-off (or note-on at velocity 0) releases it, so
-## holding a pad refires its pulsers like holding the key. "Learn" sets base to the next pad hit.
+## input (including the loopMIDI port this app sends to) are ignored. A Note On at velocity 0
+## counts as a Note Off. Any channel matches.
 
-signal slot_pressed(slot: int)
-signal slot_released(slot: int)
-signal learned(base: int)
+signal note_pressed(pitch: int)
+signal note_released(pitch: int)
 
-var learning := false
 var _names: PackedStringArray = []      ## names of the open inputs; event.device indexes this
 
 
@@ -47,12 +44,6 @@ func is_listening() -> bool:
 	return Settings.midi_in_port != "" and _names.has(Settings.midi_in_port)
 
 
-## The slot (1-9) a note fires, or 0.
-static func slot_for(pitch: int) -> int:
-	var s := pitch - Settings.midi_in_base + 1
-	return s if s >= 1 and s <= 9 else 0
-
-
 func _input(event: InputEvent) -> void:
 	var ev := event as InputEventMIDI
 	if ev and handle(ev):
@@ -68,16 +59,8 @@ func handle(ev: InputEventMIDI) -> bool:
 	var off := ev.message == MIDI_MESSAGE_NOTE_OFF or (ev.message == MIDI_MESSAGE_NOTE_ON and ev.velocity == 0)
 	if not on and not off:
 		return false
-	if learning and on:
-		learning = false
-		Settings.set_value("midi_in_base", clampi(ev.pitch, 0, 119))
-		learned.emit(Settings.midi_in_base)
-		return true
-	var slot := slot_for(ev.pitch)
-	if slot == 0:
-		return true
 	if on:
-		slot_pressed.emit(slot)
+		note_pressed.emit(ev.pitch)
 	else:
-		slot_released.emit(slot)
+		note_released.emit(ev.pitch)
 	return true
