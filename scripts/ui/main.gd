@@ -50,6 +50,11 @@ func _ready() -> void:
 	options.reset_layout_requested.connect(func() -> void:
 		surface.clear_notes()
 		surface.seed_default_layout())
+	options.test_layout_requested.connect(func() -> void:
+		var demo := DemoLayout.new()
+		surface.load_layout(demo.layout)
+		for id in demo.starters:
+			surface.trigger_note(id))
 
 	radial = RadialMenu.new()
 	var glass_mat := ShaderMaterial.new()

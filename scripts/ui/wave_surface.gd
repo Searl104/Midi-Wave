@@ -155,16 +155,38 @@ func get_note(id: int) -> SurfaceObject:
 
 func load_notes() -> void:
 	history.begin_load()
+	_build(Settings.notes)
+	if notes.is_empty():
+		seed_default_layout()
+	history.end_load(Settings.notes)
+
+
+## Replaces everything with a saved-format layout, as one undoable edit, and frames it.
+func load_layout(layout: Array) -> void:
+	stop()
+	for o in notes:
+		o.silence()
+	selection.clear()
+	_hover_id = -1
+	_hover_handle = -1
+	history.end_group()
+	_build(layout)
+	save_notes()
+	frame_notes()
+
+
+## Makes the objects in `layout`.
+func _build(layout: Array) -> void:
 	notes.clear()
 	# Objects keep their ids across saves, so snap memories ("n<id>" / "e<id>") stay valid.
 	var used := {}
 	var hybrids: Array = []             # ids saved as the old note + pulse hybrid
-	for d in Settings.notes:
+	for d in layout:
 		var saved := int(d.get("id", 0))
 		if saved > 0 and not used.has(saved):
 			used[saved] = true
 			_next_id = maxi(_next_id, saved + 1)
-	for d in Settings.notes:
+	for d in layout:
 		var p := Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
 		var saved_mode := int(d.get("mode", SurfaceObject.Mode.NOTE))
 		var relay := saved_mode == SurfaceObject.Mode.RELAY or saved_mode == SurfaceObject.LEGACY_NOTE_PULSE
@@ -190,9 +212,6 @@ func load_notes() -> void:
 			nn.modifier.set_start(h.modifier.start)
 	if not hybrids.is_empty():
 		save_notes()
-	if notes.is_empty():
-		seed_default_layout()
-	history.end_load(Settings.notes)
 
 
 func seed_default_layout() -> void:

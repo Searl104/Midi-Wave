@@ -5,6 +5,7 @@ extends PanelContainer
 
 signal clear_notes_requested
 signal reset_layout_requested
+signal test_layout_requested
 signal midi_learn_requested
 
 const WIDTH := 330.0
@@ -166,6 +167,8 @@ func _build() -> void:
 	box.add_child(notes_row)
 	notes_row.add_child(_button("Clear all", func() -> void: clear_notes_requested.emit()))
 	notes_row.add_child(_button("Default layout", func() -> void: reset_layout_requested.emit()))
+	notes_row.add_child(_button("Test layout", func() -> void: test_layout_requested.emit()))
+	box.add_child(_hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
 ## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.
