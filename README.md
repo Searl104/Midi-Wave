@@ -24,7 +24,8 @@ Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previ
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
 
 **Tool panels:** hovering a toolbar item that has options shows a faint right-click icon beside it.
-Right-click to open its panel, just right of the toolbar and centred on the item. Click the item again, or anywhere outside, to close it; a click outside does nothing
+Right-click to open its panel, just right of the toolbar and centred on the item. Hover any setting
+for a tooltip on what it does. Click the item again, or anywhere outside, to close it; a click outside does nothing
 else. Esc closes it too.
 
 | Item | Panel |

@@ -26,7 +26,7 @@ func has_options() -> bool:
 
 
 func build_options(box: VBoxContainer) -> void:
-	box.add_child(PanelBuilder.button("Clear All", clear_all))
+	box.add_child(PanelBuilder.button("Clear All", clear_all, "Removes every grid. This can be undone."))
 	PanelBuilder.section(box, "SNAPPING", Palette.ACCENT)
 	PanelBuilder.check(box, "Snap to grids", "snap_enabled")
 	PanelBuilder.slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)

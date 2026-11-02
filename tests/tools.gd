@@ -1109,6 +1109,26 @@ func _tool_options() -> void:
 		tools.get_tool(id).build_options(box)
 		_check(box.get_child_count() > 0, "%s builds its panel" % id)
 		box.queue_free()
+	# Every setting explains itself, in tool panels and Options.
+	var holders: Array = []
+	for id in has:
+		var box := VBoxContainer.new()
+		add_child(box)
+		tools.get_tool(id).build_options(box)
+		holders.append(box)
+	var options := OptionsPanel.new()
+	add_child(options)
+	holders.append(options)
+	for holder in holders:
+		for kind in ["HSlider", "CheckButton", "OptionButton", "Button"]:
+			for c in holder.find_children("*", kind, true, false):
+				if c.get_parent() is not TabBar and c.get_class() != "PopupMenu":
+					_check(c.tooltip_text != "", "%s %s has a tooltip" % [kind, c.text if c is Button else c.name])
+	for key in PanelBuilder.TIPS:
+		_check(key in Settings, "tip key %s is a setting" % key)
+		_check(PanelBuilder.TIPS[key].length() <= 100, "tip %s is short" % key)
+	for holder in holders:
+		holder.queue_free()
 	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
 	var b := surface.add_note_at(Vector2(500, 300), 62, 0)
 	surface.snapping.toggle_grid(surface.get_note(a), false)

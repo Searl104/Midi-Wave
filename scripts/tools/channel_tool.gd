@@ -23,13 +23,14 @@ func build_options(box: VBoxContainer) -> void:
 		sliders.append(_channel_row(box, ch))
 	box.add_child(PanelBuilder.button("Reset all to Default", func() -> void:
 		for s in sliders:
-			s.value = 0.0))
+			s.value = 0.0, "Returns every channel to the Default note length."))
 
 
 ## A channel's own note length; 0 follows Default.
 func _channel_row(box: VBoxContainer, ch: int) -> HSlider:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	row.tooltip_text = "How long notes on channel %d are held. All the way left uses Default." % (ch + 1)
 	box.add_child(row)
 	var dot := ColorRect.new()
 	dot.color = Palette.channel_color(ch)
@@ -41,6 +42,7 @@ func _channel_row(box: VBoxContainer, ch: int) -> HSlider:
 	name_l.custom_minimum_size.x = 44
 	row.add_child(name_l)
 	var s := HSlider.new()
+	s.tooltip_text = row.tooltip_text
 	s.min_value = 0.0
 	s.max_value = 4.0
 	s.step = 0.01

@@ -56,7 +56,7 @@ func _build() -> void:
 	title.add_theme_font_size_override("font_size", 20)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
-	head.add_child(PanelBuilder.button("Close", hide))
+	head.add_child(PanelBuilder.button("Close", hide, "Closes Options."))
 
 	tabs = TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -69,6 +69,7 @@ func _build() -> void:
 	_ports = OptionButton.new()
 	_ports.clip_text = true
 	_ports.fit_to_longest_item = false
+	_ports.tooltip_text = "The port MIDI Wave sends notes to, such as your loopMIDI port."
 	_ports.item_selected.connect(_on_port_selected)
 	box.add_child(_ports)
 	var port_row := HBoxContainer.new()
@@ -79,8 +80,8 @@ func _build() -> void:
 	_port_status.add_theme_font_size_override("font_size", 12)
 	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	port_row.add_child(_port_status)
-	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports))
-	port_row.add_child(PanelBuilder.button("Panic", Midi.panic))
+	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports."))
+	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all channels."))
 	PanelBuilder.check(box, "Play notes while hovering the pitch ring", "hover_preview")
 
 	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
@@ -99,9 +100,9 @@ func _build() -> void:
 	PanelBuilder.section(box, "NOTES", Palette.TEXT_DIM)
 	var notes_row := HBoxContainer.new()
 	box.add_child(notes_row)
-	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit()))
-	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit()))
-	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit()))
+	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface."))
+	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
+	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
@@ -149,7 +150,7 @@ func _build_look(box: VBoxContainer) -> void:
 		for key in Settings.LOOK_PARAMS:
 			if Settings.LOOK_PARAMS[key][0] == Settings.look:
 				Settings.set_value(key, Settings.look_default(key))
-				_look_sliders[key].value = Settings.look_default(key)))
+				_look_sliders[key].value = Settings.look_default(key), "Returns this look's controls to 100%."))
 	_show_look_box()
 	Settings.changed.connect(func(key: String) -> void:
 		if key == "look":

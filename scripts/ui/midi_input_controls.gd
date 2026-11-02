@@ -13,6 +13,7 @@ func _ready() -> void:
 	_ports.clip_text = true
 	_ports.fit_to_longest_item = false
 	_ports.focus_mode = Control.FOCUS_NONE
+	_ports.tooltip_text = "The controller whose Note On events can fire bindings."
 	_ports.item_selected.connect(func(i: int) -> void:
 		Settings.set_value("midi_in_port", "" if i == 0 else _ports.get_item_text(i)))
 	add_child(_ports)
@@ -24,7 +25,7 @@ func _ready() -> void:
 	_status.add_theme_font_size_override("font_size", 12)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(_status)
-	row.add_child(PanelBuilder.button("Refresh", refresh))
+	row.add_child(PanelBuilder.button("Refresh", refresh, "Looks for connected MIDI controllers."))
 	add_child(PanelBuilder.hint("The Bind tool links a note to any Note On from this controller. Windows lets only one app open a controller, so turn it off in your DAW's MIDI inputs first."))
 	refresh(Settings.midi_in_port != "")          # listing opens every input, so only on request
 	Settings.changed.connect(_on_setting)
