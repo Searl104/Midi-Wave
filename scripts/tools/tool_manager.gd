@@ -16,13 +16,15 @@ var _editing := true               # false in the Tap tool; a nav tool leaves th
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
 var radial: RadialMenu
 var open_ring: RingTool = null     ## the ring tool using the radial menu
+var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id(); not on the toolbar
 
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
 	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), PitchTool.new(surface),
-			ChannelTool.new(surface), PulseTool.new(surface), ModifierTool.new(surface),
+			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
+	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
 	current = get_tool("select")
 	last_edit = current
 
@@ -81,6 +83,11 @@ func handle_input(event: InputEvent) -> bool:
 	if middle and mb.pressed and _spring_from == null:
 		_spring_from = current
 		set_tool("zoom" if mb.shift_pressed else "pan")
+	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and is_editing():
+		var tab := surface.tab_at(mb.position)
+		if not tab.is_empty():
+			open_tab(tab[0], tab[1])
+			return true
 	var used := current.handle_input(event)
 	if middle and not mb.pressed:
 		end_spring()
@@ -138,10 +145,15 @@ func close_ring() -> void:
 
 ## Opens `ring_id`'s ring for an object (-1 = no object: the pitch ring places a new one).
 func open_ring_for(ring_id: String, note_id: int, at: Vector2) -> void:
-	open_ring = get_tool(ring_id)
+	open_ring = _settings_rings[ring_id] if _settings_rings.has(ring_id) else get_tool(ring_id)
 	open_ring.open(radial, note_id, at)
 
 
-## The default ring: pitch, or pulse on a relay, which has no pitch to play.
+## Opens a modifier's settings ring at its tab.
+func open_tab(note: Note, modifier: Modifier) -> void:
+	open_ring_for(modifier.ring_id(), note.id, modifier.tab_screen_pos(surface, note))
+
+
+## The default ring, on a note or on empty space.
 func open_default_ring(note_id: int, at: Vector2) -> void:
-	open_ring_for("pulse" if surface.get_note(note_id) is Relay else "pitch", note_id, at)
+	open_ring_for("pitch", note_id, at)

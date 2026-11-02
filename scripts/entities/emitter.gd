@@ -1,8 +1,8 @@
 class_name Emitter
 extends RefCounted
 ## Where a relay's wave starts, and how it fires: strength, cooldown in beats and its own reach.
-## It starts on the relay (attached); dragged away, it stays at a fixed spot on the surface. It
-## is only a point: waves don't trigger it, and it plays nothing.
+## It starts docked on its note; dragged away, it stays at a fixed spot on the surface, drawn under
+## the notes, and a dim handle stays on the note. It is only a point: waves don't trigger it.
 
 const HANDLE_RADIUS := 7.0
 const MIN_COOLDOWN := 0.125        ## beats (an eighth of a beat)
@@ -42,6 +42,11 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	pos = Vector2(float(d.get("ex", p.x)), float(d.get("ey", p.y)))
 
 
+func to_dict() -> Dictionary:
+	return {"pulse_strength": strength, "cooldown_beats": cooldown, "attached": attached,
+			"ex": pos.x, "ey": pos.y, "range": own_reach, "grid_emit": grid != null, "snap_emit": snap}
+
+
 func is_retrigger() -> bool:
 	return cooldown <= 0.0
 
@@ -54,7 +59,7 @@ func cooldown_usec() -> int:
 
 
 ## Where its waves start, in world units.
-func world_pos(owner: SurfaceObject) -> Vector2:
+func world_pos(owner: Note) -> Vector2:
 	return owner.pos if attached else pos
 
 
@@ -63,7 +68,7 @@ func reach() -> float:
 	return own_reach if own_reach > 0.0 else Settings.wave_range
 
 
-func fire(surface: WaveSurface, owner: SurfaceObject, now: int, spawned: Array) -> void:
+func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array) -> void:
 	if now < ready_at:
 		return
 	if surface.waves.size() + spawned.size() >= WaveSurface.MAX_WAVES:
@@ -80,16 +85,19 @@ func tick(delta: float) -> void:
 
 # --- Drawing -------------------------------------------------------------------------------
 
-## Where the handle is drawn: on the rim while attached.
-func handle_screen_pos(surface: WaveSurface, owner: SurfaceObject) -> Vector2:
-	if attached:
-		var out := SurfaceObject.RADIUS + (Modifier.RING + 8.0 if owner.modifier else 9.0)
-		return surface.to_screen(owner.pos) + Vector2(1, -1).normalized() * out
-	return surface.to_screen(pos)
+## Where the handle sits on its note: upper right, past any modifier ring.
+func dock_screen_pos(surface: WaveSurface, owner: Note) -> Vector2:
+	var out := Note.RADIUS + (Modifier.RING + 8.0 if owner.has_ring() else 9.0)
+	return surface.to_screen(owner.pos) + Vector2(1, -1).normalized() * out
+
+
+## Where the diamond is: on its note while docked, else out on the surface.
+func handle_screen_pos(surface: WaveSurface, owner: Note) -> Vector2:
+	return dock_screen_pos(surface, owner) if attached else surface.to_screen(pos)
 
 
 ## A faint ring at its reach, where its waves fade to 0.
-func draw_limit_ring(surface: WaveSurface, owner: SurfaceObject, editing: bool) -> void:
+func draw_limit_ring(surface: WaveSurface, owner: Note, editing: bool) -> void:
 	var r := reach() * surface.z()
 	var c := surface.to_screen(world_pos(owner))
 	if Rect2(Vector2.ZERO, surface.size).grow(r).has_point(c):
@@ -98,7 +106,7 @@ func draw_limit_ring(surface: WaveSurface, owner: SurfaceObject, editing: bool) 
 
 
 ## The dashed line from a detached emitter back to its relay.
-func draw_tether(surface: WaveSurface, owner: SurfaceObject) -> void:
+func draw_tether(surface: WaveSurface, owner: Note) -> void:
 	var a := surface.to_screen(owner.pos)
 	var b := surface.to_screen(pos)
 	var col := Color(Palette.channel_color(owner.channel), 0.4)
@@ -106,10 +114,17 @@ func draw_tether(surface: WaveSurface, owner: SurfaceObject) -> void:
 	if length < 1.0:
 		return
 	var dir := (b - a) / length
-	var t := SurfaceObject.RADIUS + 4.0
+	var t := Note.RADIUS + 4.0
 	while t < length - HANDLE_RADIUS:
 		surface.draw_line(a + dir * t, a + dir * minf(t + 6.0, length - HANDLE_RADIUS), col, 1.0, true)
 		t += 11.0
+
+
+## The dim handle left on the note while the diamond is out on the surface.
+func draw_dock(surface: WaveSurface, at: Vector2, hovered: bool) -> void:
+	var r := HANDLE_RADIUS - 1.0 + (2.0 if hovered else 0.0)
+	var pts := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0), at + Vector2(0, -r)])
+	surface.draw_polyline(pts, Color(Palette.YELLOW, 0.55 if hovered else 0.32), 1.0, true)
 
 
 func draw_handle(surface: WaveSurface, at: Vector2, col: Color, hovered: bool) -> void:
@@ -123,7 +138,7 @@ func draw_handle(surface: WaveSurface, at: Vector2, col: Color, hovered: bool) -
 
 ## Refills clockwise from the top while cooling down, and flashes on fire.
 func draw_pulse_ring(surface: WaveSurface, p: Vector2, now: int) -> void:
-	var ring_r := SurfaceObject.RADIUS + 5.0
+	var ring_r := Note.RADIUS + 5.0
 	var charged := 1.0
 	if now < ready_at:
 		charged = 1.0 - float(ready_at - now) / float(maxi(cooldown_usec(), 1))

@@ -1,7 +1,8 @@
 class_name RadialMenu
 extends Control
-## Ring-shaped picker. It draws the rings and reports what is under a point; whatever drives it
-## calls hover_at() and activate(). Outer and centre picks close it unless `keep_open` is set.
+## Ring-shaped picker. It draws the rings and reports what is under a point. Left clicks pick and
+## keep it open, and any click off the rings closes it. activate() can also pick directly; outer
+## and centre picks close it unless `keep_open` is set.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 
@@ -33,7 +34,7 @@ var _open_t := 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	hide()
 
 
@@ -123,6 +124,17 @@ func activate(pos: Vector2, keep_open: bool = false) -> bool:
 		_:
 			return false
 	return true
+
+
+func _gui_input(event: InputEvent) -> void:
+	accept_event()
+	var mm := event as InputEventMouseMotion
+	if mm:
+		hover_at(mm.position)
+		return
+	var mb := event as InputEventMouseButton
+	if mb and mb.pressed and not activate(mb.position, true):
+		close()
 
 
 # --- Drawing -------------------------------------------------------------------------------

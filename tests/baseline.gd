@@ -47,7 +47,8 @@ func _note_at(world: Vector2, pitch: int, channel: int = 0) -> int:
 
 func _relay_at(world: Vector2, pitch: int, cooldown: float, strength: float = 0.8) -> int:
 	var id := _note_at(world, pitch, 1)
-	surface.set_note_mode(id, SurfaceObject.Mode.RELAY)
+	surface.add_modifier(id, "relay")
+	surface.set_relay_sound(id, false)
 	surface.set_pulse_params(id, strength, cooldown)
 	return id
 
@@ -124,8 +125,8 @@ func _scenarios() -> void:
 	var t := _note_at(Vector2(300, 300), 60)
 	var m := _note_at(Vector2(350, 300), 62)
 	var p := _relay_at(Vector2(500, 300), 65, 0.5)
-	surface.set_modifier(t, "toggle")
-	surface.set_modifier(p, "toggle")
+	surface.add_modifier(t, "toggle")
+	surface.add_modifier(p, "toggle")
 	surface.set_modifier_state(p, false)
 	_log("text %s | %s" % [surface.get_note(t).hover_text(), surface.get_note(p).hover_text()])
 	surface.toggle_slot(t, 1)
@@ -144,7 +145,7 @@ func _scenarios() -> void:
 	_log("text %s" % surface.get_note(t).hover_text())
 	surface.stop()
 	_layout("toggles")
-	surface.set_modifier(t, "")
+	surface.remove_modifier(t, "toggle")
 	_layout("toggle_removed")
 	_reset()
 
@@ -200,14 +201,14 @@ func _scenarios() -> void:
 	_log("cleared %d" % surface.snapping.clear_grids())
 	_reset()
 
-	# Copy, paste, delete, undo and redo; Note <-> Relay keeps every setting.
+	# Copy, paste, delete, undo and redo.
 	var u := _note_at(Vector2(300, 300), 60)
 	surface.history.end_group()
 	var v := _relay_at(Vector2(500, 300), 67, 2.0, 0.5)
 	surface.history.end_group()
 	_drag(v, "emitter", Vector2(600, 450), true)
 	surface.history.end_group()
-	surface.set_modifier(v, "toggle")
+	surface.add_modifier(v, "toggle")
 	surface.history.end_group()
 	surface.selection.select_in_rect(Rect2(Vector2.ZERO, Vector2(1280, 800)))
 	_log("copied %d" % surface.selection.copy())
@@ -215,12 +216,12 @@ func _scenarios() -> void:
 	_log("pasted %d" % surface.selection.paste_at(Vector2(640, 500)))
 	surface.history.end_group()
 	_layout("pasted")
-	surface.cycle_mode(v)
+	surface.set_relay_sound(v, true)
 	surface.history.end_group()
-	_layout("cycled")
-	surface.cycle_mode(v)
+	_layout("sounding")
+	surface.set_relay_sound(v, false)
 	surface.history.end_group()
-	_layout("cycled_back")
+	_layout("silent")
 	surface.set_note_pitch(u, 72)
 	surface.history.end_group()
 	surface.set_note_channel(u, 9)

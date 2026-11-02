@@ -30,8 +30,9 @@ func touch_targets(exclude_id: int) -> Dictionary:
 		if m.id == exclude_id or surface.drag.group.has(m.id):
 			continue
 		out["n%d" % m.id] = m.pos
-		if m.mode != SurfaceObject.Mode.NOTE and not m.emitter.attached:
-			out["e%d" % m.id] = m.emitter.pos
+		var e: Emitter = m.emitter()
+		if e and not e.attached:
+			out["e%d" % m.id] = e.pos
 	return out
 
 
@@ -44,8 +45,9 @@ func active_grids(exclude_id: int = -1) -> Dictionary:
 			continue
 		if m.grid:
 			out["n%d" % m.id] = [m.grid, m.pos]
-		if m.emitter.grid and m.mode != SurfaceObject.Mode.NOTE and not m.emitter.attached:
-			out["e%d" % m.id] = [m.emitter.grid, m.emitter.pos]
+		var e: Emitter = m.emitter()
+		if e and e.grid and not e.attached:
+			out["e%d" % m.id] = [e.grid, e.pos]
 	return out
 
 
@@ -58,9 +60,10 @@ func toggle_at_hover() -> String:
 	if o == null:
 		return ""
 	var on: bool
-	if handle != -1 and not o.emitter.attached:
-		o.emitter.grid = null if o.emitter.grid else Grid.new()
-		on = o.emitter.grid != null
+	var e: Emitter = o.emitter()
+	if handle != -1 and e and not e.attached:
+		e.grid = null if e.grid else Grid.new()
+		on = e.grid != null
 	else:
 		o.grid = null if o.grid else Grid.new()
 		on = o.grid != null
@@ -73,9 +76,11 @@ func toggle_at_hover() -> String:
 func clear_grids() -> int:
 	var count := 0
 	for o in surface.notes:
-		count += int(o.grid != null) + int(o.emitter.grid != null)
+		var e: Emitter = o.emitter()
+		count += int(o.grid != null) + int(e != null and e.grid != null)
 		o.grid = null
-		o.emitter.grid = null
+		if e:
+			e.grid = null
 	if count > 0:
 		surface.save_notes()
 	return count
@@ -117,7 +122,7 @@ func grid_snap(p: Vector2) -> Vector2:
 ## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
 ## Returns {pos, centres, readout, loop, snapped, centre, ref_point}; centres[0] is the held item.
 ## Centre snapping (onto any note or emitter within the snap distance) beats rings and spokes.
-func compute_drag(n: SurfaceObject, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
+func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
 	var reach := Settings.wave_range
 	free = free or not Settings.snap_enabled
 	var targets := touch_targets(n.id)
@@ -252,13 +257,13 @@ func compute_drag(n: SurfaceObject, kind: String, p: Vector2, free: bool, touche
 
 
 ## Loop period when the dragged object and `m` both pulse and each reaches the other.
-func _loop_text(n: SurfaceObject, kind: String, p: Vector2, m: SurfaceObject) -> String:
-	if m == null or n.mode == SurfaceObject.Mode.NOTE or m.mode == SurfaceObject.Mode.NOTE:
+func _loop_text(n: Note, kind: String, p: Vector2, m: Note) -> String:
+	if m == null or n.relay() == null or m.relay() == null:
 		return ""
 	var n_pos: Vector2 = p if kind == "note" else n.pos
-	var n_emit: Vector2 = p if (kind == "emitter" or n.emitter.attached) else n.emitter.pos
+	var n_emit: Vector2 = p if (kind == "emitter" or n.emitter().attached) else n.emitter().pos
 	var there := n_emit.distance_to(m.pos)
-	var back := m.emitter.world_pos(m).distance_to(n_pos)
+	var back := m.emitter().world_pos(m).distance_to(n_pos)
 	if there >= Settings.wave_range or back >= Settings.wave_range:
 		return ""
 	return "loop " + format_beats((there + back) / Settings.BEAT_UNIT)

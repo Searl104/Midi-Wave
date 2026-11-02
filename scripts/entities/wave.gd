@@ -40,11 +40,11 @@ func finished() -> bool:
 
 
 ## Hits `o` if this wave has just reached it. A wave that starts on an object hits it at once.
-func try_hit(surface: WaveSurface, o: SurfaceObject, now: int, spawned: Array) -> void:
+func try_hit(surface: WaveSurface, o: Note, now: int, spawned: Array) -> void:
 	if o.id == source or hits.has(o.id):
 		return
 	var d := origin.distance_to(o.pos)
-	if r >= d or d <= SurfaceObject.RADIUS:
+	if r >= d or d <= Note.RADIUS:
 		hits[o.id] = true
 		var amp := Wave.amplitude(strength, d, reach())
 		if amp >= WaveSurface.MIN_AMPLITUDE:

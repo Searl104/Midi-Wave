@@ -27,7 +27,7 @@ func _ready() -> void:
 	_check(demo.starters.size() == 6, "one starter per group")
 	for id in demo.starters:
 		var o := surface.get_note(id)
-		_check(o is Relay and o.emitter.own_reach > 0.0, "starter %d is a pair relay" % id)
+		_check(o.relay() != null and o.emitter().own_reach > 0.0, "starter %d is a pair relay" % id)
 		surface.trigger_note(id)
 	for o in surface.notes:
 		on_times[o.id] = []
@@ -117,7 +117,7 @@ func _groups() -> void:
 	var has_emitter_grid := false
 	var slots := {}
 	for o in surface.notes:
-		has_emitter_grid = has_emitter_grid or (o.emitter.grid != null and not o.emitter.attached)
+		has_emitter_grid = has_emitter_grid or (o.emitter() != null and o.emitter().grid != null and not o.emitter().attached)
 		if o.slot > 0:
 			slots[o.slot] = true
 	_check(has_emitter_grid, "emitter grid on")

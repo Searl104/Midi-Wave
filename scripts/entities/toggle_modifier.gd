@@ -8,6 +8,22 @@ func kind() -> String:
 	return "toggle"
 
 
+func ring_id() -> String:
+	return "toggle_settings"
+
+
+func has_ring() -> bool:
+	return true
+
+
+func tab_contains(surface: WaveSurface, note: Note, at: Vector2) -> bool:
+	return Rect2(_tab_centre(surface, note) - Vector2(12, 7), Vector2(24, 14)).has_point(at)
+
+
+func tab_screen_pos(surface: WaveSurface, note: Note) -> Vector2:
+	return _tab_centre(surface, note)
+
+
 func passes_hit() -> bool:
 	var active := on
 	on = not on

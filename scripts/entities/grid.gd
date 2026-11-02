@@ -32,7 +32,7 @@ static func draw_guide(surface: WaveSurface, centre_w: Vector2, weight: float, d
 		var spokes: int = Settings.spoke_count
 		for i in spokes:
 			var sd := Vector2.from_angle(i * TAU / spokes)
-			surface.draw_line(centre + sd * (SurfaceObject.RADIUS + 10.0), centre + sd * far,
+			surface.draw_line(centre + sd * (Note.RADIUS + 10.0), centre + sd * far,
 					Color(Palette.ACCENT.lightened(0.3), minf((0.5 if i % 2 == 0 else 0.32) * weight, 1.0)), 1.0, true)
 	for k in range(1, count + 1):
 		var r := k * step_s

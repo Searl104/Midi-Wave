@@ -26,8 +26,9 @@ func _ready() -> void:
 	_draw_strokes()
 	_pitch()
 	_channel()
-	_pulse()
-	_modifier()
+	_modifiers()
+	_tabs()
+	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
@@ -45,7 +46,8 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 9, "nine tools")
+	_check(tools.tools.size() == 8, "eight tools")
+	_check(tools.get_tool("pulse") == null, "no Pulse tool")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
 	_check(tools.current_id() == "select", "unknown tool ignored")
@@ -56,9 +58,7 @@ func _switching() -> void:
 	_check(tools.current_id() == "draw", "back to the last editing tool")
 	_check(modes == [false, true], "mode changes reported")
 	tools.pick("draw")
-	_check(tools.get_tool("draw").place_type == SurfaceObject.Mode.RELAY, "picking Draw again switches type")
-	tools.pick("draw")
-	_check(seen.size() >= 4, "tool changes reported")
+	_check(seen.size() >= 3, "tool changes reported")
 	for t in tools.tools:
 		if not t.navigates() and t.tool_id() != "tap":
 			_check(t.handle_input(InputEventMouseButton.new()) == false, "%s takes no input yet" % t.tool_id())
@@ -147,7 +147,8 @@ func _navigation() -> void:
 func _tap() -> void:
 	var note := surface.add_note_at(Vector2(300, 300), 60, 0)
 	var relay := surface.add_note_at(Vector2(500, 300), 62, 0)
-	surface.set_note_mode(relay, SurfaceObject.Mode.RELAY)
+	surface.add_modifier(relay, "relay")
+	surface.set_relay_sound(relay, false)
 	var sent: Array = []
 	var spy := func(b: PackedByteArray) -> void: sent.append(b)
 	Midi.message_sent.connect(spy)
@@ -168,14 +169,14 @@ func _tap() -> void:
 	_check(not o.playing and sent.size() == 2, "note off follows")
 	# Toggles: a tap counts as a hit.
 	sent.clear()
-	surface.set_modifier(note, "toggle")
+	surface.add_modifier(note, "toggle")
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.size() == 1 and not surface.get_note(note).modifier.on, "a toggle on plays and flips")
+	_check(sent.size() == 1 and not surface.get_note(note).get_modifier("toggle").on, "a toggle on plays and flips")
 	surface.step(1.0)
 	sent.clear()
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.is_empty() and surface.get_note(note).modifier.on, "a toggle off is silent and flips")
-	surface.set_modifier(note, "")
+	_check(sent.is_empty() and surface.get_note(note).get_modifier("toggle").on, "a toggle off is silent and flips")
+	surface.remove_modifier(note, "toggle")
 	# Mute: a tap overrides it, for notes and relays.
 	surface.get_note(note).muted = true
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
@@ -194,7 +195,7 @@ func _tap() -> void:
 	surface.stop()
 	surface.step(1.0)
 	# Diamonds don't react: the click goes through.
-	var e := surface.get_note(relay).emitter
+	var e := surface.get_note(relay).emitter()
 	e.attached = false
 	e.pos = surface.to_world(Vector2(800, 200))
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(800, 200))
@@ -253,7 +254,6 @@ func _select() -> void:
 func _draw_strokes() -> void:
 	var draw: DrawTool = tools.get_tool("draw")
 	surface.history.end_group()
-	draw.place_type = SurfaceObject.Mode.RELAY
 	var before := surface.history.undo_steps()
 	draw.extend_stroke(Vector2(100, 100))
 	_check(surface.notes.is_empty(), "no stroke, no object")
@@ -263,9 +263,8 @@ func _draw_strokes() -> void:
 	draw.extend_stroke(Vector2(400, 100))
 	draw.extend_stroke(Vector2(700, 100))
 	draw.end_stroke()
-	_check(surface.notes.size() == 3 and surface.notes[0] is Relay, "places the current type")
+	_check(surface.notes.size() == 3 and surface.notes[0].modifiers.is_empty(), "places plain notes")
 	_check(surface.history.undo_steps() == before + 1, "one undo step")
-	draw.place_type = SurfaceObject.Mode.NOTE
 	surface.clear_notes()
 
 
@@ -310,46 +309,125 @@ func _channel() -> void:
 	surface.clear_notes()
 
 
-func _pulse() -> void:
+func _modifiers() -> void:
 	var a := surface.add_note_at(Vector2(200, 200), 60, 0)
-	tools.open_ring_for("pulse", a, Vector2(200, 200))
-	_check(radial.center_item.label == "Note", "shows the type")
-	radial.outer_chosen.emit(2.0)
+	tools.open_ring_for("modifier", a, Vector2(200, 200))
+	_check(radial.outer_items.size() == 3 and radial.inner_items.is_empty(), "add and remove only")
+	radial.outer_chosen.emit("toggle")
+	radial.outer_chosen.emit("relay")
 	var o := surface.get_note(a)
-	_check(o is Relay and o.emitter.cooldown == 2.0, "tuning a pulse makes a relay")
-	_check(radial.center_item.label == "Relay", "the ring rebuilt")
-	radial.inner_chosen.emit(0.5)
-	_check(surface.get_note(a).emitter.strength == 0.5, "strength")
-	radial.center_chosen.emit("mode")
-	o = surface.get_note(a)
-	_check(o is Note and o.emitter.cooldown == 2.0, "switching back keeps the settings")
+	_check(o.modifiers.size() == 2 and o.modifiers[0] is ToggleModifier and o.modifiers[1] is RelayModifier, "holds both")
+	_check(o.sounds() and o.emitter().attached and o.shows_pitch(), "a new relay keeps sounding")
+	# Sounding relay on a toggle: acts on every other hit, playing and pulsing together.
+	var sent: Array = []
+	var spy := func(b: PackedByteArray) -> void:
+		if (b[0] & 0xF0) == 0x90:
+			sent.append(b)
+	Midi.message_sent.connect(spy)
+	surface.trigger_note(a)
+	_check(sent.size() == 1 and surface.waves.size() == 1, "plays and pulses")
+	surface.waves.clear()
+	surface.step(1.0)
+	surface.trigger_note(a)
+	_check(sent.size() == 1 and surface.waves.is_empty(), "the toggle silences both")
+	Midi.message_sent.disconnect(spy)
+	surface.stop()
+	radial.outer_chosen.emit("toggle")
+	_check(surface.get_note(a).modifiers.size() == 1, "removes just that one")
+	radial.outer_chosen.emit("")
+	_check(surface.get_note(a).modifiers.is_empty(), "None clears them")
 	radial.close()
 	surface.clear_notes()
 
 
-func _modifier() -> void:
-	var a := surface.add_note_at(Vector2(200, 200), 60, 0)
-	tools.open_ring_for("modifier", a, Vector2(200, 200))
-	_check(radial.inner_items.is_empty(), "no state ring yet")
-	radial.outer_chosen.emit("toggle")
-	_check(surface.get_note(a).modifier is ToggleModifier and radial.inner_items.size() == 2, "adds a toggle")
-	radial.inner_chosen.emit(false)
-	var m: Modifier = surface.get_note(a).modifier
-	_check(not m.on and not m.start, "state sets current and start")
-	radial.outer_chosen.emit("")
-	_check(surface.get_note(a).modifier == null, "removes it")
+func _tabs() -> void:
+	var a := surface.add_note_at(Vector2(400, 300), 60, 0)
+	var b := surface.add_note_at(Vector2(700, 300), 62, 0)
+	surface.add_modifier(a, "relay")
+	surface.add_modifier(a, "toggle")
+	surface.selection.notes = {a: true, b: true}
+	var o := surface.get_note(a)
+	var e := o.emitter()
+	tools.set_tool("select")
+	# The relay's diamond, docked upper right.
+	var dock := e.dock_screen_pos(surface, o)
+	_check(dock.x > 400 and dock.y < 300, "docked upper right")
+	_press(MOUSE_BUTTON_RIGHT, true, dock)
+	_check(radial.visible and tools.open_ring.tool_id() == "relay_settings", "right-click the diamond")
+	radial.outer_chosen.emit(2.0)
+	_check(e.cooldown == 2.0, "cooldown")
+	radial.inner_chosen.emit(0.5)
+	_check(e.strength == 0.5, "strength")
+	radial.center_chosen.emit("sound")
+	_check(not o.relay().sound and not o.shows_pitch(), "centre turns Sound off")
+	radial.center_chosen.emit("sound")
+	_check(o.relay().sound, "and back on")
 	radial.close()
+	# Remote: the diamond and the dim handle both open it, at the diamond.
+	e.attached = false
+	e.pos = surface.to_world(Vector2(900, 600))
+	_press(MOUSE_BUTTON_RIGHT, true, dock)
+	_check(radial.visible and tools.open_ring.tool_id() == "relay_settings", "the dim handle opens it")
+	radial.close()
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(900, 600))
+	_check(radial.visible and tools.open_ring.tool_id() == "relay_settings", "the remote diamond opens it")
+	radial.close()
+	_check(surface.handle_at(dock) == a, "the dim handle can be grabbed")
+	surface.drag.begin(a, "emitter", dock)
+	surface.drag.moved = true
+	surface.drag.move_to(Vector2(500, 500), true)
+	surface.drag.end()
+	_check(not e.attached and surface.to_screen(e.pos) == Vector2(500, 500), "dragging it places the diamond")
+	surface.drag.begin(a, "emitter", dock)
+	surface.drag.moved = true
+	surface.drag.move_to(Vector2(400, 300), true)
+	surface.drag.end()
+	_check(e.attached, "dropping on the note recalls it")
+	# The toggle's tab.
+	var tab: Vector2 = o.get_modifier("toggle").tab_screen_pos(surface, o)
+	_press(MOUSE_BUTTON_RIGHT, true, tab)
+	_check(radial.visible and tools.open_ring.tool_id() == "toggle_settings", "right-click the toggle tab")
+	radial.outer_chosen.emit(false)
+	var t: Modifier = o.get_modifier("toggle")
+	_check(not t.on and not t.start, "state sets current and start")
+	radial.close()
+	# Not on a tab, and not in Tap.
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(600, 600))
+	_check(not radial.visible, "elsewhere nothing opens")
+	tools.set_tool("tap")
+	_press(MOUSE_BUTTON_RIGHT, true, dock)
+	_check(not radial.visible, "Tap locks tabs too")
+	tools.set_tool("select")
+	surface.selection.clear()
+	surface.clear_notes()
+
+
+func _saves() -> void:
+	Settings.notes = [
+		{"x": 10.0, "y": 0.0, "note": 60, "channel": 0, "mode": 2, "pulse_strength": 0.5, "cooldown_beats": 2.0, "attached": false, "ex": 30.0, "ey": 40.0, "mod": "toggle", "mod_start": false, "id": 3, "range": 200.0, "grid_emit": true, "snap_emit": "n1"},
+		{"x": 20.0, "y": 0.0, "note": 62, "channel": 1, "mode": 1, "id": 4},
+		{"x": 30.0, "y": 0.0, "note": 64, "channel": 2, "mode": 0, "attached": false, "ex": 9.0, "ey": 9.0, "id": 5},
+	]
+	surface.load_notes()
+	var r := surface.get_note(3)
+	_check(r.relay() and not r.relay().sound and r.get_modifier("toggle") and not r.get_modifier("toggle").start, "old relay with a toggle")
+	var e := r.emitter()
+	_check(e.strength == 0.5 and e.cooldown == 2.0 and not e.attached and e.pos == Vector2(30, 40) and e.own_reach == 200.0 and e.grid and e.snap == "n1", "keeps its emitter")
+	_check(surface.get_note(4).relay() and surface.get_note(4).relay().sound and surface.notes.size() == 3, "an old hybrid is one sounding relay")
+	_check(surface.get_note(5).modifiers.is_empty(), "an old plain note has no relay")
+	surface.save_notes()
+	var saved := JSON.stringify(Settings.notes)
+	surface.load_notes()
+	surface.save_notes()
+	_check(JSON.stringify(Settings.notes) == saved, "the new format round-trips")
+	_check(not saved.contains("\"mode\""), "and has no type field")
 	surface.clear_notes()
 
 
 func _default_ring() -> void:
 	var n := surface.add_note_at(Vector2(200, 200), 60, 0)
-	var r := surface.add_note_at(Vector2(400, 200), 62, 0)
-	surface.set_note_mode(r, SurfaceObject.Mode.RELAY)
 	tools.open_default_ring(n, Vector2(200, 200))
 	_check(tools.open_ring.tool_id() == "pitch", "a note's default is pitch")
-	tools.open_default_ring(r, Vector2(400, 200))
-	_check(tools.open_ring.tool_id() == "pulse", "a relay's default is pulse")
 	tools.open_default_ring(-1, Vector2(600, 200))
 	_check(tools.open_ring.tool_id() == "pitch", "empty space is pitch")
 	radial.hover_at(Vector2(600, 100))

@@ -9,10 +9,10 @@ extends RefCounted
 ## short of the next group, so groups don't set each other off. Firing one of each pair
 ## (`starters`) sets them all going; Stop ends it. Pitches come from the current scale.
 
-const NOTE := SurfaceObject.Mode.NOTE
-const RELAY := SurfaceObject.Mode.RELAY
+const NOTE := 0
+const RELAY := 2                   ## a silent relay, in the older saved format this writes
 
-var layout: Array = []             ## in the saved format
+var layout: Array = []             ## in a saved format
 var starters: Array = []           ## ids to fire once loaded
 var marks: Dictionary = {}         ## name -> id, for tests
 

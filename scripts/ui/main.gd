@@ -41,7 +41,6 @@ func _ready() -> void:
 	toolbar = Toolbar.new()
 	toolbar.surface = surface
 	add_child(toolbar)
-	_draw_tool().place_type = SurfaceObject.Mode.RELAY if int(Settings.draw_type) == SurfaceObject.Mode.RELAY else SurfaceObject.Mode.NOTE
 	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 
 	options = OptionsPanel.new()
@@ -128,11 +127,6 @@ func _on_tool_changed(_t: String) -> void:
 		toolbar.queue_redraw()
 	if not surface.tools.springing():
 		Settings.set_value("tool", surface.tools.current_id())
-	Settings.set_value("draw_type", _draw_tool().place_type)
-
-
-func _draw_tool() -> DrawTool:
-	return surface.tools.get_tool("draw")
 
 
 ## The Save state button: toggles' current states become their start states.

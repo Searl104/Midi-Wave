@@ -17,7 +17,7 @@ const MIN_AMPLITUDE := 0.01
 const EDGE_INSET := 16.0
 
 var waves: Array = []           # of Wave
-var notes: Array = []           # of SurfaceObject
+var notes: Array = []           # of Note
 var held_slots: Dictionary = {} # keypad slots currently held down
 
 var tools: ToolManager
@@ -106,8 +106,9 @@ func frame_notes() -> void:
 	var box := Rect2(notes[0].pos, Vector2.ZERO)
 	for o in notes:
 		box = box.expand(o.pos)
-		if not o.emitter.attached:
-			box = box.expand(o.emitter.pos)
+		var e: Emitter = o.emitter()
+		if e and not e.attached:
+			box = box.expand(e.pos)
 	pan_by((box.get_center() - view_offset) * z() - size / 2.0)
 
 
@@ -133,7 +134,7 @@ func hovered_handle() -> int:
 
 func note_at(screen_pos: Vector2) -> int:
 	var best := -1
-	var best_d := SurfaceObject.RADIUS + 6.0
+	var best_d := Note.RADIUS + 6.0
 	for o in notes:
 		var d := screen_pos.distance_to(to_screen(o.pos))
 		if d < best_d:
@@ -144,12 +145,25 @@ func note_at(screen_pos: Vector2) -> int:
 
 func handle_at(screen_pos: Vector2) -> int:
 	for o in notes:
-		if o.mode != SurfaceObject.Mode.NOTE and screen_pos.distance_to(o.emitter.handle_screen_pos(self, o)) <= Emitter.HANDLE_RADIUS + 4.0:
+		var e: Emitter = o.emitter()
+		if e == null:
+			continue
+		var reach := Emitter.HANDLE_RADIUS + 4.0
+		if screen_pos.distance_to(e.handle_screen_pos(self, o)) <= reach or screen_pos.distance_to(e.dock_screen_pos(self, o)) <= reach:
 			return o.id
 	return -1
 
 
-func get_note(id: int) -> SurfaceObject:
+## The note and modifier whose tab is at a screen position: [note, modifier], or [] if none.
+func tab_at(screen_pos: Vector2) -> Array:
+	for o in notes:
+		var m: Modifier = o.tab_at(self, screen_pos)
+		if m:
+			return [o, m]
+	return []
+
+
+func get_note(id: int) -> Note:
 	for o in notes:
 		if o.id == id:
 			return o
@@ -185,7 +199,6 @@ func _build(layout: Array) -> void:
 	notes.clear()
 	# Objects keep their ids across saves, so snap memories ("n<id>" / "e<id>") stay valid.
 	var used := {}
-	var hybrids: Array = []             # ids saved as the old note + pulse hybrid
 	for d in layout:
 		var saved := int(d.get("id", 0))
 		if saved > 0 and not used.has(saved):
@@ -193,30 +206,13 @@ func _build(layout: Array) -> void:
 			_next_id = maxi(_next_id, saved + 1)
 	for d in layout:
 		var p := Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
-		var saved_mode := int(d.get("mode", SurfaceObject.Mode.NOTE))
-		var relay := saved_mode == SurfaceObject.Mode.RELAY or saved_mode == SurfaceObject.LEGACY_NOTE_PULSE
-		var id := add_object(p, int(d.get("note", 60)), int(d.get("channel", 0)),
-				SurfaceObject.Mode.RELAY if relay else SurfaceObject.Mode.NOTE)
+		var id := add_object(p, int(d.get("note", 60)), int(d.get("channel", 0)))
 		var o := get_note(id)
 		var saved := int(d.get("id", 0))
 		if saved > 0 and used.get(saved, false):
 			o.id = saved
 			used[saved] = false             # each saved id is used once
 		o.load_dict(d, p)
-		if saved_mode == SurfaceObject.LEGACY_NOTE_PULSE:
-			hybrids.append(o.id)
-	# An old note + pulse hybrid becomes a Relay plus a plain Note on the same spot, so it still
-	# sounds and still pulses.
-	for hid in hybrids:
-		var h := get_note(hid)
-		var nn := get_note(add_object(h.pos, h.note, h.channel))
-		nn.slot = h.slot
-		nn.muted = h.muted
-		nn.modifier = Modifier.create(h.mod_kind())
-		if nn.modifier:
-			nn.modifier.set_start(h.modifier.start)
-	if not hybrids.is_empty():
-		save_notes()
 
 
 func seed_default_layout() -> void:
@@ -261,16 +257,18 @@ func _apply_snapshot(snap: Array) -> void:
 	var live := {}
 	for o in notes:
 		o.silence()
-		live[o.id] = [o.mod_kind(), o.modifier.on if o.modifier else true, o.emitter.ready_at]
+		var state := {}
+		for m in o.modifiers:
+			state[m.kind()] = m.live_state()
+		live[o.id] = state
 	history.begin_restore()
 	Settings.notes = snap.duplicate(true)
 	load_notes()
 	history.end_restore()
 	for o in notes:
-		if live.has(o.id) and live[o.id][0] == o.mod_kind():
-			if o.modifier:
-				o.modifier.on = live[o.id][1]
-			o.emitter.ready_at = live[o.id][2]
+		for m in o.modifiers:
+			if live.has(o.id) and live[o.id].has(m.kind()):
+				m.restore_state(live[o.id][m.kind()])
 	selection.prune()
 	_hover_id = -1
 	Settings.queue_save()
@@ -279,17 +277,16 @@ func _apply_snapshot(snap: Array) -> void:
 
 # --- Editing -------------------------------------------------------------------------------
 
-func add_object(world_pos: Vector2, pitch: int, channel: int, type: int = SurfaceObject.Mode.NOTE) -> int:
+func add_object(world_pos: Vector2, pitch: int, channel: int) -> int:
 	var id := _next_id
 	while get_note(id):
 		id += 1
 	_next_id = id + 1
-	var o := SurfaceObject.create(type)
+	var o := Note.new()
 	o.id = id
 	o.pos = world_pos
 	o.note = clampi(pitch, 0, 127)
 	o.channel = clampi(channel, 0, 15)
-	o.emitter.pos = world_pos
 	notes.append(o)
 	return id
 
@@ -331,7 +328,7 @@ func nudge_pitch(steps: int, octave: bool) -> int:
 		last_pitch = p
 		moved += 1
 		effects.flash_brackets(o)
-		if o.mode != SurfaceObject.Mode.RELAY and not o.muted and heard.size() < 8 and not heard.has([p, o.channel]):
+		if o.sounds() and not o.muted and heard.size() < 8 and not heard.has([p, o.channel]):
 			heard[[p, o.channel]] = true
 			Midi.play_note(p, 90, 0.25, o.channel)
 	if moved > 0:
@@ -349,68 +346,77 @@ func set_note_channel(id: int, channel: int) -> void:
 	save_notes()
 
 
-## Note <-> Relay, for the whole group.
-func cycle_mode(id: int) -> void:
-	var o := get_note(id)
-	if o == null:
-		return
-	var type: int = SurfaceObject.Mode.RELAY if o.mode == SurfaceObject.Mode.NOTE else SurfaceObject.Mode.NOTE
-	for gid in selection.group_for(id):
-		set_note_mode(gid, type)
-
-
-## Swaps the object for one of the new type, keeping everything it has. A relay that gets switched
-## on is ready to fire.
-func set_note_mode(id: int, type: int) -> void:
-	var o := get_note(id)
-	if o == null:
-		return
-	if type != SurfaceObject.Mode.RELAY and type != SurfaceObject.LEGACY_NOTE_PULSE:
-		type = SurfaceObject.Mode.NOTE
-	else:
-		type = SurfaceObject.Mode.RELAY  # the hybrid is gone: a pulsing note is a relay
-	if o.mode == SurfaceObject.Mode.NOTE and type != SurfaceObject.Mode.NOTE:
-		o.emitter.ready_at = 0
-	if type == SurfaceObject.Mode.RELAY:
-		o.silence()
-	notes[notes.find(o)] = o.converted(type)
-	save_notes()
-
-
-## Pulse strength (0-1) and cooldown in beats (tempo-locked, at least the minimum).
+## Pulse strength (0-1) and cooldown in beats (tempo-locked, at least the minimum), on a relay.
 func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 	var o := get_note(id)
-	if o == null:
+	if o == null or o.relay() == null:
 		return
-	o.emitter.strength = clampf(strength, 0.05, 1.0)
-	o.emitter.cooldown = Emitter.clamp_cooldown(cooldown)
-	o.emitter.ready_at = mini(o.emitter.ready_at, clock_usec + o.emitter.cooldown_usec())
+	var e: Emitter = o.emitter()
+	e.strength = clampf(strength, 0.05, 1.0)
+	e.cooldown = Emitter.clamp_cooldown(cooldown)
+	e.ready_at = mini(e.ready_at, clock_usec + e.cooldown_usec())
 	save_notes()
 
 
-## Attaches a modifier ("" removes it). A new toggle starts on.
-func set_modifier(id: int, kind: String) -> void:
+## Adds a modifier if the object doesn't have it. A new relay sounds and is ready to fire; a new
+## toggle starts on.
+func add_modifier(id: int, kind: String) -> void:
 	var o := get_note(id)
-	if o == null or (kind != "" and not Modifier.KINDS.has(kind)):
+	if o == null or o.get_modifier(kind):
 		return
-	o.modifier = Modifier.create(kind)
+	var m := Modifier.create(kind)
+	if m == null:
+		return
+	if m is RelayModifier:
+		m.emitter.pos = o.pos
+	o.add_modifier(m)
 	save_notes()
 
 
-## A state the user sets is the modifier's intended start state: sets current and start.
+func remove_modifier(id: int, kind: String) -> void:
+	var o := get_note(id)
+	if o == null or o.get_modifier(kind) == null:
+		return
+	o.modifiers.erase(o.get_modifier(kind))
+	if kind == "relay":
+		selection.emitters.erase(id)
+	save_notes()
+
+
+func clear_modifiers(id: int) -> void:
+	var o := get_note(id)
+	if o == null or o.modifiers.is_empty():
+		return
+	o.modifiers.clear()
+	selection.emitters.erase(id)
+	save_notes()
+
+
+## A relay's Sound: off makes it silent and hollow; its pitch is kept.
+func set_relay_sound(id: int, on: bool) -> void:
+	var o := get_note(id)
+	if o == null or o.relay() == null:
+		return
+	o.relay().sound = on
+	if not on:
+		o.silence()
+	save_notes()
+
+
+## A state the user sets is a toggle's intended start state: sets current and start.
 func set_modifier_state(id: int, on: bool) -> void:
 	var o := get_note(id)
-	if o == null or o.modifier == null:
+	if o == null or o.get_modifier("toggle") == null:
 		return
-	o.modifier.set_state(on)
+	o.get_modifier("toggle").set_state(on)
 	save_notes()
 
 
 ## Save state: every modifier's current state becomes its start state.
 func save_state() -> void:
 	for o in notes:
-		if o.modifier:
-			o.modifier.save_start()
+		for m in o.modifiers:
+			m.save_start()
 	save_notes()
 
 
@@ -539,8 +545,8 @@ func press_slot(slot: int) -> void:
 	held_slots[slot] = true
 	trigger_slot(slot)
 	for o in notes:
-		if o.slot == slot and o is Relay:
-			o.emitter.hold_next = clock_usec + o.emitter.cooldown_usec()
+		if o.slot == slot and o.relay():
+			o.emitter().hold_next = clock_usec + o.emitter().cooldown_usec()
 
 
 func release_slot(slot: int) -> void:
@@ -613,9 +619,9 @@ func step(delta: float) -> void:
 	# silences still waits a full cooldown before the next).
 	if not held_slots.is_empty():
 		for o in notes.duplicate():
-			if held_slots.has(o.slot) and o is Relay and not o.muted and not o.emitter.is_retrigger() \
-					and now >= o.emitter.hold_next:
-				o.emitter.hold_next = now + o.emitter.cooldown_usec()
+			var e: Emitter = o.emitter()
+			if held_slots.has(o.slot) and e and not o.muted and not e.is_retrigger() and now >= e.hold_next:
+				e.hold_next = now + e.cooldown_usec()
 				trigger_note(o.id)
 
 	for o in notes:
@@ -628,14 +634,14 @@ func step(delta: float) -> void:
 func _draw() -> void:
 	var font := get_theme_default_font()
 	var now := clock_usec
-	var margin := SurfaceObject.RADIUS + 40.0
+	var margin := Note.RADIUS + 40.0
 	var dragging_item: bool = not drag.info.is_empty() and not drag.info.get("range_edit", false)
 
 	if _pointer_in:
 		_draw_reach_glow(_pointer)
 	for o in notes:
-		if o is Relay:
-			o.emitter.draw_limit_ring(self, o, drag.editing_reach_of(o.id))
+		if o.relay():
+			o.emitter().draw_limit_ring(self, o, drag.editing_reach_of(o.id))
 
 	if dragging_item:
 		drag.draw_rings()
@@ -649,10 +655,12 @@ func _draw() -> void:
 		w.draw(self)
 	effects.draw_splashes(self)
 
-	# Emitter tethers sit under the notes.
+	# Tethers and diamonds out on the surface sit under the notes.
 	for o in notes:
-		if o is Relay and not o.emitter.attached:
-			o.emitter.draw_tether(self, o)
+		var e: Emitter = o.emitter()
+		if e and not e.attached:
+			e.draw_tether(self, o)
+			e.draw_handle(self, to_screen(e.pos), Palette.channel_color(o.channel), o.id == _hover_handle)
 
 	for o in notes:
 		if is_on_screen(o.pos, margin):
@@ -660,12 +668,17 @@ func _draw() -> void:
 		else:
 			o.draw_edge_marker(self)
 
-	# Emitter diamonds go over every note, so a note can never hide one.
+	# Docked diamonds, or the dim handle left on the note, go over every note.
 	for o in notes:
-		if o is Relay:
-			var hp: Vector2 = o.emitter.handle_screen_pos(self, o)
-			if hp.x > -40.0 and hp.y > -40.0 and hp.x < size.x + 40.0 and hp.y < size.y + 40.0:
-				o.emitter.draw_handle(self, hp, Palette.channel_color(o.channel), o.id == _hover_handle)
+		var e: Emitter = o.emitter()
+		if e == null:
+			continue
+		var hp: Vector2 = e.dock_screen_pos(self, o)
+		if hp.x > -40.0 and hp.y > -40.0 and hp.x < size.x + 40.0 and hp.y < size.y + 40.0:
+			if e.attached:
+				e.draw_handle(self, hp, Palette.channel_color(o.channel), o.id == _hover_handle)
+			else:
+				e.draw_dock(self, hp, o.id == _hover_handle)
 
 	# Hover and selection are boxes (white corner brackets), so rings only ever mean state.
 	for o in notes:
@@ -677,8 +690,8 @@ func _draw() -> void:
 			draw_brackets(to_screen(o.pos), o.bracket_half(), 1.0, 0.55, 0.28)
 	for eid in selection.emitters:
 		var en := get_note(eid)
-		if en and en is Relay and not en.emitter.attached:
-			draw_brackets(en.emitter.handle_screen_pos(self, en), Emitter.HANDLE_RADIUS + 6.0, 2.0, 0.95, 0.42)
+		if en and en.emitter() and not en.emitter().attached:
+			draw_brackets(en.emitter().handle_screen_pos(self, en), Emitter.HANDLE_RADIUS + 6.0, 2.0, 0.95, 0.42)
 	effects.draw_bracket_flashes(self)
 	tools.draw_overlay(self)
 
