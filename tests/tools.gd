@@ -31,6 +31,7 @@ func _ready() -> void:
 	_tabs()
 	_quick_pick()
 	_ring_options()
+	_tab()
 	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
@@ -720,6 +721,39 @@ func _ring_options() -> void:
 	tools.pick("pitch")
 	tools.set_tool("select")
 	surface.clear_notes()
+
+
+func _tab() -> void:
+	var cases := ["select", "draw", "pan", "zoom"]
+	for id in cases:
+		tools.set_tool(id)
+		_key(KEY_TAB)
+		_check(tools.current_id() == "tap" and not tools.is_editing(), "Tab from %s goes to Tap" % id)
+		_key(KEY_TAB)
+		_check(tools.current_id() == id and tools.is_editing(), "Tab returns to %s" % id)
+	tools.set_tool("draw")
+	tools.pick("tap")
+	_key(KEY_TAB)
+	_check(tools.current_id() == "draw", "Tap picked on the bar returns too")
+	# A ring option isn't a tool, so it's left alone.
+	tools.pick("channel")
+	_key(KEY_TAB)
+	_key(KEY_TAB)
+	_check(tools.current_id() == "draw" and tools.ring_option.tool_id() == "channel", "the ring option stays")
+	tools.pick("pitch")
+	# Nothing happens during a spring-load.
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
+	_key(KEY_TAB)
+	_check(tools.current_id() == "pan", "ignored while spring-loaded")
+	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
+	_check(tools.current_id() == "draw", "spring-load still returns")
+	var ctrl := InputEventKey.new()
+	ctrl.keycode = KEY_TAB
+	ctrl.pressed = true
+	ctrl.ctrl_pressed = true
+	tools.handle_input(ctrl)
+	_check(tools.current_id() == "draw", "Ctrl+Tab does nothing")
+	tools.set_tool("select")
 
 
 func _saves() -> void:

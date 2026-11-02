@@ -13,7 +13,8 @@ signal mode_changed(editing: bool)
 var surface: WaveSurface
 var tools: Array[Tool] = []
 var current: Tool
-var last_edit: Tool                ## the editing tool to go back to from the Tap tool
+var _before_tap: Tool              # the tool Tab returns to from Tap
+var _editing_before_tap := true
 var ring_option: RingTool          ## which ring a right-click on a note opens
 var _editing := true               # false in the Tap tool; a nav tool leaves this as it was
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
@@ -30,7 +31,7 @@ func _init(owner_surface: WaveSurface) -> void:
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
 	current = get_tool("select")
-	last_edit = current
+	_before_tap = current
 
 
 func get_tool(id: String) -> Tool:
@@ -77,11 +78,12 @@ func set_tool(id: String) -> void:
 	surface.drag.end()
 	current.deactivate()
 	var was_editing := is_editing()
+	if t is TapTool:
+		_before_tap = current
+		_editing_before_tap = _editing
 	current = t
 	if not t.navigates():
 		_editing = t.edits_layout()
-		if _editing:
-			last_edit = t
 	surface.mouse_default_cursor_shape = t.cursor()
 	t.activate()
 	if is_editing() != was_editing:
@@ -91,8 +93,12 @@ func set_tool(id: String) -> void:
 	tool_changed.emit(id)
 
 
-## Undo and redo work in every editing tool. Esc closes an open ring.
+## Tab flips to Tap and back. Undo and redo work in every editing tool. Esc closes an open ring.
 func _handle_key(key: InputEventKey) -> bool:
+	if key.keycode == KEY_TAB and not key.ctrl_pressed and not key.alt_pressed:
+		if not springing():
+			toggle_tap()
+		return true
 	if key.keycode == KEY_ESCAPE and radial and radial.visible:
 		radial.close()
 		return true
@@ -153,9 +159,15 @@ func springing() -> bool:
 	return _spring_from != null
 
 
-## Flips between the Tap tool and the last editing tool.
+## Flips between the Tap tool and the tool used before it.
 func toggle_tap() -> void:
-	set_tool(last_edit.tool_id() if not is_editing() else "tap")
+	if current is not TapTool:
+		set_tool("tap")
+		return
+	set_tool(_before_tap.tool_id())
+	if is_editing() != _editing_before_tap:      # a nav tool returns to the mode it was used in
+		_editing = _editing_before_tap
+		mode_changed.emit(_editing)
 
 
 func draw_overlay(canvas: WaveSurface) -> void:
