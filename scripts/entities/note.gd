@@ -44,6 +44,17 @@ func sounds() -> bool:
 	return r == null or r.sound
 
 
+## How far this note's grid reaches: its own, else a docked relay's wave, else a beat past the
+## global Reach.
+func grid_limit() -> float:
+	if grid and grid.reach > 0.0:
+		return grid.reach
+	var e := emitter()
+	if e and e.attached:
+		return e.reach()
+	return Settings.wave_range + Settings.BEAT_UNIT
+
+
 ## True if a modifier draws a ring around the note.
 func has_ring() -> bool:
 	for m in modifiers:
@@ -67,6 +78,8 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 		binding = "kp%d" % old_slot
 	muted = bool(d.get("muted", false))
 	grid = Grid.new() if bool(d.get("grid", false)) else null
+	if grid:
+		grid.reach = maxf(float(d.get("grid_reach", 0.0)), 0.0)
 	snap_note = str(d.get("snap_note", ""))
 	modifiers.clear()
 	if d.has("mods"):
@@ -95,7 +108,7 @@ func to_dict() -> Dictionary:
 		mods.append(m.to_dict())
 	return {
 		"x": pos.x, "y": pos.y, "note": note, "channel": channel, "mods": mods,
-		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "grid": grid != null,
+		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "grid": grid != null, "grid_reach": grid.reach if grid else 0.0,
 	}
 
 

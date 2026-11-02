@@ -28,6 +28,8 @@ static func clamp_cooldown(beats: float) -> float:
 
 func load_dict(d: Dictionary, p: Vector2) -> void:
 	grid = Grid.new() if bool(d.get("grid_emit", false)) else null
+	if grid:
+		grid.reach = maxf(float(d.get("grid_emit_reach", 0.0)), 0.0)
 	snap = str(d.get("snap_emit", ""))
 	own_reach = maxf(float(d.get("range", 0.0)), 0.0)
 	strength = clampf(float(d.get("pulse_strength", DEFAULT_STRENGTH)), 0.05, 1.0)
@@ -44,7 +46,8 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 
 func to_dict() -> Dictionary:
 	return {"pulse_strength": strength, "cooldown_beats": cooldown, "attached": attached,
-			"ex": pos.x, "ey": pos.y, "range": own_reach, "grid_emit": grid != null, "snap_emit": snap}
+			"ex": pos.x, "ey": pos.y, "range": own_reach, "grid_emit": grid != null,
+			"grid_emit_reach": grid.reach if grid else 0.0, "snap_emit": snap}
 
 
 func is_retrigger() -> bool:
@@ -66,6 +69,11 @@ func world_pos(owner: Note) -> Vector2:
 ## Its reach: its own if set, else the global Reach.
 func reach() -> float:
 	return own_reach if own_reach > 0.0 else Settings.wave_range
+
+
+## How far a grid on this emitter reaches: its own, else as far as the emitter's waves.
+func grid_limit() -> float:
+	return grid.reach if grid and grid.reach > 0.0 else reach()
 
 
 func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array) -> void:

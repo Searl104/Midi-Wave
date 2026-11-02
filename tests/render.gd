@@ -69,8 +69,4 @@ func _detach(s: WaveSurface, id: int, world: Vector2) -> void:
 
 
 func _grid(s: WaveSurface, note: int, handle: int) -> void:
-	s._hover_id = note
-	s._hover_handle = handle
-	s.snapping.toggle_at_hover()
-	s._hover_id = -1
-	s._hover_handle = -1
+	s.snapping.toggle_grid(s.get_note(handle if note == -1 else note), note == -1)

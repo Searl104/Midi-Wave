@@ -36,7 +36,7 @@ func touch_targets(exclude_id: int) -> Dictionary:
 	return out
 
 
-## Grids that are on, keyed like touch targets, as {key: [Grid, world position]}.
+## Grids that are on, keyed like touch targets, as {key: [Grid, world position, reach]}.
 ## The held note (and its emitter) and the rest of a dragged group are left out.
 func active_grids(exclude_id: int = -1) -> Dictionary:
 	var out := {}
@@ -44,32 +44,22 @@ func active_grids(exclude_id: int = -1) -> Dictionary:
 		if m.id == exclude_id or surface.drag.group.has(m.id):
 			continue
 		if m.grid:
-			out["n%d" % m.id] = [m.grid, m.pos]
+			out["n%d" % m.id] = [m.grid, m.pos, m.grid_limit()]
 		var e: Emitter = m.emitter()
 		if e and e.grid and not e.attached:
-			out["e%d" % m.id] = [e.grid, e.pos]
+			out["e%d" % m.id] = [e.grid, e.pos, e.grid_limit()]
 	return out
 
 
-## Turns the grid under the hovered object or emitter on or off. Returns "on", "off" or ""
-## (nothing under the pointer). An attached emitter shares its object's grid.
-func toggle_at_hover() -> String:
-	var handle := surface.hovered_handle()
-	var id := handle if handle != -1 else surface.hovered_note()
-	var o := surface.get_note(id)
-	if o == null:
-		return ""
-	var on: bool
+## Adds or removes the grid on an object, or with `on_emitter` on its emitter.
+func toggle_grid(o: Note, on_emitter: bool) -> void:
 	var e: Emitter = o.emitter()
-	if handle != -1 and e and not e.attached:
+	if on_emitter:
 		e.grid = null if e.grid else Grid.new()
-		on = e.grid != null
 	else:
 		o.grid = null if o.grid else Grid.new()
-		on = o.grid != null
 	surface.effects.flash_brackets(o)
 	surface.save_notes()
-	return "on" if on else "off"
 
 
 ## Turns every grid off. Returns how many were on.
@@ -104,7 +94,8 @@ func grid_snap(p: Vector2) -> Vector2:
 	var ring_d := INF
 	for key in grids:
 		var origin: Vector2 = grids[key][1]
-		if not Settings.guides_to_edge and (p - origin).length() >= Settings.wave_range:
+		var to_p := (p - origin).length()
+		if to_p >= grids[key][2] or (not Settings.guides_to_edge and to_p >= Settings.wave_range):
 			continue
 		var points: Array = grids[key][0].nearest(origin, p, step, ss)
 		if points[0].distance_to(p) < ring_d:
@@ -129,18 +120,18 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 	var pairs: Array = []      # [world point, owning object id, key]
 	for key in touched:
 		if targets.has(key):
-			pairs.append([targets[key], int(key.substr(1)), key])
+			pairs.append([targets[key], int(key.substr(1)), key, INF])
 	var grids := active_grids(n.id)
 	for key in grids:
 		if not touched.has(key):
-			pairs.append([grids[key][1], int(key.substr(1)), key])
+			pairs.append([grids[key][1], int(key.substr(1)), key, grids[key][2]])
 
 	var step_px := ring_step()
 	var best: Array = []
 	var best_fix := INF
 	for pr in pairs:
 		var d := p.distance_to(pr[0])
-		if not Settings.guides_to_edge and d >= reach:
+		if d >= pr[3] or (not Settings.guides_to_edge and d >= reach):
 			continue                                   # guides stop at the reach
 		var target := roundf(d / step_px) * step_px
 		if target < step_px * 0.5:
@@ -159,7 +150,7 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 	for pr in (pairs if Settings.snap_spokes and Settings.spoke_count > 0 else []):
 		var v := p - (pr[0] as Vector2)
 		var d := v.length()
-		if d < 1.0:
+		if d < 1.0 or d >= pr[3]:
 			continue
 		var ang := v.angle()
 		var snapped_ang := roundf(ang / spoke_step) * spoke_step
@@ -186,7 +177,7 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 	for pr in (pairs if Settings.snap_spokes and Settings.spoke_count > 0 else []):
 		var v2 := p - (pr[0] as Vector2)
 		var d2 := v2.length()
-		if d2 < 1.0 or (not Settings.guides_to_edge and d2 >= reach):
+		if d2 < 1.0 or d2 >= pr[3] or (not Settings.guides_to_edge and d2 >= reach):
 			continue
 		var r2 := roundf(d2 / step_px) * step_px
 		if r2 < step_px * 0.5:
@@ -238,9 +229,11 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 				ref = pr
 
 	var centres: Array = [out_pos]
+	var limits: Array = [INF]
 	for pr in pairs:
 		centres.append(pr[0])
-	var info := {"pos": out_pos, "centres": centres, "readout": "", "loop": "", "snapped": snapped,
+		limits.append(pr[3])
+	var info := {"pos": out_pos, "centres": centres, "limits": limits, "readout": "", "loop": "", "snapped": snapped,
 			"ref_point": ref[0] if not ref.is_empty() else null,
 			"snap_key": ref[2] if snapped else ""}
 	info["centre"] = not centre.is_empty()

@@ -669,7 +669,7 @@ func _draw() -> void:
 		# Grids that are on stay faintly visible when nothing is being dragged.
 		var grids := snapping.active_grids()
 		for key in grids:
-			Grid.draw_guide(self, grids[key][1], 0.32 * Settings.guide_brightness, Settings.guide_divisions)
+			Grid.draw_guide(self, grids[key][1], 0.32 * Settings.guide_brightness, Settings.guide_divisions, grids[key][2])
 
 	for w in waves:
 		w.draw(self)

@@ -33,6 +33,8 @@ func _ready() -> void:
 	_ring_options()
 	_tab()
 	_bindings()
+	_grid_tool()
+	_tweaks()
 	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
@@ -51,7 +53,7 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 9, "nine tools")
+	_check(tools.tools.size() == 10, "ten tools")
 	_check(tools.get_tool("pulse") == null, "no Pulse tool")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
@@ -209,8 +211,7 @@ func _select_and_move() -> void:
 	_click(Vector2(1100, 700))
 	var bo := surface.get_note(b)
 	var ao := surface.get_note(a)
-	surface.set_pointer(surface.to_screen(ao.pos))
-	surface.snapping.toggle_at_hover()
+	surface.snapping.toggle_grid(ao, false)
 	var near: Vector2 = surface.to_screen(ao.pos) + Vector2(203, 2)
 	_drag(surface.to_screen(bo.pos), near)
 	_check(surface.to_screen(bo.pos).is_equal_approx(surface.to_screen(ao.pos) + Vector2(200, 0)), "snaps to the grid")
@@ -489,8 +490,7 @@ func _draw_tool() -> void:
 	_check(surface.notes.size() == 2, "a click on a note places nothing")
 	# Snapping: the ghost lands where the note will.
 	var ao := surface.get_note(a)
-	surface.set_pointer(Vector2(320, 340))
-	surface.snapping.toggle_at_hover()
+	surface.snapping.toggle_grid(ao, false)
 	surface.history.end_group()
 	var near := Vector2(523, 342)
 	var land := draw.landing(near, false)
@@ -616,17 +616,8 @@ func _pitch() -> void:
 	radial.outer_chosen.emit(radial.outer_items[2].id)
 	_check(surface.notes.size() == 1 and surface.notes[0].note == radial.outer_items[2].id, "next pick retunes")
 	var was: int = surface.notes[0].note
-	ring.step_octave(1)
+	radial.inner_chosen.emit(ring._octave + 1)
 	_check(surface.notes[0].note == was + 12, "octave keeps the letter")
-	radial.inner_chosen.emit(2)
-	_check(ring._octave == 2, "inner ring sets octave")
-	ring.type_digit(1)
-	ring.type_digit(2)
-	_check(ring._channel == 11, "1 then 2 is channel 12")
-	ring.type_digit(5)
-	_check(ring._channel == 4, "a single digit")
-	radial.outer_chosen.emit(radial.outer_items[0].id)
-	_check(surface.notes[0].channel == 4, "pick applies the channel")
 	radial.center_chosen.emit("delete")
 	_check(surface.get_note(id) == null and not radial.visible, "centre deletes and closes")
 
@@ -1021,6 +1012,128 @@ func _bindings() -> void:
 	_check(Settings.notes[0].binding == "kp4" and not Settings.notes[0].has("slot"), "saved as a binding")
 	tools.set_tool("select")
 	surface.stop()
+	surface.clear_notes()
+
+
+func _grid_tool() -> void:
+	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
+	var r := surface.add_note_at(Vector2(700, 300), 64, 0)
+	surface.add_modifier(r, "relay")
+	surface.history.end_group()
+	var ao := surface.get_note(a)
+	var ro := surface.get_note(r)
+	var e: Emitter = ro.emitter()
+	tools.set_tool("grid")
+	var steps := surface.history.undo_steps()
+	_click(Vector2(300, 300))
+	_check(ao.grid != null, "click adds an origin")
+	_check(surface.history.undo_steps() == steps + 1, "an undo step")
+	surface.history.end_group()
+	_click(Vector2(300, 300))
+	_check(ao.grid == null, "click again removes it")
+	surface.history.end_group()
+	_click(Vector2(100, 100))
+	_check(surface.snapping.active_grids().is_empty(), "empty space does nothing")
+	# Automatic reach: a beat past the global Reach, or a relay's own.
+	_click(Vector2(300, 300))
+	surface.history.end_group()
+	_check(ao.grid_limit() == Settings.wave_range + Settings.BEAT_UNIT, "a note: wave reach + 1 beat")
+	Settings.wave_range += 100.0
+	_check(ao.grid_limit() == Settings.wave_range + Settings.BEAT_UNIT, "and it follows the setting")
+	Settings.wave_range -= 100.0
+	_click(Vector2(700, 300))
+	e.own_reach = 300.0
+	_check(ro.grid_limit() == 300.0, "a docked relay: its reach")
+	surface.history.end_group()
+	_click(Vector2(700, 300))
+	e.attached = false
+	e.pos = surface.to_world(Vector2(900, 500))
+	surface.save_notes()
+	surface.history.end_group()
+	var dock: Vector2 = e.dock_screen_pos(surface, ro)
+	_click(dock)
+	_check(ro.grid == null and e.grid == null, "a dim handle does nothing")
+	_click(Vector2(900, 500))
+	_check(e.grid != null and e.grid_limit() == 300.0, "a remote diamond: its reach")
+	surface.history.end_group()
+	e.grid = null
+	e.attached = true
+	e.own_reach = 0.0
+	surface.save_notes()
+	surface.history.end_group()
+	var docked := e.dock_screen_pos(surface, ro)
+	_click(docked + Vector2(9, -9))
+	_check(e.grid == null, "a docked diamond does nothing")
+	# Drag sets reach: snapped, Alt free, back on the origin automatic; press outside the threshold.
+	steps = surface.history.undo_steps()
+	_drag(Vector2(300, 300), Vector2(300 + 317, 300))
+	_check(ao.grid != null and is_equal_approx(ao.grid.reach * surface.z(), 300.0), "drag sets reach, snapped")
+	_check(surface.history.undo_steps() == steps + 1, "one undo step")
+	surface.history.end_group()
+	_drag(Vector2(300, 300), Vector2(300 + 317, 300), true)
+	_check(is_equal_approx(ao.grid.reach * surface.z(), 317.0), "Alt leaves it unsnapped")
+	surface.history.end_group()
+	_drag(Vector2(300, 300), Vector2(303, 300))
+	_check(ao.grid == null, "a drag under the threshold is a click")
+	surface.history.end_group()
+	# Snapping stops at the reach.
+	ao.grid = Grid.new()
+	ao.grid.reach = 400.0
+	surface.save_notes()
+	surface.history.end_group()
+	var inside: Vector2 = ao.pos + Vector2(303, 3)
+	var outside: Vector2 = ao.pos + Vector2(603, 3)
+	_check(surface.snapping.grid_snap(inside) != inside, "snaps inside the reach")
+	_check(surface.snapping.grid_snap(outside) == outside, "not past it")
+	var held := surface.add_note_at(Vector2(100, 700), 62, 0)
+	var info := surface.snapping.compute_drag(surface.get_note(held), "note", outside, false)
+	_check(not info.snapped and info.limits[1] == 400.0, "nor does a drag")
+	# Saved.
+	surface.save_notes()
+	var saved: Array = Settings.notes.duplicate(true)
+	surface.load_notes()
+	_check(surface.get_note(a).grid.reach == 400.0, "reach survives a reload")
+	surface.save_notes()
+	_check(JSON.stringify(saved) == JSON.stringify(Settings.notes), "and round-trips")
+	tools.set_tool("select")
+	surface.clear_notes()
+
+
+func _tweaks() -> void:
+	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
+	var b := surface.add_note_at(Vector2(500, 300), 63, 0)
+	var ao := surface.get_note(a)
+	surface.add_modifier(b, "toggle")
+	var t: Modifier = surface.get_note(b).get_modifier("toggle")
+	for id in ["tap", "select", "draw", "bind", "grid", "pan"]:
+		tools.set_tool(id)
+		surface.selection.clear()
+		surface.set_pointer(Vector2(300, 300))
+		ao.muted = false
+		_key(KEY_M)
+		_check(ao.muted, "M mutes in %s" % id)
+		ao.muted = false
+		var was: int = ao.note
+		var e := InputEventKey.new()
+		e.keycode = KEY_PERIOD
+		e.pressed = true
+		tools.handle_input(e)
+		_check(ao.note > was, "> nudges in %s" % id)
+		e.keycode = KEY_COMMA
+		tools.handle_input(e)
+		_check(ao.note == was, "< nudges back in %s" % id)
+		e.shift_pressed = true
+		e.keycode = KEY_PERIOD
+		tools.handle_input(e)
+		_check(ao.note == was + 12, "Shift: an octave in %s" % id)
+		e.keycode = KEY_COMMA
+		tools.handle_input(e)
+		t.on = false
+		t.start = true
+		_key(KEY_S, true)
+		_check(not t.start, "Ctrl+S in %s" % id)
+	surface.set_pointer(Vector2(1000, 700))
+	tools.set_tool("select")
 	surface.clear_notes()
 
 

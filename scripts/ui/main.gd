@@ -35,6 +35,7 @@ func _ready() -> void:
 	add_child(surface)
 	surface.tools.mode_changed.connect(_on_mode_changed)
 	surface.tools.tool_changed.connect(_on_tool_changed)
+	surface.tools.notice.connect(_toast)
 
 	_build_hud()
 
@@ -199,7 +200,7 @@ func _build_hud() -> void:
 
 	var save := Button.new()
 	save.text = "Save state"
-	save.tooltip_text = "Make every toggle's current state its start state"
+	save.tooltip_text = "Make every toggle's current state its start state (Ctrl+S)"
 	save.focus_mode = Control.FOCUS_NONE
 	save.pressed.connect(_save_state)
 	top.add_child(save)

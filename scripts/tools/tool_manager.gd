@@ -9,6 +9,7 @@ extends RefCounted
 
 signal tool_changed(tool_id: String)
 signal mode_changed(editing: bool)
+signal notice(text: String)
 
 var surface: WaveSurface
 var tools: Array[Tool] = []
@@ -25,7 +26,7 @@ var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id();
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
-	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), PitchTool.new(surface),
+	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), PitchTool.new(surface),
 			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
@@ -111,6 +112,27 @@ func _keypad_digit(key: InputEventKey) -> int:
 	return pad - KEY_KP_0 if pad >= KEY_KP_0 and pad <= KEY_KP_9 else -1
 
 
+## Mute, nudge and Save state work in every tool, including Tap.
+func _handle_tweak(key: InputEventKey) -> bool:
+	match key.keycode:
+		KEY_S:
+			if key.ctrl_pressed:
+				surface.save_state()
+				notice.emit("Start states saved")
+				return true
+		KEY_M:
+			if not key.ctrl_pressed and not key.alt_pressed:
+				surface.toggle_mute()
+				return true
+		KEY_COMMA, KEY_PERIOD, KEY_LESS, KEY_GREATER:
+			if not key.ctrl_pressed and not key.alt_pressed and not (radial and radial.visible):
+				var up := key.keycode == KEY_PERIOD or key.keycode == KEY_GREATER
+				var octave := key.shift_pressed or key.keycode == KEY_LESS or key.keycode == KEY_GREATER
+				surface.nudge_pitch(1 if up else -1, octave)
+				return true
+	return false
+
+
 ## Stop, Tab, keypad bindings and undo. Tab flips to Tap and back; undo and redo work in every
 ## editing tool; Esc closes an open ring. The active tool gets any other key.
 func _handle_key(key: InputEventKey) -> bool:
@@ -125,6 +147,8 @@ func _handle_key(key: InputEventKey) -> bool:
 		return false
 	if key.keycode == KEY_SPACE or key.keycode == KEY_KP_ENTER or key.physical_keycode == KEY_KP_ENTER:
 		surface.stop()
+		return true
+	if _handle_tweak(key):
 		return true
 	if key.keycode == KEY_TAB and not key.ctrl_pressed and not key.alt_pressed:
 		if not springing():

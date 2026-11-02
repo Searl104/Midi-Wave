@@ -3,14 +3,10 @@ extends RingTool
 ## Outer ring = the scale's notes, inner ring = octave, centre = delete. With no object it places
 ## a new one, and later picks retune it. Hovering a pitch can preview it.
 
-const DIGIT_WINDOW_MS := 600       ## time allowed for the second digit of a channel number
-
 var _pos := Vector2.ZERO
 var _octave := 4
 var _channel := 0
 var _pitch := -1                   # the current pitch, -1 = none yet
-var _digit_first := -1             # first digit of a possible 10-16, or -1
-var _digit_time := 0
 var _previewed := -1
 
 
@@ -24,7 +20,6 @@ func title() -> String:
 
 func _prepare(at: Vector2) -> void:
 	_pos = at
-	_digit_first = -1
 	_previewed = -1
 	var current := surface.last_pitch
 	_channel = surface.last_channel
@@ -46,11 +41,8 @@ func build() -> void:
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _octave})
-	var ch_text := "ch %d" % (_channel + 1)
-	if _digit_first != -1 and Time.get_ticks_msec() - _digit_time <= DIGIT_WINDOW_MS:
-		ch_text += "…"                  # waiting for a second digit (10-16)
-	radial.title = "%s %s · octave %d · %s" % [
-		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _octave, ch_text]
+	radial.title = "%s %s · octave %d · ch %d" % [
+		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _octave, _channel + 1]
 	radial.subtitle = ""
 	radial.refresh()
 
@@ -90,11 +82,6 @@ func pick_center(id: Variant) -> void:
 		radial.close()                   # nothing left to edit
 
 
-## Moves up or down an octave.
-func step_octave(direction: int) -> void:
-	set_octave(_octave + direction)
-
-
 ## The note keeps its letter (A, C#, ...) and moves to the new octave.
 func set_octave(octave: int) -> void:
 	var old := _octave
@@ -107,29 +94,6 @@ func set_octave(octave: int) -> void:
 				surface.set_note_pitch(note_id, moved)
 				Midi.play_note(moved, 90, 0.25, _channel)
 	build()
-
-
-## Two-digit channel typing: 1-9 apply at once; a quick second digit makes 10-16
-## (1 then 2 = 12); any other second digit starts over.
-func type_digit(d: int) -> void:
-	var now := Time.get_ticks_msec()
-	if _digit_first != -1 and now - _digit_time <= DIGIT_WINDOW_MS:
-		var v := _digit_first * 10 + d
-		_digit_first = -1
-		if v >= 10 and v <= 16:
-			_channel = v - 1
-			build()
-			return
-	if d >= 1 and d <= 9:
-		_channel = d - 1
-		_digit_first = d if d == 1 else -1     # only "1" can start 10-16
-		_digit_time = now
-		build()
-		if _digit_first != -1:
-			# Show "ch 1…" while a second digit can still follow, then settle on "ch 1".
-			surface.get_tree().create_timer(DIGIT_WINDOW_MS / 1000.0 + 0.02).timeout.connect(func() -> void:
-				if radial.visible and surface.tools.open_ring == self and Time.get_ticks_msec() - _digit_time > DIGIT_WINDOW_MS:
-					build())
 
 
 ## A quaver.

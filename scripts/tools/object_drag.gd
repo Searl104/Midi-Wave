@@ -206,11 +206,11 @@ func draw_rings() -> void:
 	# reach are drawn a little dimmer: waves fade out before getting there.
 	var dragged := surface.get_note(id)
 	var focus: Variant = info.get("ref_point")
-	for c in info.centres:
-		var centre_w: Vector2 = c
+	for i in info.centres.size():
+		var centre_w: Vector2 = info.centres[i]
 		var is_held: bool = centre_w == info.centres[0]
 		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness
-		Grid.draw_guide(surface, centre_w, weight, Settings.guide_divisions)
+		Grid.draw_guide(surface, centre_w, weight, Settings.guide_divisions, info.limits[i])
 	if dragged and info.snapped:
 		var at := surface.to_screen(info.pos)
 		var sc := Color(Palette.ACCENT.lightened(0.3), 0.6)
