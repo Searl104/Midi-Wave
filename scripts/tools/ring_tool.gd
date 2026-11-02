@@ -7,6 +7,10 @@ var radial: RadialMenu
 var note_id := -1
 
 
+func section() -> int:
+	return 2
+
+
 func open(menu: RadialMenu, id: int, at: Vector2) -> void:
 	radial = menu
 	note_id = id

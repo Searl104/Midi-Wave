@@ -54,12 +54,17 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
 	view_offset = Settings.view_offset
 	_zoom = Settings.zoom()
 	load_notes()
 	Settings.changed.connect(_on_setting_changed)
+
+
+func _gui_input(event: InputEvent) -> void:
+	if tools.handle_input(event):
+		accept_event()
 
 
 # --- Coordinates and view ------------------------------------------------------------------

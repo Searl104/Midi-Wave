@@ -1,7 +1,7 @@
 class_name Tool
 extends RefCounted
 ## One tool on the toolbar. A subclass names itself, draws its icon and holds its operations.
-## handle_input() is where a tool takes input events once they're mapped: nothing calls it yet.
+## ToolManager passes it input events through handle_input().
 
 var surface: WaveSurface
 
@@ -16,6 +16,20 @@ func tool_id() -> String:
 
 func title() -> String:
 	return ""
+
+
+## Which toolbar section it sits in.
+func section() -> int:
+	return 0
+
+
+## True for tools that move the view: picking one doesn't change the mode or the selection.
+func navigates() -> bool:
+	return false
+
+
+func cursor() -> Control.CursorShape:
+	return Control.CURSOR_ARROW
 
 
 ## False for the tool that only plays: the layout is locked while it's in use.

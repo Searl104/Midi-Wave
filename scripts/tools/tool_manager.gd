@@ -1,7 +1,9 @@
 class_name ToolManager
 extends RefCounted
-## The tools in toolbar order, which one is active, and the rings. Rings open from any tool, so
-## this also routes the radial menu to whichever ring tool opened it.
+## The tools in toolbar order, which one is active, and where input goes. Holding the middle button
+## spring-loads Pan (Zoom with Shift): that tool works until the button comes up, then the one
+## before it returns. Rings open from any tool, so this also routes the radial menu to whichever
+## ring tool opened it.
 
 signal tool_changed(tool_id: String)
 signal mode_changed(editing: bool)
@@ -10,6 +12,8 @@ var surface: WaveSurface
 var tools: Array[Tool] = []
 var current: Tool
 var last_edit: Tool                ## the editing tool to go back to from the Wave tool
+var _editing := true               # false in the Wave tool; a nav tool leaves this as it was
+var _spring_from: Tool = null      # the tool to return to when the middle button comes up
 var radial: RadialMenu
 var open_ring: RingTool = null     ## the ring tool using the radial menu
 
@@ -17,7 +21,8 @@ var open_ring: RingTool = null     ## the ring tool using the radial menu
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
 	tools = [WaveTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), PitchTool.new(surface),
-			ChannelTool.new(surface), PulseTool.new(surface), ModifierTool.new(surface)]
+			ChannelTool.new(surface), PulseTool.new(surface), ModifierTool.new(surface),
+			PanTool.new(surface), ZoomTool.new(surface)]
 	current = get_tool("select")
 	last_edit = current
 
@@ -35,11 +40,12 @@ func current_id() -> String:
 
 ## False while the Wave tool is in use: the layout is locked.
 func is_editing() -> bool:
-	return current.edits_layout()
+	return _editing
 
 
 ## Picks a tool. Picking the active one lets it respond (Draw switches what it places).
 func pick(id: String) -> void:
+	_spring_from = null
 	if id == current_id():
 		current.repick()
 		tool_changed.emit(id)
@@ -55,14 +61,47 @@ func set_tool(id: String) -> void:
 	current.deactivate()
 	var was_editing := is_editing()
 	current = t
-	if is_editing():
-		last_edit = t
+	if not t.navigates():
+		_editing = t.edits_layout()
+		if _editing:
+			last_edit = t
+	surface.mouse_default_cursor_shape = t.cursor()
 	t.activate()
 	if is_editing() != was_editing:
 		if not is_editing():
 			surface.selection.clear()
 		mode_changed.emit(is_editing())
 	tool_changed.emit(id)
+
+
+## Takes an input event from the surface. Returns true if it was used.
+func handle_input(event: InputEvent) -> bool:
+	var mb := event as InputEventMouseButton
+	var middle := mb != null and mb.button_index == MOUSE_BUTTON_MIDDLE
+	if middle and mb.pressed and _spring_from == null:
+		_spring_from = current
+		set_tool("zoom" if mb.shift_pressed else "pan")
+	var used := current.handle_input(event)
+	if middle and not mb.pressed:
+		end_spring()
+		used = true
+	return used
+
+
+## Returns to the tool from before the spring-load, if there is one.
+func end_spring() -> void:
+	if _spring_from == null:
+		return
+	var back := _spring_from
+	_spring_from = null
+	if back == current:
+		current.deactivate()
+	else:
+		set_tool(back.tool_id())
+
+
+func springing() -> bool:
+	return _spring_from != null
 
 
 ## Flips between the Wave tool and the last editing tool.

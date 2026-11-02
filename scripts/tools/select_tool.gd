@@ -8,6 +8,10 @@ var _box_start := Vector2.ZERO
 var _box_end := Vector2.ZERO
 
 
+func section() -> int:
+	return 1
+
+
 func tool_id() -> String:
 	return "select"
 

@@ -7,10 +7,11 @@ const SLOT := 44.0
 const PAD := 6.0
 
 var surface: WaveSurface
+var _hover := -1
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	var n := surface.tools.tools.size()
 	custom_minimum_size = Vector2(SLOT + PAD * 2.0, n * SLOT + (n - 1) * 2.0 + PAD * 2.0)
 	size = custom_minimum_size
@@ -25,6 +26,44 @@ func _slot_rect(i: int) -> Rect2:
 	return Rect2(Vector2(PAD, PAD + i * (SLOT + 2.0)), Vector2(SLOT, SLOT))
 
 
+func _slot_at(p: Vector2) -> int:
+	for i in surface.tools.tools.size():
+		if _slot_rect(i).has_point(p):
+			return i
+	return -1
+
+
+func _gui_input(event: InputEvent) -> void:
+	var mm := event as InputEventMouseMotion
+	if mm:
+		_set_hover(_slot_at(mm.position))
+		accept_event()
+		return
+	var mb := event as InputEventMouseButton
+	if mb:
+		accept_event()
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			var i := _slot_at(mb.position)
+			if i != -1:
+				surface.tools.pick(surface.tools.tools[i].tool_id())
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT:
+		_set_hover(-1)
+
+
+func _set_hover(i: int) -> void:
+	if i != _hover:
+		_hover = i
+		queue_redraw()
+
+
+func _get_tooltip(at_position: Vector2) -> String:
+	var i := _slot_at(at_position)
+	return surface.tools.tools[i].title() if i != -1 else ""
+
+
 func _draw() -> void:
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.06, 0.065, 0.085, 0.82)
@@ -37,16 +76,17 @@ func _draw() -> void:
 		var t: Tool = manager.tools[i]
 		var r := _slot_rect(i)
 		var on := t == manager.current
-		if on:
+		if on or i == _hover:
 			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color(Palette.ACCENT, 0.32)
-			sb.border_color = Color(Palette.ACCENT.lightened(0.3), 0.9)
-			sb.set_border_width_all(1)
+			sb.bg_color = Color(Palette.ACCENT, 0.32) if on else Color(1, 1, 1, 0.06)
+			if on:
+				sb.border_color = Color(Palette.ACCENT.lightened(0.3), 0.9)
+				sb.set_border_width_all(1)
 			sb.set_corner_radius_all(7)
 			draw_style_box(sb, r)
-		if i == 1:
-			draw_line(Vector2(PAD + 6, r.position.y - 1), Vector2(PAD + SLOT - 6, r.position.y - 1), Color(1, 1, 1, 0.08), 1.0)
-		if i == 3:
-			draw_line(Vector2(PAD + 6, r.position.y - 1), Vector2(PAD + SLOT - 6, r.position.y - 1), Color(1, 1, 1, 0.14), 1.0)
+		if i > 0 and t.section() != manager.tools[i - 1].section():
+			# Sections: a faint line after Wave, then stronger ones.
+			var line := Color(1, 1, 1, 0.08 if t.section() == 1 else 0.14)
+			draw_line(Vector2(PAD + 6, r.position.y - 1), Vector2(PAD + SLOT - 6, r.position.y - 1), line, 1.0)
 		var ink := Palette.TEXT if on else Palette.TEXT_DIM
 		t.draw_icon(self, r.get_center(), ink)

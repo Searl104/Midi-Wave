@@ -126,7 +126,8 @@ func _on_tool_changed(_t: String) -> void:
 	surface.tools.close_ring()
 	if toolbar:
 		toolbar.queue_redraw()
-	Settings.set_value("tool", surface.tools.current_id())
+	if not surface.tools.springing():
+		Settings.set_value("tool", surface.tools.current_id())
 	Settings.set_value("draw_type", _draw_tool().place_type)
 
 
@@ -164,6 +165,12 @@ func _toast(text: String) -> void:
 	_toast_tween = create_tween()
 	_toast_tween.tween_interval(1.2)
 	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.5)
+
+
+func _notification(what: int) -> void:
+	# A button released while the window is unfocused never arrives.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
+		surface.tools.end_spring()
 
 
 func _reopen_last_port() -> void:

@@ -20,6 +20,7 @@ func _ready() -> void:
 	tools.attach_radial(radial)
 	surface.clear_notes()
 	_switching()
+	_navigation()
 	_wave()
 	_select()
 	_draw_strokes()
@@ -44,7 +45,7 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 7, "seven tools")
+	_check(tools.tools.size() == 9, "nine tools")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
 	_check(tools.current_id() == "select", "unknown tool ignored")
@@ -59,8 +60,88 @@ func _switching() -> void:
 	tools.pick("draw")
 	_check(seen.size() >= 4, "tool changes reported")
 	for t in tools.tools:
-		_check(t.handle_input(InputEventMouseButton.new()) == false, "%s takes no input yet" % t.tool_id())
+		if not t.navigates():
+			_check(t.handle_input(InputEventMouseButton.new()) == false, "%s takes no input yet" % t.tool_id())
 	tools.set_tool("select")
+
+
+func _press(button: MouseButton, down: bool, at: Vector2, shift: bool = false) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = button
+	e.pressed = down
+	e.position = at
+	e.shift_pressed = shift
+	tools.handle_input(e)
+
+
+func _move(at: Vector2) -> void:
+	var e := InputEventMouseMotion.new()
+	e.position = at
+	tools.handle_input(e)
+
+
+func _navigation() -> void:
+	var id := surface.add_note_at(Vector2(300, 300), 60, 0)
+	var layout := JSON.stringify(Settings.notes)
+	surface.selection.notes = {id: true}
+	var saved_view := surface.view_offset
+	# Middle-drag spring-loads Pan and then returns.
+	tools.set_tool("draw")
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2(100, 100))
+	_check(tools.current_id() == "pan" and tools.springing(), "middle spring-loads pan")
+	_move(Vector2(160, 130))
+	_check(surface.to_screen(saved_view) == Vector2(60, 30), "pan follows the pointer")
+	_press(MOUSE_BUTTON_MIDDLE, false, Vector2(160, 130))
+	_check(tools.current_id() == "draw" and not tools.springing(), "release returns to the tool")
+	_check(tools.is_editing() and surface.selection.notes.has(id), "mode and selection kept")
+	# Shift + middle spring-loads Zoom, about the pressed point.
+	var pivot := Vector2(400, 300)
+	var world := surface.to_world(pivot)
+	var spacing: float = Settings.beat_spacing
+	_press(MOUSE_BUTTON_MIDDLE, true, pivot, true)
+	_check(tools.current_id() == "zoom", "shift-middle spring-loads zoom")
+	_move(pivot + Vector2(50, 0))
+	_check(Settings.beat_spacing > spacing, "right zooms in")
+	_check(surface.to_world(pivot).is_equal_approx(world), "the pressed point stays put")
+	var more: float = Settings.beat_spacing
+	_move(pivot + Vector2(50, -40))
+	_check(Settings.beat_spacing > more, "up zooms in")
+	_move(pivot + Vector2(-50, 100))
+	_check(Settings.beat_spacing < spacing, "left and down zoom out")
+	for i in 40:
+		_move(pivot + Vector2(-50 - 200 * i, 100))
+	_check(Settings.beat_spacing == Settings.BEAT_SPACING_MIN, "stops at the minimum")
+	_press(MOUSE_BUTTON_MIDDLE, false, pivot, true)
+	_check(tools.current_id() == "draw", "zoom returns too")
+	Settings.set_value("beat_spacing", spacing)
+	# From the Wave tool, stays locked; picked from the bar, left-drag works and stays.
+	tools.set_tool("wave")
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
+	_check(not tools.is_editing(), "still locked while panning from Wave")
+	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
+	_check(tools.current_id() == "wave", "back to Wave")
+	tools.pick("pan")
+	var before := surface.view_offset
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(100, 100))
+	_move(Vector2(120, 100))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(120, 100))
+	_check(surface.view_offset != before and tools.current_id() == "pan", "left-drag pans and the tool stays")
+	var settled := surface.view_offset
+	_move(Vector2(300, 300))
+	_check(surface.view_offset == settled, "no drag after release")
+	# Middle while Pan is active keeps it; losing focus ends a spring-load.
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
+	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
+	_check(tools.current_id() == "pan", "stays on Pan")
+	tools.set_tool("select")
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
+	tools.end_spring()
+	_check(tools.current_id() == "select", "focus loss returns")
+	_move(Vector2(50, 50))
+	_check(JSON.stringify(Settings.notes) == layout, "navigation leaves the layout alone")
+	surface.selection.clear()
+	surface.view_offset = Vector2.ZERO
+	surface.clear_notes()
 
 
 func _wave() -> void:

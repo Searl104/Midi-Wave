@@ -8,6 +8,10 @@ var _active := false
 var _points: Array = []            # world points placed in this stroke
 
 
+func section() -> int:
+	return 1
+
+
 func tool_id() -> String:
 	return "draw"
 
