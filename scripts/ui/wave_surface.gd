@@ -63,8 +63,21 @@ func _ready() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	var mm := event as InputEventMouseMotion
+	if mm:
+		set_pointer(mm.position)
 	if tools.handle_input(event):
 		accept_event()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if tools.handle_input(event):
+		get_viewport().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT:
+		set_pointer(_pointer, false)
 
 
 # --- Coordinates and view ------------------------------------------------------------------
@@ -120,8 +133,13 @@ func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
 func set_pointer(pos: Vector2, inside: bool = true) -> void:
 	_pointer = pos
 	_pointer_in = inside
-	_hover_handle = handle_at(pos) if inside else -1
-	_hover_id = (note_at(pos) if _hover_handle == -1 else -1) if inside else -1
+	var hit := pick_at(pos) if inside else []
+	_hover_id = hit[1] if not hit.is_empty() and hit[0] == "note" else -1
+	_hover_handle = hit[1] if not hit.is_empty() and hit[0] == "emitter" else -1
+
+
+func pointer() -> Vector2:
+	return _pointer
 
 
 func hovered_note() -> int:
@@ -143,15 +161,22 @@ func note_at(screen_pos: Vector2) -> int:
 	return best
 
 
-func handle_at(screen_pos: Vector2) -> int:
+## What a click at a screen position lands on, top first: a diamond or dim handle on a note, then
+## a note, then a remote diamond, which draws under notes. ["note" or "emitter", id], or [] if none.
+func pick_at(screen_pos: Vector2) -> Array:
+	var reach := Emitter.HANDLE_RADIUS + 4.0
 	for o in notes:
 		var e: Emitter = o.emitter()
-		if e == null:
-			continue
-		var reach := Emitter.HANDLE_RADIUS + 4.0
-		if screen_pos.distance_to(e.handle_screen_pos(self, o)) <= reach or screen_pos.distance_to(e.dock_screen_pos(self, o)) <= reach:
-			return o.id
-	return -1
+		if e and screen_pos.distance_to(e.dock_screen_pos(self, o)) <= reach:
+			return ["emitter", o.id]
+	var hit := note_at(screen_pos)
+	if hit != -1:
+		return ["note", hit]
+	for o in notes:
+		var e: Emitter = o.emitter()
+		if e and screen_pos.distance_to(e.handle_screen_pos(self, o)) <= reach:
+			return ["emitter", o.id]
+	return []
 
 
 ## The note and modifier whose tab is at a screen position: [note, modifier], or [] if none.
@@ -637,7 +662,7 @@ func _draw() -> void:
 	var margin := Note.RADIUS + 40.0
 	var dragging_item: bool = not drag.info.is_empty() and not drag.info.get("range_edit", false)
 
-	if _pointer_in:
+	if _pointer_in and not tools.current.navigates():
 		_draw_reach_glow(_pointer)
 	for o in notes:
 		if o.relay():
@@ -690,7 +715,7 @@ func _draw() -> void:
 			draw_brackets(to_screen(o.pos), o.bracket_half(), 1.0, 0.55, 0.28)
 	for eid in selection.emitters:
 		var en := get_note(eid)
-		if en and en.emitter() and not en.emitter().attached:
+		if en and en.emitter():
 			draw_brackets(en.emitter().handle_screen_pos(self, en), Emitter.HANDLE_RADIUS + 6.0, 2.0, 0.95, 0.42)
 	effects.draw_bracket_flashes(self)
 	tools.draw_overlay(self)

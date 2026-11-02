@@ -20,6 +20,7 @@ func _ready() -> void:
 	tools.attach_radial(radial)
 	surface.clear_notes()
 	_switching()
+	_select_and_move()
 	_navigation()
 	_tap()
 	_select()
@@ -65,19 +66,206 @@ func _switching() -> void:
 	tools.set_tool("select")
 
 
-func _press(button: MouseButton, down: bool, at: Vector2, shift: bool = false) -> void:
+func _press(button: MouseButton, down: bool, at: Vector2, shift: bool = false, ctrl: bool = false) -> void:
 	var e := InputEventMouseButton.new()
 	e.button_index = button
 	e.pressed = down
 	e.position = at
 	e.shift_pressed = shift
-	tools.handle_input(e)
+	e.ctrl_pressed = ctrl
+	surface._gui_input(e)
 
 
-func _move(at: Vector2) -> void:
+func _move(at: Vector2, alt: bool = false) -> void:
 	var e := InputEventMouseMotion.new()
 	e.position = at
+	e.alt_pressed = alt
+	surface._gui_input(e)
+
+
+func _click(at: Vector2, shift: bool = false) -> void:
+	_press(MOUSE_BUTTON_LEFT, true, at, shift)
+	_press(MOUSE_BUTTON_LEFT, false, at, shift)
+
+
+func _drag(from: Vector2, to: Vector2, alt: bool = false, ctrl: bool = false) -> void:
+	_press(MOUSE_BUTTON_LEFT, true, from, false, ctrl)
+	_move(to, alt)
+	_press(MOUSE_BUTTON_LEFT, false, to, false, ctrl)
+
+
+func _key(code: Key, ctrl: bool = false, shift: bool = false) -> void:
+	var e := InputEventKey.new()
+	e.keycode = code
+	e.pressed = true
+	e.ctrl_pressed = ctrl
+	e.shift_pressed = shift
 	tools.handle_input(e)
+
+
+func _ids(d: Dictionary) -> Array:
+	var out: Array = d.keys()
+	out.sort()
+	return out
+
+
+func _select_and_move() -> void:
+	tools.set_tool("select")
+	_check(tools.current.title() == "Select and Move", "named")
+	var sel := surface.selection
+	var a := surface.add_note_at(Vector2(200, 200), 60, 0)
+	var b := surface.add_note_at(Vector2(350, 200), 62, 0)
+	var r := surface.add_note_at(Vector2(500, 200), 64, 0)
+	surface.add_modifier(r, "relay")
+	var ro := surface.get_note(r)
+	var e: Emitter = ro.emitter()
+	# Click, Shift-click, empty space.
+	_click(Vector2(200, 200))
+	_check(_ids(sel.notes) == [a], "click selects")
+	_click(Vector2(350, 200), true)
+	_check(_ids(sel.notes) == [a, b], "Shift-click adds")
+	_click(Vector2(350, 200), true)
+	_check(_ids(sel.notes) == [a], "Shift-click removes")
+	_click(Vector2(700, 600))
+	_check(not sel.has_any(), "a click on empty space clears")
+	# Group: a click narrows on release, a drag keeps it.
+	_click(Vector2(200, 200))
+	_click(Vector2(350, 200), true)
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(350, 200))
+	_check(sel.notes.size() == 2, "group held until release")
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(350, 200))
+	_check(_ids(sel.notes) == [b], "click narrows the group")
+	_click(Vector2(200, 200), true)
+	var layout := JSON.stringify(Settings.notes)
+	var steps := surface.history.undo_steps()
+	_check(JSON.stringify(Settings.notes) == layout and surface.history.undo_steps() == steps, "selecting isn't an edit")
+	_drag(Vector2(200, 200), Vector2(240, 260), true)
+	_check(sel.notes.size() == 2, "drag keeps the group")
+	_check(surface.to_screen(surface.get_note(a).pos) == Vector2(240, 260), "held note follows")
+	_check(surface.to_screen(surface.get_note(b).pos) == Vector2(390, 260), "the group keeps its shape")
+	surface.history.end_group()
+	# An unselected note replaces the selection and moves.
+	_drag(Vector2(500, 200), Vector2(520, 240), true)
+	_check(_ids(sel.notes) == [r], "drag replaces the selection")
+	_check(surface.to_screen(ro.pos) == Vector2(520, 240), "and moves it")
+	surface.history.end_group()
+	# Docked diamond: click selects; drag places; remote diamonds stay when notes move.
+	var dock: Vector2 = e.dock_screen_pos(surface, ro)
+	_click(dock)
+	_check(_ids(sel.emitters) == [r] and sel.notes.is_empty(), "click selects the diamond")
+	_drag(dock, Vector2(800, 500), true)
+	_check(not e.attached and surface.to_screen(e.pos) == Vector2(800, 500), "drag places the diamond")
+	surface.history.end_group()
+	_click(Vector2(700, 650))
+	_drag(Vector2(520, 240), Vector2(560, 280), true)
+	_check(surface.to_screen(e.pos) == Vector2(800, 500), "a single note leaves its diamond")
+	surface.history.end_group()
+	_click(Vector2(240, 260), true)
+	_drag(Vector2(240, 260), Vector2(250, 270), true)
+	_check(surface.to_screen(e.pos) == Vector2(800, 500), "so does a group")
+	surface.history.end_group()
+	_click(Vector2(800, 500), true)
+	_check(sel.emitters.has(r), "Shift-click adds the diamond")
+	_drag(Vector2(250, 270), Vector2(260, 280), true)
+	_check(surface.to_screen(e.pos) == Vector2(810, 510), "selected, it moves too")
+	surface.history.end_group()
+	# Dim handle: click selects the remote diamond; drag places it; on the note it docks.
+	_click(Vector2(1100, 700))
+	dock = e.dock_screen_pos(surface, ro)
+	_click(dock)
+	_check(_ids(sel.emitters) == [r], "the dim handle selects the diamond")
+	_drag(dock, Vector2(900, 300), true)
+	_check(surface.to_screen(e.pos) == Vector2(900, 300), "and drags it")
+	surface.history.end_group()
+	_drag(Vector2(900, 300), surface.to_screen(ro.pos), true)
+	_check(e.attached, "dropped on the note it docks")
+	surface.history.end_group()
+	# Ctrl-drag: reach from a diamond, nothing elsewhere.
+	_click(Vector2(1100, 700))
+	var from: Vector2 = e.dock_screen_pos(surface, ro)
+	layout = JSON.stringify(Settings.notes)
+	_drag(surface.to_screen(surface.get_note(a).pos), Vector2(100, 100), false, true)
+	_check(JSON.stringify(Settings.notes) == layout, "Ctrl-drag on a note does nothing")
+	_drag(from, surface.to_screen(ro.pos) + Vector2(300, 0), false, true)
+	_check(is_equal_approx(e.own_reach, 300.0 / surface.z()), "Ctrl-drag sets reach")
+	surface.history.end_group()
+	_drag(from, surface.to_screen(ro.pos), false, true)
+	_check(e.own_reach == 0.0, "back on the note: global")
+	surface.history.end_group()
+	# Box, and a Shift box.
+	_drag(Vector2(100, 100), Vector2(450, 320))
+	_check(sel.notes.keys().size() == 2 and not sel.notes.has(r), "a box selects")
+	_click(Vector2(1100, 700))
+	_drag(Vector2(100, 100), Vector2(450, 320))
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 200), true)
+	_move(Vector2(650, 400))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(650, 400), true)
+	_check(sel.notes.size() == 3, "a Shift box adds")
+	# Snapping without Alt, freely with it.
+	_click(Vector2(1100, 700))
+	var bo := surface.get_note(b)
+	var ao := surface.get_note(a)
+	surface.set_pointer(surface.to_screen(ao.pos))
+	surface.snapping.toggle_at_hover()
+	var near: Vector2 = surface.to_screen(ao.pos) + Vector2(203, 2)
+	_drag(surface.to_screen(bo.pos), near)
+	_check(surface.to_screen(bo.pos).is_equal_approx(surface.to_screen(ao.pos) + Vector2(200, 0)), "snaps to the grid")
+	surface.history.end_group()
+	var before: Vector2 = bo.pos
+	_drag(surface.to_screen(bo.pos), surface.to_screen(bo.pos) + Vector2(3, 3), true)
+	_check(bo.pos == before, "under the threshold nothing moves")
+	var loose: Vector2 = near + Vector2(12, 3)
+	_drag(surface.to_screen(bo.pos), loose, true)
+	_check(surface.to_screen(bo.pos) == loose, "Alt places freely")
+	surface.history.end_group()
+	surface.snapping.clear_grids()
+	surface.history.end_group()
+	# Hover.
+	surface.set_pointer(Vector2(1100, 700))
+	_check(surface.hovered_note() == -1, "nothing hovered")
+	surface.set_pointer(surface.to_screen(ao.pos))
+	_check(surface.hovered_note() == a, "hover finds a note")
+	# Keys.
+	var count := surface.notes.size()
+	_click(surface.to_screen(ao.pos))
+	surface.history.end_group()
+	_key(KEY_C, true)
+	surface.set_pointer(Vector2(900, 600))
+	_key(KEY_V, true)
+	_check(surface.notes.size() == count + 1, "copy and paste")
+	_check(surface.to_screen(surface.notes[-1].pos).is_equal_approx(Vector2(900, 600)), "paste lands at the pointer")
+	surface.history.end_group()
+	_key(KEY_DELETE)
+	_check(surface.notes.size() == count, "Delete removes")
+	surface.history.end_group()
+	_key(KEY_Z, true)
+	_check(surface.notes.size() == count + 1, "Ctrl+Z")
+	surface.history.end_group()
+	_key(KEY_Z, true, true)
+	_check(surface.notes.size() == count, "Ctrl+Shift+Z")
+	surface.history.end_group()
+	_key(KEY_Z, true)
+	_key(KEY_Y, true)
+	_check(surface.notes.size() == count, "Ctrl+Y")
+	_click(surface.to_screen(ao.pos))
+	_key(KEY_ESCAPE)
+	_check(not sel.has_any(), "Esc clears")
+	_click(surface.to_screen(ao.pos))
+	_key(KEY_BACKSPACE)
+	_check(surface.get_note(a) == null, "Backspace removes")
+	tools.set_tool("tap")
+	surface.history.end_group()
+	var steps_now := surface.history.undo_steps()
+	_key(KEY_Z, true)
+	_check(surface.history.undo_steps() == steps_now, "undo is locked in Tap")
+	# Esc closes a ring first.
+	tools.set_tool("select")
+	_click(surface.to_screen(bo.pos))
+	tools.open_ring_for("pitch", b, Vector2(600, 400))
+	_key(KEY_ESCAPE)
+	_check(not radial.visible and sel.has_any(), "Esc closes the ring first")
+	sel.clear()
+	surface.clear_notes()
 
 
 func _navigation() -> void:
@@ -371,8 +559,9 @@ func _tabs() -> void:
 	radial.close()
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(900, 600))
 	_check(radial.visible and tools.open_ring.tool_id() == "relay_settings", "the remote diamond opens it")
+	_check(radial._center.is_equal_approx(Vector2(900, 600)), "at the click")
 	radial.close()
-	_check(surface.handle_at(dock) == a, "the dim handle can be grabbed")
+	_check(surface.pick_at(dock) == ["emitter", a], "the dim handle can be grabbed")
 	surface.drag.begin(a, "emitter", dock)
 	surface.drag.moved = true
 	surface.drag.move_to(Vector2(500, 500), true)
@@ -384,7 +573,7 @@ func _tabs() -> void:
 	surface.drag.end()
 	_check(e.attached, "dropping on the note recalls it")
 	# The toggle's tab.
-	var tab: Vector2 = o.get_modifier("toggle").tab_screen_pos(surface, o)
+	var tab: Vector2 = o.get_modifier("toggle")._tab_centre(surface, o)
 	_press(MOUSE_BUTTON_RIGHT, true, tab)
 	_check(radial.visible and tools.open_ring.tool_id() == "toggle_settings", "right-click the toggle tab")
 	radial.outer_chosen.emit(false)

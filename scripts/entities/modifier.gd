@@ -62,11 +62,6 @@ func tab_contains(_surface: WaveSurface, _note: Note, _at: Vector2) -> bool:
 	return false
 
 
-## Where its settings ring opens, in screen px.
-func tab_screen_pos(surface: WaveSurface, note: Note) -> Vector2:
-	return surface.to_screen(note.pos)
-
-
 func set_start(state: bool) -> void:
 	start = state
 	on = state

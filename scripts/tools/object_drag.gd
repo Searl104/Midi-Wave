@@ -1,8 +1,8 @@
 class_name ObjectDrag
 extends RefCounted
 ## Holding and moving something on the surface: an object ("note"), an emitter ("emitter"), or an
-## emitter's reach ("range"). A selected item carries its group, which keeps its shape. Any tool
-## can use it. While moving, it shows the rings and readout from Snapping.
+## emitter's reach ("range"). A selected item carries the rest of the selection, which keeps its
+## shape; a note's remote diamond only moves if it's selected too. Any tool can use it. While moving, it shows the rings and readout from Snapping.
 ##
 ## Touch to snap (deprecated, see Snapping) lives here too: touching another object while moving
 ## toggles it as a snap target, when the overlap begins.
@@ -65,7 +65,7 @@ func begin(object_id: int, what: String, pos: Vector2) -> void:
 
 func _start_of(g: Note, moves_note: bool) -> Array:
 	var e: Emitter = g.emitter()
-	return [g.pos, e.pos if e else g.pos, moves_note, true]
+	return [g.pos, e.pos if e else g.pos, moves_note, surface.selection.emitters.has(g.id)]
 
 
 ## The pointer moved: past the threshold, the held item follows. `free` places without snapping.
@@ -99,7 +99,7 @@ func move_to(screen_pos: Vector2, free: bool) -> void:
 		n.pos = info.pos
 		if group.has(n.id):
 			delta = n.pos - group[n.id][0]
-			if e and not e.attached:
+			if e and not e.attached and group[n.id][3]:
 				e.pos = group[n.id][1] + delta
 	if group.has(n.id):
 		# The rest of the selection follows the held item, keeping its shape.
@@ -113,9 +113,9 @@ func move_to(screen_pos: Vector2, free: bool) -> void:
 			var ge: Emitter = g.emitter()
 			if st[2]:
 				g.pos = st[0] + delta
-				if ge:
-					ge.pos = st[1] + delta if not ge.attached else g.pos
-			elif ge and not ge.attached:
+				if ge and ge.attached:
+					ge.pos = g.pos
+			if ge and not ge.attached and st[3]:
 				ge.pos = st[1] + delta
 
 

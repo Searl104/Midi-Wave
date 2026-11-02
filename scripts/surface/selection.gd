@@ -1,12 +1,12 @@
 class_name Selection
 extends RefCounted
-## What's selected, by id: objects, and detached emitter diamonds on their own. Ids survive undo,
-## which rebuilds the objects. Also holds the clipboard. Dragging a selected object moves the
-## whole group; a selected diamond moves with it.
+## What's selected, by id: objects, and emitter diamonds on their own. Ids survive undo,
+## which rebuilds the objects. Also holds the clipboard. Dragging a selected item moves everything
+## selected; a note's remote diamond only moves if it's selected too.
 
 var surface: WaveSurface
 var notes: Dictionary = {}         # selected object ids
-var emitters: Dictionary = {}      # ids of objects whose detached emitter diamond is selected
+var emitters: Dictionary = {}      # ids of objects whose emitter diamond is selected
 var _clipboard: Array = []         # copied objects, positions relative to the group centre
 
 
@@ -63,7 +63,7 @@ func prune() -> void:
 	emitters = {}
 	for id in kept_emit:
 		var o := surface.get_note(id)
-		if o and o.emitter() and not o.emitter().attached:
+		if o and o.emitter():
 			emitters[id] = true
 
 

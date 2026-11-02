@@ -76,8 +76,31 @@ func set_tool(id: String) -> void:
 	tool_changed.emit(id)
 
 
+## Undo and redo work in every editing tool. Esc closes an open ring.
+func _handle_key(key: InputEventKey) -> bool:
+	if key.keycode == KEY_ESCAPE and radial and radial.visible:
+		radial.close()
+		return true
+	if not is_editing() or not key.ctrl_pressed:
+		return false
+	match key.keycode:
+		KEY_Z:
+			if key.shift_pressed:
+				surface.redo()
+			else:
+				surface.undo()
+			return true
+		KEY_Y:
+			surface.redo()
+			return true
+	return false
+
+
 ## Takes an input event from the surface. Returns true if it was used.
 func handle_input(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key and key.pressed and not key.echo and _handle_key(key):
+		return true
 	var mb := event as InputEventMouseButton
 	var middle := mb != null and mb.button_index == MOUSE_BUTTON_MIDDLE
 	if middle and mb.pressed and _spring_from == null:
@@ -86,7 +109,7 @@ func handle_input(event: InputEvent) -> bool:
 	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and is_editing():
 		var tab := surface.tab_at(mb.position)
 		if not tab.is_empty():
-			open_tab(tab[0], tab[1])
+			open_tab(tab[0], tab[1], mb.position)
 			return true
 	var used := current.handle_input(event)
 	if middle and not mb.pressed:
@@ -149,9 +172,9 @@ func open_ring_for(ring_id: String, note_id: int, at: Vector2) -> void:
 	open_ring.open(radial, note_id, at)
 
 
-## Opens a modifier's settings ring at its tab.
-func open_tab(note: Note, modifier: Modifier) -> void:
-	open_ring_for(modifier.ring_id(), note.id, modifier.tab_screen_pos(surface, note))
+## Opens a modifier's settings ring at `at`.
+func open_tab(note: Note, modifier: Modifier, at: Vector2) -> void:
+	open_ring_for(modifier.ring_id(), note.id, at)
 
 
 ## The default ring, on a note or on empty space.

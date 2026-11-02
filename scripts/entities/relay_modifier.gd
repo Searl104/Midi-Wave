@@ -47,7 +47,3 @@ func tab_contains(surface: WaveSurface, note: Note, at: Vector2) -> bool:
 	var reach := Emitter.HANDLE_RADIUS + 4.0
 	return at.distance_to(emitter.handle_screen_pos(surface, note)) <= reach \
 			or at.distance_to(emitter.dock_screen_pos(surface, note)) <= reach
-
-
-func tab_screen_pos(surface: WaveSurface, note: Note) -> Vector2:
-	return emitter.handle_screen_pos(surface, note)
