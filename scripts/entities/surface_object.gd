@@ -98,9 +98,14 @@ func clicked(_surface: WaveSurface) -> void:
 	pass
 
 
-## Tapped with the Tap tool: acts on its own, with no wave, and isn't a hit, so a toggle stays put.
-func tap(_surface: WaveSurface) -> void:
-	pass
+## Tapped with the Tap tool: a hit of its own, at click strength with no wave, that overrides mute.
+func tap(surface: WaveSurface) -> void:
+	if modifier and not modifier.passes_hit():
+		dim_flash = 1.0
+		return
+	var spawned: Array = []
+	_act(surface, Settings.wave_strength, surface.clock_usec, spawned)
+	surface.waves.append_array(spawned)
 
 
 func play(surface: WaveSurface, amp: float, now: int) -> void:

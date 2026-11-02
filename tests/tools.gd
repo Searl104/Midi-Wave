@@ -166,19 +166,48 @@ func _tap() -> void:
 	_check(o.playing, "and ends on its note length")
 	surface.step(Settings.note_length_for(0) + 0.01)
 	_check(not o.playing and sent.size() == 2, "note off follows")
+	# Toggles: a tap counts as a hit.
 	sent.clear()
 	surface.set_modifier(note, "toggle")
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.size() == 1 and surface.get_note(note).modifier.on, "a toggle isn't advanced")
+	_check(sent.size() == 1 and not surface.get_note(note).modifier.on, "a toggle on plays and flips")
 	surface.step(1.0)
 	sent.clear()
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
+	_check(sent.is_empty() and surface.get_note(note).modifier.on, "a toggle off is silent and flips")
+	surface.set_modifier(note, "")
+	# Mute: a tap overrides it, for notes and relays.
 	surface.get_note(note).muted = true
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.is_empty() and surface.waves.is_empty(), "muted stays silent")
+	_check(sent.size() == 1 and surface.waves.is_empty(), "a muted note plays")
+	surface.step(1.0)
+	sent.clear()
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
 	_check(surface.waves.size() == 1 and surface.waves[0].source == relay and sent.is_empty(), "a relay fires its pulse")
+	surface.stop()
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
+	_check(surface.waves.is_empty(), "cooldown applies")
+	surface.step(1.0)
+	surface.get_note(relay).muted = true
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
+	_check(surface.waves.size() == 1, "a muted relay fires")
+	surface.stop()
+	surface.step(1.0)
+	# Diamonds don't react: the click goes through.
+	var e := surface.get_note(relay).emitter
+	e.attached = false
+	e.pos = surface.to_world(Vector2(800, 200))
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(800, 200))
+	_check(surface.waves.size() == 1 and surface.waves[0].source == -1, "a diamond on empty space: a surface wave")
+	surface.stop()
+	e.pos = surface.get_note(note).pos
+	sent.clear()
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
+	_check(sent.size() == 1 and surface.waves.is_empty(), "a diamond on a note: the note plays alone")
+	surface.get_note(relay).muted = false
+	surface.get_note(note).muted = false
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(800, 600))
-	_check(surface.waves.size() == 1, "other buttons do nothing")
+	_check(surface.waves.is_empty(), "other buttons do nothing")
 	Midi.message_sent.disconnect(spy)
 	tools.set_tool("select")
 	surface.stop()

@@ -1,7 +1,8 @@
 class_name TapTool
 extends Tool
 ## Plays the surface. A left click on empty space starts a wave; on an object it taps just that
-## object, with no wave. The layout is locked while it's in use.
+## object, with no wave. Emitter diamonds don't react: a click goes through to what's under them.
+## The layout is locked while it's in use.
 
 
 func tool_id() -> String:
