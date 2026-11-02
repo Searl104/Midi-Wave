@@ -33,6 +33,7 @@ func _ready() -> void:
 	_ring_options()
 	_tab()
 	_bindings()
+	_group_rings()
 	_grid_tool()
 	_tool_options()
 	_tweaks()
@@ -1209,6 +1210,112 @@ func _tweaks() -> void:
 		_check(not t.start, "Ctrl+S in %s" % id)
 	surface.set_pointer(Vector2(1000, 700))
 	tools.set_tool("select")
+	surface.clear_notes()
+
+
+func _group_rings() -> void:
+	tools.set_tool("select")
+	var scale_before: String = Settings.scale_name
+	Settings.set_value("scale_name", "Major")
+	var c4 := surface.add_note_at(Vector2(200, 300), 60, 0)      # C4
+	var e4 := surface.add_note_at(Vector2(350, 300), 64, 0)      # E4
+	var g4 := surface.add_note_at(Vector2(500, 300), 67, 0)      # G4
+	var lone := surface.add_note_at(Vector2(700, 300), 72, 0)
+	surface.history.end_group()
+	var sel := surface.selection
+	sel.notes = {c4: true, e4: true, g4: true}
+	var open_on := func(id: int) -> void:
+		_press(MOUSE_BUTTON_RIGHT, true, surface.to_screen(surface.get_note(id).pos))
+		_press(MOUSE_BUTTON_RIGHT, false, surface.to_screen(surface.get_note(id).pos))
+	tools.pick("pitch")
+	# A pick moves the chord by scale steps: C-E-G up two steps is E-G-B.
+	var steps := surface.history.undo_steps()
+	open_on.call(c4)
+	radial.outer_chosen.emit(64)
+	_check(surface.get_note(c4).note == 64 and surface.get_note(e4).note == 67 and surface.get_note(g4).note == 71, "the chord moves by scale steps")
+	_check(surface.get_note(lone).note == 72, "unselected notes stay")
+	_check(surface.history.undo_steps() == steps + 1, "as one undo step")
+	surface.history.end_group()
+	radial.outer_chosen.emit(60)
+	_check(surface.get_note(e4).note == 64 and surface.get_note(g4).note == 67, "and back down")
+	surface.history.end_group()
+	radial.close()
+	# Opened on another note, that note takes the pick.
+	open_on.call(g4)
+	radial.outer_chosen.emit(69)
+	_check(surface.get_note(g4).note == 69 and surface.get_note(c4).note == 62, "any selected note can lead")
+	surface.history.end_group()
+	radial.outer_chosen.emit(67)
+	surface.history.end_group()
+	radial.close()
+	# Off-scale notes land on the scale; out of range stays put.
+	surface.get_note(e4).note = 63
+	surface.get_note(g4).note = 126
+	open_on.call(c4)
+	radial.outer_chosen.emit(62)
+	_check(surface.get_note(e4).note == 64, "an off-scale note steps onto the scale")
+	surface.history.end_group()
+	radial.close()
+	# Octave.
+	surface.get_note(c4).note = 60
+	surface.get_note(e4).note = 64
+	surface.get_note(g4).note = 67
+	surface.save_notes()
+	surface.history.end_group()
+	var ring: PitchTool = tools.get_tool("pitch")
+	open_on.call(c4)
+	radial.inner_chosen.emit(ring._octave + 1)
+	_check(surface.get_note(c4).note == 72 and surface.get_note(e4).note == 76 and surface.get_note(g4).note == 79, "octave moves them all")
+	surface.history.end_group()
+	surface.get_note(g4).note = 120
+	radial.inner_chosen.emit(ring._octave + 1)
+	_check(surface.get_note(g4).note == 120 and surface.get_note(c4).note == 84, "one past the top stays put")
+	surface.history.end_group()
+	radial.close()
+	# Channel, modifier, settings.
+	tools.pick("channel")
+	open_on.call(c4)
+	radial.outer_chosen.emit(4)
+	radial.close()
+	_check(surface.get_note(g4).channel == 4 and surface.get_note(lone).channel == 0, "channel spreads")
+	tools.pick("modifier")
+	open_on.call(c4)
+	radial.outer_chosen.emit("relay")
+	radial.outer_chosen.emit("toggle")
+	radial.close()
+	_check(surface.get_note(g4).relay() != null and surface.get_note(e4).get_modifier("toggle") != null, "modifiers spread")
+	var o := surface.get_note(c4)
+	_press(MOUSE_BUTTON_RIGHT, true, o.emitter().dock_screen_pos(surface, o))
+	radial.outer_chosen.emit(2.0)
+	radial.center_chosen.emit("sound")
+	radial.close()
+	_check(surface.get_note(g4).emitter().cooldown == 2.0 and not surface.get_note(e4).relay().sound, "relay settings spread")
+	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("toggle")._tab_centre(surface, o))
+	radial.outer_chosen.emit(false)
+	radial.close()
+	_check(not surface.get_note(g4).get_modifier("toggle").on, "toggle settings spread")
+	# Selected diamonds count for relay settings.
+	sel.clear()
+	sel.emitters = {c4: true, g4: true}
+	_press(MOUSE_BUTTON_RIGHT, true, o.emitter().dock_screen_pos(surface, o))
+	radial.outer_chosen.emit(3.0)
+	radial.close()
+	_check(surface.get_note(g4).emitter().cooldown == 3.0 and surface.get_note(e4).emitter().cooldown == 2.0, "selected diamonds spread")
+	sel.clear()
+	# Delete.
+	sel.notes = {c4: true, e4: true, g4: true}
+	tools.pick("pitch")
+	open_on.call(c4)
+	radial.center_chosen.emit("delete")
+	_check(surface.notes.size() == 1 and not radial.visible and surface.get_note(lone) != null, "the centre deletes the selection")
+	surface.history.end_group()
+	surface.undo()
+	_check(surface.notes.size() == 4, "undo brings them back")
+	sel.clear()
+	open_on.call(lone)
+	radial.center_chosen.emit("delete")
+	_check(surface.notes.size() == 3, "a lone note deletes alone")
+	Settings.set_value("scale_name", scale_before)
 	surface.clear_notes()
 
 

@@ -36,12 +36,15 @@ func build() -> void:
 	radial.refresh()
 
 
+## Every selected relay, whether its note or its diamond is selected.
 func _group() -> Array:
-	var out: Array = []
-	for gid in surface.selection.group_for(note_id):
-		if surface.get_note(gid) and surface.get_note(gid).relay():
-			out.append(gid)
-	return out
+	var sel := surface.selection
+	var ids: Array = sel.group_for(note_id)
+	if sel.notes.has(note_id) or sel.emitters.has(note_id):
+		for id in sel.emitters:
+			if not ids.has(id):
+				ids.append(id)
+	return ids.filter(func(id: int) -> bool: return surface.get_note(id) != null and surface.get_note(id).relay() != null)
 
 
 func pick_outer(id: Variant) -> void:

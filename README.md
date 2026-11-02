@@ -53,7 +53,10 @@ the rings closes it. Esc closes a ring.
 - **Channel:** 1-16.
 - **Modifier:** None, Toggle and Relay. Picking one adds or removes it, and None clears them all.
 
-Edits on a selected note apply to the whole selection.
+Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
+scale steps, so a chord keeps its shape; an octave moves them all, and the pitch ring's centre
+deletes the selection. A note that would leave the MIDI range stays put. Relay settings also reach
+selected diamonds.
 
 ## Keys
 
