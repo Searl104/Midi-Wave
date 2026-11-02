@@ -57,6 +57,7 @@ func open(at: Vector2, hold: bool = false) -> void:
 	show()
 	var tw := create_tween()
 	tw.tween_property(self, "_open_t", 1.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.finished.connect(queue_redraw)
 	queue_redraw()
 
 

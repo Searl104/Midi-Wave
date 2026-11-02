@@ -1,6 +1,8 @@
 class_name ToolManager
 extends RefCounted
-## The tools in toolbar order, which one is active, and where input goes. Holding the middle button
+## The tools in toolbar order, which one is active, and where input goes. Pitch, Channel and Modifier
+## aren't tools you switch to: picking one sets `ring_option`, the ring a right-click on a note opens
+## in any editing tool. A right-click on a modifier's tab opens its settings instead. Holding the middle button
 ## spring-loads Pan (Zoom with Shift): that tool works until the button comes up, then the one
 ## before it returns. Rings open from any tool, so this also routes the radial menu to whichever
 ## ring tool opened it.
@@ -12,6 +14,7 @@ var surface: WaveSurface
 var tools: Array[Tool] = []
 var current: Tool
 var last_edit: Tool                ## the editing tool to go back to from the Tap tool
+var ring_option: RingTool          ## which ring a right-click on a note opens
 var _editing := true               # false in the Tap tool; a nav tool leaves this as it was
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
 var radial: RadialMenu
@@ -25,6 +28,7 @@ func _init(owner_surface: WaveSurface) -> void:
 			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
+	ring_option = get_tool("pitch")
 	current = get_tool("select")
 	last_edit = current
 
@@ -47,6 +51,10 @@ func is_editing() -> bool:
 
 ## Picks a tool. Picking the active one lets it respond (Draw switches what it places).
 func pick(id: String) -> void:
+	if get_tool(id) is RingTool:
+		set_ring_option(id)
+		tool_changed.emit(current_id())
+		return
 	_spring_from = null
 	if id == current_id():
 		current.repick()
@@ -55,9 +63,16 @@ func pick(id: String) -> void:
 		set_tool(id)
 
 
+## Chooses the ring right-click opens on a note.
+func set_ring_option(id: String) -> void:
+	var t := get_tool(id) as RingTool
+	if t:
+		ring_option = t
+
+
 func set_tool(id: String) -> void:
 	var t := get_tool(id)
-	if t == null or t == current:
+	if t == null or t == current or t is RingTool:
 		return
 	surface.drag.end()
 	current.deactivate()
@@ -110,6 +125,10 @@ func handle_input(event: InputEvent) -> bool:
 		var tab := surface.tab_at(mb.position)
 		if not tab.is_empty():
 			open_tab(tab[0], tab[1], mb.position)
+			return true
+		var hit := surface.note_at(mb.position)
+		if hit != -1 and not surface.drag.active():
+			open_ring_for(ring_option.tool_id(), hit, mb.position, true)
 			return true
 	var used := current.handle_input(event)
 	if middle and not mb.pressed:

@@ -41,6 +41,7 @@ func _ready() -> void:
 	toolbar = Toolbar.new()
 	toolbar.surface = surface
 	add_child(toolbar)
+	surface.tools.set_ring_option(Settings.ring_option)
 	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 
 	options = OptionsPanel.new()
@@ -127,6 +128,7 @@ func _on_tool_changed(_t: String) -> void:
 		toolbar.queue_redraw()
 	if not surface.tools.springing():
 		Settings.set_value("tool", surface.tools.current_id())
+	Settings.set_value("ring_option", surface.tools.ring_option.tool_id())
 
 
 ## The Save state button: toggles' current states become their start states.

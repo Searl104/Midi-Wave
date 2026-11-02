@@ -1,6 +1,7 @@
 class_name RingTool
 extends Tool
-## A tool that edits an object through the radial menu. A subclass fills the rings in build() and
+## Edits an object through the radial menu. Those on the toolbar are options, not tools: see
+## ToolManager.ring_option. A subclass fills the rings in build() and
 ## applies picks; edits on a selected object apply to the whole selection.
 
 var radial: RadialMenu

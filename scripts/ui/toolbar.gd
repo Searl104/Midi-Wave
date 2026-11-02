@@ -1,7 +1,7 @@
 class_name Toolbar
 extends Control
 ## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
-## the active tool is lit.
+## the active tool is lit, and a yellow bar marks the ring option.
 
 const SLOT := 44.0
 const PAD := 6.0
@@ -88,5 +88,8 @@ func _draw() -> void:
 			# Sections: a faint line after Wave, then stronger ones.
 			var line := Color(1, 1, 1, 0.08 if t.section() == 1 else 0.14)
 			draw_line(Vector2(PAD + 6, r.position.y - 1), Vector2(PAD + SLOT - 6, r.position.y - 1), line, 1.0)
-		var ink := Palette.TEXT if on else Palette.TEXT_DIM
+		var option := t == manager.ring_option
+		if option:
+			draw_rect(Rect2(r.position + Vector2(1, 9), Vector2(3, SLOT - 18)), Palette.YELLOW)
+		var ink := Palette.TEXT if on or option else Palette.TEXT_DIM
 		t.draw_icon(self, r.get_center(), ink)

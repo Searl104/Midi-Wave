@@ -30,6 +30,7 @@ func _ready() -> void:
 	_modifiers()
 	_tabs()
 	_quick_pick()
+	_ring_options()
 	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
@@ -671,6 +672,53 @@ func _quick_pick() -> void:
 	_radial_move(item)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
 	_check(not o.get_modifier("toggle").on and not radial.visible, "works on the toggle ring")
+	surface.clear_notes()
+
+
+func _ring_options() -> void:
+	var a := surface.add_note_at(Vector2(640, 400), 60, 0)
+	var b := surface.add_note_at(Vector2(900, 400), 62, 0)
+	tools.set_tool("draw")
+	_check(tools.ring_option.tool_id() == "pitch", "pitch by default")
+	tools.pick("modifier")
+	_check(tools.current_id() == "draw" and tools.ring_option.tool_id() == "modifier", "an option doesn't change the tool")
+	tools.set_tool("channel")
+	_check(tools.current_id() == "draw", "and can't be made the tool")
+	for option in ["pitch", "channel", "modifier"]:
+		tools.pick(option)
+		_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+		_check(radial.visible and radial.holding and tools.open_ring.tool_id() == option, "%s opens on a note" % option)
+		radial.close()
+	tools.pick("modifier")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(100, 100))
+	_check(not radial.visible, "empty space opens nothing")
+	# Quick pick adds; the same pick removes; a group follows.
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+	var c: Vector2 = radial._center
+	var toggle_at: Vector2 = c + Vector2.from_angle(-PI / 2.0 + TAU / 3.0) * 112.0
+	_radial_move(toggle_at)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
+	_check(surface.get_note(a).get_modifier("toggle") != null and not radial.visible, "quick pick adds a modifier")
+	surface.selection.notes = {a: true, b: true}
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+	_radial_move(toggle_at)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
+	_check(surface.get_note(a).modifiers.is_empty(), "picking it again removes it")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+	_radial_move(toggle_at)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
+	_check(surface.get_note(b).get_modifier("toggle") != null, "the group follows")
+	surface.selection.clear()
+	# A tab still wins, and Tap keeps rings off.
+	var o := surface.get_note(a)
+	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("toggle")._tab_centre(surface, o))
+	_check(tools.open_ring.tool_id() == "toggle_settings", "a tab opens its settings")
+	radial.close()
+	tools.set_tool("tap")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+	_check(not radial.visible, "Tap opens no rings")
+	tools.pick("pitch")
+	tools.set_tool("select")
 	surface.clear_notes()
 
 
