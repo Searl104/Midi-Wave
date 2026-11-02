@@ -2,10 +2,11 @@ class_name Toolbar
 extends Control
 ## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
 ## the active tool is lit, and a yellow bar marks the ring option. Right-click opens an item's
-## ToolPanel, if it has options.
+## ToolPanel, if it has options; hovering such an item shows a faint right-click hint beside it.
 
 const SLOT := 44.0
 const PAD := 6.0
+const HINT_INK := Color(1, 1, 1, 0.4)    ## the right-click hint
 
 var surface: WaveSurface
 var panel: ToolPanel
@@ -54,6 +55,7 @@ func _gui_input(event: InputEvent) -> void:
 func _slot_pressed(item: Tool, button: int, i: int) -> void:
 	if button != MOUSE_BUTTON_LEFT and button != MOUSE_BUTTON_RIGHT:
 		return
+	queue_redraw()
 	if panel.is_open_for(item):
 		panel.close()
 	elif button == MOUSE_BUTTON_LEFT:
@@ -110,3 +112,36 @@ func _draw() -> void:
 			draw_rect(Rect2(r.position + Vector2(1, 9), Vector2(3, SLOT - 18)), Palette.YELLOW)
 		var ink := Palette.TEXT if on or option else Palette.TEXT_DIM
 		t.draw_icon(self, r.get_center(), ink)
+	if _hover != -1 and manager.tools[_hover].has_options() and not panel.visible:
+		_draw_options_hint(Vector2(size.x + 20.0, _slot_rect(_hover).get_center().y))
+
+
+## A mouse with its right button lit, in front of a gear.
+func _draw_options_hint(c: Vector2) -> void:
+	var gear := c + Vector2(7, -6)
+	var teeth := 8
+	var outline := PackedVector2Array()
+	for i in teeth * 4:
+		var a := TAU * (i - 0.5) / (teeth * 4.0)
+		outline.append(gear + Vector2.from_angle(a) * (9.0 if i % 4 < 2 else 6.8))
+	outline.append(outline[0])
+	draw_polyline(outline, HINT_INK, 1.0, true)
+	draw_arc(gear, 2.5, 0.0, TAU, 16, HINT_INK, 1.0, true)
+
+	var body := Rect2(c + Vector2(-8, -9), Vector2(14, 20))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.06, 0.065, 0.085, 0.92)
+	sb.border_color = HINT_INK
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(7)
+	sb.anti_aliasing = true
+	draw_style_box(sb, body)
+	var mid := body.position.x + body.size.x / 2.0
+	var top := body.position.y
+	var fold := top + 8.0
+	draw_line(Vector2(body.position.x, fold), Vector2(body.end.x, fold), HINT_INK, 1.0, true)
+	draw_line(Vector2(mid, top), Vector2(mid, fold), HINT_INK, 1.0, true)
+	var button := PackedVector2Array([Vector2(mid + 0.5, top + 1.0), Vector2(mid + 3.0, top + 1.2),
+			Vector2(body.end.x - 2.5, top + 3.0), Vector2(body.end.x - 1.0, top + 6.0),
+			Vector2(body.end.x - 1.0, fold - 0.5), Vector2(mid + 0.5, fold - 0.5)])
+	draw_colored_polygon(button, Color(Palette.ACCENT.lightened(0.3), 0.6))

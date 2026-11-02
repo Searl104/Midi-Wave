@@ -23,8 +23,8 @@ ring a right-click on a note opens; a yellow bar marks the choice.
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
 
-**Tool panels:** right-click a toolbar item to open its panel, just right of the toolbar and centred
-on the item. Click the item again, or anywhere outside, to close it; a click outside does nothing
+**Tool panels:** hovering a toolbar item that has options shows a faint right-click icon beside it.
+Right-click to open its panel, just right of the toolbar and centred on the item. Click the item again, or anywhere outside, to close it; a click outside does nothing
 else. Esc closes it too.
 
 | Item | Panel |
