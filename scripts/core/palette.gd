@@ -36,5 +36,31 @@ const CHANNELS := [
 ]
 
 
+## Colour-blind safe set (Okabe-Ito). Channels 9-16 reuse the eight colours and are told apart
+## by a second, inner outline on the note (see channel_marked).
+const CHANNELS_CB := [
+	Color(0.0, 0.447, 0.698),   # blue
+	Color(0.835, 0.369, 0.0),   # vermillion
+	Color(0.941, 0.894, 0.259), # yellow
+	Color(0.337, 0.706, 0.914), # sky blue
+	Color(0.8, 0.475, 0.655),   # reddish purple
+	Color(0.902, 0.624, 0.0),   # orange
+	Color(0.0, 0.62, 0.451),    # bluish green
+	Color(0.75, 0.75, 0.75),    # grey
+]
+
+
+## Mirrors Settings.colorblind (set by Settings), so this class needs no autoload.
+static var colorblind := false
+
+
 static func channel_color(channel: int) -> Color:
-	return CHANNELS[clampi(channel, 0, 15)]
+	var ch := clampi(channel, 0, 15)
+	if colorblind:
+		return CHANNELS_CB[ch % 8]
+	return CHANNELS[ch]
+
+
+## True when the colour-blind palette is on and the channel is 9-16: drawn with a double outline.
+static func channel_marked(channel: int) -> bool:
+	return colorblind and channel >= 8

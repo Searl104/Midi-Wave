@@ -5,10 +5,13 @@ extends PanelContainer
 
 signal clear_notes_requested
 signal reset_layout_requested
+signal midi_learn_requested
 
 const WIDTH := 330.0
 
 var _ports: OptionButton
+var _in_ports: OptionButton
+var _in_status: Label
 var _port_status: Label
 
 
@@ -81,10 +84,36 @@ func _build() -> void:
 	port_row.add_child(_port_status)
 	port_row.add_child(_button("Refresh", refresh_ports))
 	port_row.add_child(_button("Panic", Midi.panic))
+	_check(box, "Play notes while hovering the pitch ring", "hover_preview")
+
+	_section(box, "MIDI INPUT (PADS)", Palette.BLUE)
+	_in_ports = OptionButton.new()
+	_in_ports.clip_text = true
+	_in_ports.fit_to_longest_item = false
+	_in_ports.focus_mode = Control.FOCUS_NONE
+	_in_ports.item_selected.connect(func(i: int) -> void:
+		Settings.set_value("midi_in_port", "" if i == 0 else _in_ports.get_item_text(i))
+		_update_in_status())
+	box.add_child(_in_ports)
+	var in_row := HBoxContainer.new()
+	box.add_child(in_row)
+	_in_status = Label.new()
+	_in_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_in_status.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_in_status.add_theme_font_size_override("font_size", 12)
+	_in_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	in_row.add_child(_in_status)
+	in_row.add_child(_button("Refresh", refresh_inputs))
+	in_row.add_child(_button("Learn", func() -> void: midi_learn_requested.emit()))
+	box.add_child(_hint("Pads fire keypad keys 1-9 (hold to refire pulsers). Learn: hit the pad for key 1; the next eight notes are keys 2-9. Windows lets only one app open a controller, so turn it off in your DAW's MIDI inputs first."))
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "midi_in_base":
+			_update_in_status())
+	refresh_inputs(Settings.midi_in_port != "")   # listing opens every input, so only on request
 
 	_section(box, "TIMING", Palette.ACCENT)
 	_slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
-	_slider(box, "Beat spacing (zoom)", "beat_spacing", 60.0, 600.0, 5.0, func(v: float) -> String:
+	_slider(box, "Beat spacing (zoom)", "beat_spacing", Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX, 1.0, func(v: float) -> String:
 		return "%d px · %d%%" % [v, roundi(v / Settings.BEAT_UNIT * 100.0)])
 	var div_row := HBoxContainer.new()
 	box.add_child(div_row)
@@ -108,6 +137,8 @@ func _build() -> void:
 	_slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
 		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
 	_slider(box, "Note length", "note_length", 0.05, 2.0, 0.01, func(v: float) -> String: return "%.2f s" % v)
+	_slider(box, "Cursor glow", "cursor_glow", 0.0, 2.0, 0.05, func(v: float) -> String:
+		return "Off" if v <= 0.0 else "%d%%" % roundi(v * 100))
 
 	_section(box, "SCALE", Palette.YELLOW)
 	var scale_row := HBoxContainer.new()
@@ -127,6 +158,8 @@ func _build() -> void:
 	scale.item_selected.connect(func(i: int) -> void: Settings.set_value("scale_name", names[i]))
 	scale_row.add_child(scale)
 	box.add_child(_hint("Changing the scale snaps every note to it."))
+	_check(box, "Colour-blind palette", "colorblind")
+	box.add_child(_hint("Eight colour-blind safe channel colours; channels 9-16 reuse them with a double outline. Hover a note for its channel number."))
 
 	_section(box, "NOTES", Palette.TEXT_DIM)
 	var notes_row := HBoxContainer.new()
@@ -135,26 +168,7 @@ func _build() -> void:
 	notes_row.add_child(_button("Default layout", func() -> void: reset_layout_requested.emit()))
 
 	_section(box, "CONTROLS", Palette.TEXT_DIM)
-	box.add_child(_hint(
-		"Click: send a wave (click a pulser to trigger it without a wave)\n" +
-		"Drag a note: move it\n" +
-		"Hold right-click, hover a pitch, release: place a note (on a note: retune it). A tap keeps the menu open.\n" +
-		"   While the menu is open: A / D or wheel = octave, type 1-16 = channel, Esc = cancel\n" +
-		"Alt-click: set MIDI channel\n" +
-		"Ctrl-click: Note → Note + Pulse → Pulse only · Ctrl-drag from a pulser: set its own wave reach (back onto the note resets it)\n" +
-		"Ctrl-right-click: pulse cooldown (in beats, or Retrigger: every wave) and strength\n" +
-		"Drag the diamond on a pulser: place where its wave starts\n" +
-		"Shift-click: place a note with the last pitch\n" +
-		"Middle-click or Delete: remove the hovered note\n" +
-		"M: mute / unmute the selected notes (or the hovered one); pulsers keep pulsing\n" +
-		"Middle-drag or arrow keys: pan · Home: centre on the notes\n" +
-		"While dragging: touch another note or emitter to snap to its rings and spokes (touch again to drop it) · Shift places freely · see the Snap tab\n" +
-		"Shift-right-click: modifier (Toggle: plays every other hit; set its start state)\n" +
-		"Ctrl+S: save state · Space or KP0: stop and return to the save state\n" +
-		"KP1-9: trigger that key's notes (hold: pulsers refire on their cooldown) · Ctrl+KP1-9 over a note: assign / unassign\n" +
-		"Ctrl + right-drag on empty space: box select (Shift adds) · Esc clears\n" +
-		"   Selected: drag one to move all · Delete removes · menu edits apply to all · Ctrl+C / Ctrl+V copy and paste\n" +
-		"Tab: options"))
+	box.add_child(_hint("Press ? or F1 for every control, grouped by task. The bar at the bottom of the window shows what you can do with whatever is under the mouse."))
 
 
 ## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.
@@ -226,13 +240,16 @@ func _build_look(box: VBoxContainer) -> void:
 
 	var tidal := _look_box(box, "Tidal")
 	_section(tidal, "TIDAL", Palette.YELLOW)
+	_look_slider(tidal, "Sand colour", "tidal_color", 0.0, 3.0, pct)
+	_look_slider(tidal, "Caustics", "tidal_caustics", 0.0, 3.0, pct)
+	_look_slider(tidal, "Caustics scale", "tidal_caustic_scale", 0.25, 4.0, pct)
+	_look_slider(tidal, "Caustics speed", "tidal_caustic_speed", 0.0, 4.0, pct)
 	_look_slider(tidal, "Sand scale", "tidal_scale", 0.25, 3.0, pct)
 	_look_slider(tidal, "Floor parallax", "tidal_depth", 0.1, 1.0, pct)
 	_look_slider(tidal, "Shine", "tidal_shine", 0.0, 3.0, pct)
 	_look_slider(tidal, "Ripple relief", "tidal_relief", 0.0, 3.0, pct)
-	_look_slider(tidal, "Tide speed", "tidal_tide", 0.0, 4.0, pct)
 	_look_slider(tidal, "Refraction", "tidal_refraction", 0.0, 3.0, pct)
-	tidal.add_child(_hint("Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
+	tidal.add_child(_hint("Sand colour at 0% gives black sand. Floor parallax is how far the sand moves when you pan or zoom, relative to the notes: lower feels deeper."))
 
 	var glass := _look_box(box, "Glass")
 	glass.add_child(_hint("Glass has no extra controls."))
@@ -268,19 +285,39 @@ func _show_look_box() -> void:
 ## Snap tab: snapping and guide settings (used while dragging a note or emitter).
 func _build_snap(box: VBoxContainer) -> void:
 	_section(box, "SNAPPING", Palette.ACCENT)
-	_check(box, "Snap to touched targets", "snap_enabled")
+	_check(box, "Snap to grids", "snap_enabled")
 	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
 	_check(box, "Snap to spokes", "snap_spokes")
 	_check(box, "Snap to centres", "snap_centres")
-	_check(box, "Remember snap target on drop", "snap_memory")
-	box.add_child(_hint("While dragging, touch a note or emitter to snap to its rings and spokes; touch it again to drop it. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
+	box.add_child(_hint("G over a note or emitter turns a grid on under it (its timing rings and spokes); Ctrl+G clears every grid. Dragged items snap to the nearest grid point, and new notes are placed on the nearest grid point under the mouse. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
 
 	_section(box, "GUIDES", Palette.YELLOW)
-	_pick(box, "Spokes per target", "spoke_count", Settings.SPOKE_OPTIONS,
+	_pick(box, "Spokes per grid", "spoke_count", Settings.SPOKE_OPTIONS,
 			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
 	_pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
 	_check(box, "Division rings", "guide_divisions")
 	_slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
+
+
+func refresh_inputs(listing: bool = true) -> void:
+	_in_ports.clear()
+	_in_ports.add_item("Off")
+	var names: PackedStringArray = MidiInput.list_inputs() if listing else PackedStringArray()
+	for n in names:
+		_in_ports.add_item(n)
+	var at := names.find(Settings.midi_in_port)
+	_in_ports.select(at + 1 if at != -1 else 0)
+	_update_in_status()
+
+
+func _update_in_status() -> void:
+	if _in_status == null:
+		return
+	if Settings.midi_in_port == "":
+		_in_status.text = "Off · Refresh lists your controllers" if _in_ports.item_count <= 1 else "Off"
+	else:
+		var b: int = Settings.midi_in_base
+		_in_status.text = "Keys 1-9 = %s to %s" % [MidiMessage.note_name(b), MidiMessage.note_name(b + 8)]
 
 
 func refresh_ports() -> void:

@@ -9,14 +9,19 @@ const PAN_SPEED := 700.0       ## px per second for arrow-key panning
 const COOLDOWNS := [0.0, 0.125, 1.0 / 6.0, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
 const COOLDOWN_LABELS := ["Retrig", "⅛", "⅙", "¼", "⅓", "½", "⅔", "¾", "1", "1½", "2", "3", "4"]
 const PULSE_STRENGTHS := [0.25, 0.5, 0.75, 1.0]
-const MODE_LABELS := ["Note", "N+Pulse", "Pulse"]
+const MODE_LABELS := ["Note", "", "Relay"]   ## by Mode value (1 was the old hybrid)
 
 var water: ColorRect
+var caustic_time := 0.0          ## Tidal caustic clock, advanced at the Caustics speed setting
 var surface: WaveSurface
 var radial: RadialMenu
 var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
+var cheat_sheet: CheatSheet
+var toolbar: Toolbar
+var midi_in: MidiInput
+var _hint_key := ""
 
 var _menu_note := -1          # note being edited, -1 = placing a new one
 var _menu_pos := Vector2.ZERO
@@ -48,12 +53,25 @@ func _ready() -> void:
 	surface = WaveSurface.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(surface)
-	surface.pitch_menu_requested.connect(_open_pitch_menu)
+	surface.mode_changed.connect(_on_mode_changed)
+	surface.tool_changed.connect(_on_tool_changed)
+	surface.ring_requested.connect(_on_ring_tool)
+	surface.tool_used.connect(func() -> void:
+		if _tool_key_held != KEY_NONE:
+			_tool_key_used = true)
+	surface.pitch_menu_requested.connect(_on_right_click)
 	surface.channel_menu_requested.connect(_open_channel_menu)
 	surface.pulse_menu_requested.connect(_open_pulse_menu)
 	surface.modifier_menu_requested.connect(_open_modifier_menu)
 
 	_build_hud()
+
+	toolbar = Toolbar.new()
+	toolbar.surface = surface
+	add_child(toolbar)
+	toolbar.tool_picked.connect(pick_tool)
+	surface.draw_type = WaveSurface.Mode.RELAY if int(Settings.draw_type) == WaveSurface.Mode.RELAY else WaveSurface.Mode.NOTE
+	surface.set_tool(Settings.tool if WaveSurface.TOOLS.has(Settings.tool) else "select")
 
 	options = OptionsPanel.new()
 	add_child(options)
@@ -73,6 +91,20 @@ func _ready() -> void:
 	radial.center_chosen.connect(_on_radial_center)
 	radial.wheel.connect(func(dir: int) -> void: _set_menu_octave(_menu_octave + dir))
 	radial.digit.connect(_on_digit)
+	radial.hover_changed.connect(_on_radial_hover)
+
+	cheat_sheet = CheatSheet.new()
+	add_child(cheat_sheet)
+
+	midi_in = MidiInput.new()
+	add_child(midi_in)
+	midi_in.slot_pressed.connect(surface.press_slot)
+	midi_in.slot_released.connect(surface.release_slot)
+	midi_in.learned.connect(func(base: int) -> void:
+		_toast("Pads: key 1 = %s, keys 2-9 follow" % MidiMessage.note_name(base)))
+	options.midi_learn_requested.connect(func() -> void:
+		midi_in.learning = true
+		_toast("Hit the pad for keypad key 1"))
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()
@@ -85,8 +117,13 @@ func _process(delta: float) -> void:
 	mat.set_shader_parameter("surface_size", water.size)
 	mat.set_shader_parameter("wave_count", mini(surface.waves.size(), WaveSurface.MAX_WAVES))
 	mat.set_shader_parameter("waves", surface.shader_waves())
-	mat.set_shader_parameter("view_px", surface.view_offset * surface.z())
-	mat.set_shader_parameter("zoom", surface.z())
+	# The backgrounds follow panning only: Beat spacing (the zoom) doesn't scale or shift them.
+	# Pan = the world point at the window centre, which zooming about the centre leaves alone.
+	mat.set_shader_parameter("view_px", surface.view_offset + water.size * (0.5 / surface.z() - 0.5))
+	_refresh_hint()
+	if Settings.look == "Tidal":
+		caustic_time = fmod(caustic_time + delta * Settings.look_uniform_value("tidal_caustic_speed"), 10000.0)
+		mat.set_shader_parameter("caustic_time", caustic_time)
 
 
 ## Surface shader for the chosen look: Abyssal (endless depth), Tidal (black glossy sand
@@ -100,6 +137,7 @@ func _apply_look() -> void:
 			mat.shader = load("res://shaders/tidal.gdshader")
 			mat.set_shader_parameter("sand_normal", load("res://assets/tidal/sand_normal.jpg"))
 			mat.set_shader_parameter("sand_rough", load("res://assets/tidal/sand_rough.jpg"))
+			mat.set_shader_parameter("sand_color", load("res://assets/tidal/sand_color.jpg"))
 		_:
 			mat.shader = load("res://shaders/abyssal.gdshader")
 	_apply_look_params()
@@ -135,8 +173,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not key.pressed:
 		if pad >= KEY_KP_1 and pad <= KEY_KP_9:
 			surface.release_slot(pad - KEY_KP_0)
+		elif TOOL_KEYS.has(key.keycode):
+			_tool_key_up(key.keycode)
 		return
 	if key.echo:
+		return
+	if key.keycode == KEY_F1 or key.unicode == 63:      # F1 or "?"
+		cheat_sheet.toggle()
+		get_viewport().set_input_as_handled()
+		return
+	if cheat_sheet.visible and key.keycode == KEY_ESCAPE:
+		cheat_sheet.hide()
+		get_viewport().set_input_as_handled()
 		return
 	if pad == KEY_KP_0:
 		surface.stop()
@@ -145,14 +193,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if pad >= KEY_KP_1 and pad <= KEY_KP_9:
 		var slot: int = pad - KEY_KP_0
 		if key.ctrl_pressed:
-			if surface.hovered_note() != -1:
+			if surface.edit_mode and surface.hovered_note() != -1:
 				surface.toggle_slot(surface.hovered_note(), slot)
 		else:
 			surface.press_slot(slot)
 		get_viewport().set_input_as_handled()
 		return
 	match key.keycode:
-		KEY_TAB, KEY_O:
+		KEY_TAB:
+			surface.set_edit_mode(not surface.edit_mode)
+			get_viewport().set_input_as_handled()
+		KEY_O:
 			options.toggle()
 			get_viewport().set_input_as_handled()
 		KEY_SPACE:
@@ -160,19 +211,50 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_S:
 			if key.ctrl_pressed:
-				surface.save_state()
+				_save_state()
 				get_viewport().set_input_as_handled()
 		KEY_M:
-			if not key.ctrl_pressed:
+			if not key.ctrl_pressed and surface.edit_mode:
 				surface.toggle_mute()
 				get_viewport().set_input_as_handled()
+		KEY_V:
+			if key.ctrl_pressed and surface.edit_mode:
+				surface.paste_at(surface.get_local_mouse_position())
+				get_viewport().set_input_as_handled()
+		KEY_Z:
+			if key.ctrl_pressed and surface.edit_mode:
+				_undo_redo(key.shift_pressed)
+				get_viewport().set_input_as_handled()
+		KEY_Y:
+			if key.ctrl_pressed and surface.edit_mode:
+				_undo_redo(true)
+				get_viewport().set_input_as_handled()
 		KEY_C:
-			if key.ctrl_pressed:
+			if key.ctrl_pressed and surface.edit_mode:
 				surface.copy_selection()
 				get_viewport().set_input_as_handled()
-		KEY_V:
-			if key.ctrl_pressed:
-				surface.paste_at(surface.get_local_mouse_position())
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7:
+			if not key.ctrl_pressed and not key.alt_pressed and not radial.visible:
+				_tool_key_down(key.keycode)
+				get_viewport().set_input_as_handled()
+		KEY_COMMA, KEY_PERIOD, KEY_LESS, KEY_GREATER:
+			# < / >: one scale step down / up; Shift: an octave. Selection, else the hovered note.
+			if surface.edit_mode and not key.ctrl_pressed and not key.alt_pressed and not radial.visible:
+				var up := key.keycode == KEY_PERIOD or key.keycode == KEY_GREATER
+				if surface.nudge_pitch(1 if up else -1, key.shift_pressed) == 0 and surface.selection.is_empty() \
+						and surface.hovered_note() == -1:
+					_toast("Hover or select notes, then < > to nudge (Shift: octave)")
+				get_viewport().set_input_as_handled()
+		KEY_G:
+			if surface.edit_mode and not key.alt_pressed:
+				if key.ctrl_pressed:
+					var cleared: int = surface.clear_grids()
+					_toast("Grids cleared" if cleared > 0 else "No grids on")
+				else:
+					match surface.toggle_grid_at_hover():
+						"on": _toast("Grid on")
+						"off": _toast("Grid off")
+						_: _toast("Hover a note or emitter, then G for its grid")
 				get_viewport().set_input_as_handled()
 		KEY_HOME:
 			surface.frame_notes()
@@ -181,15 +263,196 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if options.visible:
 				options.hide()
 				get_viewport().set_input_as_handled()
-			elif not surface.selection.is_empty():
+			elif surface.has_selection():
 				surface.clear_selection()
 				get_viewport().set_input_as_handled()
+
+
+## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
+## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
+## These are the Select tool's; other tools show _tool_hint() over notes and empty space.
+const HINTS_EDIT := {
+	"empty": "Select  ·  Drag: box select (Shift adds)  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Ctrl + wheel: zoom  ·  1-7: tools  ·  Tab: Wave  ·  ?: all controls",
+	"note": "Select  ·  Click: select it (Shift adds)  ·  Drag: move  ·  Right-click: pitch ring  ·  < >: nudge pitch  ·  Ctrl-click: make it a relay  ·  M: mute  ·  G: grid  ·  Delete: remove",
+	"pulser": "Relay  ·  Click: select it (Shift adds)  ·  Drag: move  ·  Ctrl-click: make it a note  ·  Ctrl-drag: its reach  ·  Right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove",
+	"emitter": "Click: select the diamond  ·  Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under it",
+	"selected": "Drag: move the group  ·  Ring edits, < >, M, Delete and Ctrl+KP apply to all  ·  Shift-click: deselect  ·  Ctrl+C: copy  ·  Esc: clear",
+	"selection": "%d selected  ·  M: mute all  ·  Delete: remove all  ·  Ctrl+C: copy  ·  Ctrl+V: paste at the mouse  ·  Esc or click empty space: clear",
+	"drag_note": "Snapping to grid points (G over a note or emitter adds a grid)  ·  Drop on a note or emitter: snap to its centre  ·  Shift: free",
+	"drag_emitter": "Place where the wave starts  ·  Snaps to grid points and centres  ·  Drop on its note: re-attach  ·  Shift: free",
+	"range": "Set this emitter's reach (snaps to beat divisions)  ·  Back onto the note: global reach  ·  Shift: free",
+	"box": "Release to select  ·  Hold Shift to add to the selection",
+}
+const HINT_PLAY := "Wave  ·  Click: wave, or play a note  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab or 2-7: edit  ·  ?: all controls"
+
+
+func _tool_hint() -> String:
+	match surface.tool:
+		"draw":
+			var what := "Relays" if surface.draw_type == WaveSurface.Mode.RELAY else "Notes"
+			return "Draw: %s  ·  Click or drag: place on grid points  ·  3 again: switch to %s  ·  Drag a note: move  ·  Right-click: ring" % [
+					what, "Notes" if what == "Relays" else "Relays"]
+		"pitch":
+			return "Pitch  ·  Click a note (or empty space to place): pitch ring  ·  Hold, aim, release to pick  ·  A / D: octave  ·  type 1-16: channel"
+		"channel":
+			return "Channel  ·  Click a note: channel ring  ·  Hold, aim, release to pick  ·  Right-click: pitch ring"
+		"pulse":
+			return "Pulse  ·  Click a note: pulse ring (cooldown, strength; centre: Note / Relay)  ·  Hold, aim, release to pick"
+		"modifier":
+			return "Modifier  ·  Click a note: modifier ring (Toggle and its start state)  ·  Hold, aim, release to pick"
+	return ""
+
+
+func _on_mode_changed(edit: bool) -> void:
+	if radial and radial.visible:
+		radial.close()
+	_refresh_hint()
+	_toast(TOOL_NAMES[surface.tool] if edit else "Wave  ·  layout locked")
+
+
+# --- Toolbar tools ---------------------------------------------------------------------------
+# Number keys 1-7 pick a tool: Wave, Select, Draw, Pitch, Channel, Pulse, Modifier. A tap
+# switches; holding a key uses that tool only until it's let go (if it was used meanwhile).
+# Picking Draw again switches what it places (Note or Relay). Tab flips Wave <-> last edit tool.
+
+const TOOL_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7]
+const TOOL_NAMES := {"wave": "Wave", "select": "Select", "draw": "Draw", "pitch": "Pitch",
+		"channel": "Channel", "pulse": "Pulse", "modifier": "Modifier"}
+
+var _tool_key_held := KEY_NONE   ## the tool key still down, if any
+var _tool_prev := ""             ## the tool before that key went down
+var _tool_key_used := false      ## the held tool was used: letting go returns to _tool_prev
+
+
+func pick_tool(t_name: String) -> void:
+	if t_name == "draw" and surface.tool == "draw":
+		surface.toggle_draw_type()
+		_toast("Draw: %s" % ("Relays" if surface.draw_type == WaveSurface.Mode.RELAY else "Notes"))
+		return
+	surface.set_tool(t_name)
+
+
+func _tool_key_down(key: int) -> void:
+	var t_name: String = WaveSurface.TOOLS[TOOL_KEYS.find(key)]
+	var before: String = surface.tool
+	pick_tool(t_name)
+	if surface.tool != before:
+		_tool_key_held = key
+		_tool_prev = before
+		_tool_key_used = false
+
+
+func _tool_key_up(key: int) -> void:
+	if key != _tool_key_held:
+		return
+	_tool_key_held = KEY_NONE
+	if _tool_key_used and _tool_prev != "":
+		surface.set_tool(_tool_prev)       # held: back to the tool from before
+	_tool_prev = ""
+
+
+func _on_tool_changed(_t: String) -> void:
+	if radial and radial.visible:
+		radial.close()
+	if toolbar:
+		toolbar.queue_redraw()
+	Settings.set_value("tool", surface.tool)
+	Settings.set_value("draw_type", surface.draw_type)
+	_refresh_hint()
+
+
+## A ring tool's left press on a note (Pitch also on empty space): open that ring, held with the
+## left button, so press-aim-release picks and a quick click leaves it open.
+func _on_ring_tool(ring: String, note_id: int, at: Vector2) -> void:
+	match ring:
+		"pitch":
+			_open_pitch_menu(note_id, at)
+		"channel":
+			_open_channel_menu(note_id, at, true)
+		"pulse":
+			_open_pulse_menu(note_id, at, true)
+		"modifier":
+			_open_modifier_menu(note_id, at, true)
+	radial.holding = true
+	radial.hold_button = MOUSE_BUTTON_LEFT
+
+
+## Right-click: the default ring. A relay has no pitch to play, so its default is the pulse ring.
+func _on_right_click(note_id: int, at: Vector2) -> void:
+	var n := surface.get_note(note_id)
+	if not n.is_empty() and n.mode == WaveSurface.Mode.RELAY:
+		_open_pulse_menu(note_id, at, true)
+	else:
+		_open_pitch_menu(note_id, at)
+
+
+func _refresh_hint() -> void:
+	var text: String
+	if not surface.edit_mode:
+		text = HINT_PLAY
+	else:
+		var ctx: String = surface.hint_context()
+		if surface.tool != "select" and ["empty", "note", "pulser", "emitter", "selected"].has(ctx):
+			text = _tool_hint()
+		else:
+			text = HINTS_EDIT[ctx]
+		if ctx == "selection":
+			text = text % surface.selection_count()
+		elif ctx == "empty" and surface.has_grids():
+			text = text.replace("Shift-click: note with last pitch", "New notes land on grid points  ·  Ctrl+G: clear grids")
+	if text != _hint_key:
+		_hint_key = text
+		hint_label.text = text
+
+
+## Ctrl+S or the Save state button: toggles' current states become their start states.
+func _save_state() -> void:
+	surface.save_state()
+	_toast("Start states saved")
+
+
+## Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo or redo the last edit, with a brief toast.
+func _undo_redo(redo: bool) -> void:
+	var done: bool = surface.redo() if redo else surface.undo()
+	if done:
+		var left: int = surface.redo_steps() if redo else surface.undo_steps()
+		_toast("%s  ·  %d more" % ["Redo" if redo else "Undo", left])
+	else:
+		_toast("Nothing to redo" if redo else "Nothing to undo")
+
+
+var _toast_label: Label
+var _toast_tween: Tween
+
+
+## A short message above the hint bar that fades out on its own.
+func _toast(text: String) -> void:
+	if _toast_label == null:
+		_toast_label = Label.new()
+		_toast_label.add_theme_font_size_override("font_size", 13)
+		_toast_label.add_theme_color_override("font_color", Palette.TEXT)
+		_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_toast_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		_toast_label.offset_top = -66
+		_toast_label.offset_bottom = -42
+		_toast_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_toast_label.modulate.a = 0.0
+		add_child(_toast_label)
+	_toast_label.text = text
+	_toast_label.modulate.a = 1.0
+	if _toast_tween:
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(1.2)
+	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.5)
 
 
 func _notification(what: int) -> void:
 	# A key released while the window is unfocused never arrives: don't leave slots held.
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
 		surface.release_all_slots()
+		if _tool_key_held != KEY_NONE:
+			_tool_key_up(_tool_key_held)        # its key-up will never arrive
 
 
 func _reopen_last_port() -> void:
@@ -228,7 +491,7 @@ func _build_hud() -> void:
 	save.text = "Save state"
 	save.tooltip_text = "Make every toggle's current state its start state (Ctrl+S)"
 	save.focus_mode = Control.FOCUS_NONE
-	save.pressed.connect(func() -> void: surface.save_state())
+	save.pressed.connect(_save_state)
 	top.add_child(save)
 
 	var stop := Button.new()
@@ -245,7 +508,7 @@ func _build_hud() -> void:
 	top.add_child(gear)
 
 	hint_label = Label.new()
-	hint_label.text = "Click: wave  ·  Hold right-click: place / tune  ·  Alt-click: channel  ·  Ctrl-click: pulse  ·  Shift-right-click: modifier  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: options"
+	hint_label.text = HINTS_EDIT["empty"]
 	hint_label.add_theme_font_size_override("font_size", 12)
 	hint_label.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -254,9 +517,7 @@ func _build_hud() -> void:
 	hint_label.offset_bottom = -14
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(hint_label)
-	var tw := create_tween()
-	tw.tween_interval(8.0)
-	tw.tween_property(hint_label, "modulate:a", 0.35, 2.0)
+	hint_label.modulate.a = 0.85                 # stays up: it follows what is under the mouse
 
 
 func _update_status() -> void:
@@ -277,6 +538,7 @@ func _open_pitch_menu(note_id: int, at: Vector2) -> void:
 	_menu_note = note_id
 	_menu_pos = at
 	_digit_first = -1
+	_previewed_pitch = -1
 	var current := surface.last_pitch
 	_menu_channel = surface.last_channel
 	_menu_pitch = -1
@@ -300,8 +562,11 @@ func _rebuild_pitch_items() -> void:
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _menu_octave})
-	radial.title = "%s %s · octave %d · ch %d" % [
-		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave, _menu_channel + 1]
+	var ch_text := "ch %d" % (_menu_channel + 1)
+	if _digit_first != -1 and Time.get_ticks_msec() - _digit_time <= DIGIT_WINDOW_MS:
+		ch_text += "…"                  # waiting for a second digit (10-16)
+	radial.title = "%s %s · octave %d · %s" % [
+		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _menu_octave, ch_text]
 	radial.subtitle = "A / D octave · type 1-16 for channel · Esc cancels"
 	radial.refresh()
 
@@ -309,7 +574,16 @@ func _rebuild_pitch_items() -> void:
 func _set_menu_octave(o: int) -> void:
 	if radial.get_meta("mode", "") != "pitch":
 		return
+	var old := _menu_octave
 	_menu_octave = clampi(o, 1, 7)
+	# The note keeps its letter (A, C#, ...) and moves to the new octave.
+	if _menu_pitch != -1 and _menu_octave != old:
+		var moved := _menu_pitch + 12 * (_menu_octave - old)
+		if moved >= 0 and moved <= 127:
+			_menu_pitch = moved
+			if _menu_note != -1 and not surface.get_note(_menu_note).is_empty():
+				surface.set_note_pitch(_menu_note, moved)
+				Midi.play_note(moved, 90, 0.25, _menu_channel)
 	_rebuild_pitch_items()
 
 
@@ -331,14 +605,24 @@ func _on_digit(d: int) -> void:
 		_digit_first = d if d == 1 else -1     # only "1" can start 10-16
 		_digit_time = now
 		_rebuild_pitch_items()
+		if _digit_first != -1:
+			# Show "ch 1…" while a second digit can still follow, then settle on "ch 1".
+			get_tree().create_timer(DIGIT_WINDOW_MS / 1000.0 + 0.02).timeout.connect(func() -> void:
+				if radial.visible and radial.get_meta("mode", "") == "pitch" and Time.get_ticks_msec() - _digit_time > DIGIT_WINDOW_MS:
+					_rebuild_pitch_items())
 
 
 # --- Channel menu ---------------------------------------------------------------------------
 
-func _open_channel_menu(note_id: int, at: Vector2) -> void:
+func _open_channel_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
-	var current: int = surface.get_note(note_id).get("channel", 0)
 	radial.set_meta("mode", "channel")
+	_rebuild_channel_items()
+	radial.open(at, hold)
+
+
+func _rebuild_channel_items() -> void:
+	var current: int = surface.get_note(_menu_note).get("channel", 0)
 	radial.inner_items = []
 	radial.center_item = {}
 	radial.outer_items = []
@@ -346,17 +630,17 @@ func _open_channel_menu(note_id: int, at: Vector2) -> void:
 		radial.outer_items.append({"id": ch, "label": str(ch + 1), "color": Palette.channel_color(ch), "selected": ch == current})
 	radial.title = "MIDI channel"
 	radial.subtitle = ""
-	radial.open(at)
+	radial.refresh()
 
 
 # --- Pulse menu -----------------------------------------------------------------------------
 
 ## Outer ring = cooldown, inner ring = emit strength, centre = cycle mode.
-func _open_pulse_menu(note_id: int, at: Vector2) -> void:
+func _open_pulse_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
 	radial.set_meta("mode", "pulse")
 	_rebuild_pulse_items()
-	radial.open(at)
+	radial.open(at, hold)
 
 
 func _rebuild_pulse_items() -> void:
@@ -374,7 +658,7 @@ func _rebuild_pulse_items() -> void:
 				"selected": absf(n.pulse_strength - s) < 0.001})
 	radial.center_item = {"id": "mode", "label": MODE_LABELS[n.mode], "color": Palette.channel_color(n.channel)}
 	radial.title = "Pulse · cooldown in beats or Retrigger (outer) · strength (inner)"
-	radial.subtitle = "Centre: Note → Note + Pulse → Pulse only"
+	radial.subtitle = "Centre: switch Note ↔ Relay"
 	radial.refresh()
 
 
@@ -382,11 +666,11 @@ func _rebuild_pulse_items() -> void:
 
 ## Outer ring = modifier (None / Toggle); inner ring = the toggle's state (On / Off),
 ## which sets both its current and its start state.
-func _open_modifier_menu(note_id: int, at: Vector2) -> void:
+func _open_modifier_menu(note_id: int, at: Vector2, hold: bool = false) -> void:
 	_menu_note = note_id
 	radial.set_meta("mode", "modifier")
 	_rebuild_modifier_items()
-	radial.open(at)
+	radial.open(at, hold)
 
 
 func _rebuild_modifier_items() -> void:
@@ -410,6 +694,19 @@ func _rebuild_modifier_items() -> void:
 	radial.refresh()
 
 
+## Pitch ring preview: hovering an outer item plays it on the ring's channel.
+var _previewed_pitch := -1
+
+
+func _on_radial_hover(ring: String, id: Variant) -> void:
+	_previewed_pitch = -1
+	if ring != "outer" or radial.get_meta("mode", "") != "pitch" or not Settings.hover_preview:
+		return
+	var pitch: int = id
+	Midi.play_note(pitch, 80, 0.25, _menu_channel)
+	_previewed_pitch = pitch
+
+
 # --- Radial results ---------------------------------------------------------------------------
 
 func _on_radial_outer(id: Variant) -> void:
@@ -417,12 +714,17 @@ func _on_radial_outer(id: Variant) -> void:
 		"pitch":
 			var pitch: int = id
 			if _menu_note == -1:
-				surface.add_note_at(_menu_pos, pitch, _menu_channel)
+				# Placed. Further picks (left clicks keep the menu open) retune this note.
+				_menu_note = surface.add_note_at(_menu_pos, pitch, _menu_channel)
+				radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED}
 			else:
 				surface.set_note_pitch(_menu_note, pitch)
 				if surface.get_note(_menu_note).channel != _menu_channel:
 					surface.set_note_channel(_menu_note, _menu_channel)
-			Midi.play_note(pitch, 90, 0.25, _menu_channel)
+			if pitch != _previewed_pitch:
+				Midi.play_note(pitch, 90, 0.25, _menu_channel)   # already heard on hover otherwise
+			_menu_pitch = pitch
+			_rebuild_pitch_items()
 		"channel":
 			var ch: int = id
 			for gid in surface.group_for(_menu_note):
@@ -430,9 +732,11 @@ func _on_radial_outer(id: Variant) -> void:
 			var n := surface.get_note(_menu_note)
 			if not n.is_empty():
 				Midi.play_note(n.note, 90, 0.25, ch)
+			_rebuild_channel_items()
 		"modifier":
 			for gid in surface.group_for(_menu_note):
 				surface.set_modifier(gid, id)
+			_rebuild_modifier_items()
 		"pulse":
 			var n := surface.get_note(_menu_note)
 			if n.is_empty():
@@ -441,7 +745,8 @@ func _on_radial_outer(id: Variant) -> void:
 				var g := surface.get_note(gid)
 				surface.set_pulse_params(gid, g.pulse_strength, id)
 				if g.mode == WaveSurface.Mode.NOTE:
-					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)   # tuning a pulse turns it on
+					surface.set_note_mode(gid, WaveSurface.Mode.RELAY)   # tuning a pulse turns it on
+			_rebuild_pulse_items()
 
 
 func _on_radial_inner(id: Variant) -> void:
@@ -460,7 +765,7 @@ func _on_radial_inner(id: Variant) -> void:
 				var g := surface.get_note(gid)
 				surface.set_pulse_params(gid, id, g.cooldown)
 				if g.mode == WaveSurface.Mode.NOTE:
-					surface.set_note_mode(gid, WaveSurface.Mode.NOTE_PULSE)
+					surface.set_note_mode(gid, WaveSurface.Mode.RELAY)
 			_rebuild_pulse_items()
 
 
@@ -470,5 +775,7 @@ func _on_radial_center(id: Variant) -> void:
 	match id:
 		"delete":
 			surface.remove_note(_menu_note)
+			radial.close()                   # nothing left to edit
 		"mode":
 			surface.cycle_mode(_menu_note)
+			_rebuild_pulse_items()

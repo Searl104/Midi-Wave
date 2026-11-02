@@ -11,13 +11,15 @@ const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version
 const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_length",
-	"root_note", "scale_name", "midi_port", "notes", "view_offset", "layout_version",
+	"root_note", "scale_name", "midi_port", "midi_in_port", "midi_in_base", "hover_preview", "cursor_glow", "tool", "draw_type", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "channel_lengths", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_lengths", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
-	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_tide", "tidal_refraction",
+	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
-const SPOKE_OPTIONS := [0, 4, 8, 12, 16]
+const BEAT_SPACING_MIN := 10.0   ## px per beat: the Beat spacing (zoom) slider's range
+const BEAT_SPACING_MAX := 400.0
+const SPOKE_OPTIONS := [0, 4, 6, 8, 12, 16]
 const LOOKS := ["Abyssal", "Tidal", "Glass"]   ## surface shaders: shaders/<lowercase>.gdshader ("Glass" = water)
 
 var wave_strength := 1.0        ## 0.1-1.0, peak velocity of a fresh wave
@@ -48,8 +50,11 @@ const LOOK_PARAMS := {
 	"tidal_depth": ["Tidal", "plane_depth", 1.0],
 	"tidal_shine": ["Tidal", "shine", 1.0],
 	"tidal_relief": ["Tidal", "bump", 1.15],
-	"tidal_tide": ["Tidal", "tide_speed", 0.035],
 	"tidal_refraction": ["Tidal", "refraction", 22.0],
+	"tidal_color": ["Tidal", "color_amount", 1.0],
+	"tidal_caustics": ["Tidal", "caustics", 1.0],
+	"tidal_caustic_scale": ["Tidal", "caustic_px", 330.0],
+	"tidal_caustic_speed": ["Tidal", "caustic_speed", 0.35],
 }
 const LOOK_DEFAULTS := {"tidal_depth": 0.65}   ## anything not listed defaults to 1.0
 var abyss_sink := 1.0
@@ -62,8 +67,11 @@ var tidal_scale := 1.0
 var tidal_depth := 0.65
 var tidal_shine := 1.0
 var tidal_relief := 1.0
-var tidal_tide := 1.0
 var tidal_refraction := 1.0
+var tidal_color := 1.0
+var tidal_caustics := 1.0
+var tidal_caustic_scale := 1.0
+var tidal_caustic_speed := 1.0
 
 
 func look_default(key: String) -> float:
@@ -82,6 +90,20 @@ var spoke_count := 8            ## spokes drawn from each snap target (0 = none)
 var guides_to_edge := true      ## guides run to the window edge (false: stop at the wave's reach)
 var guide_divisions := true     ## draw the faded division rings
 var guide_brightness := 1.0     ## 0.3-1.5
+var cursor_glow := 1.0          ## strength of the reach glow under the cursor (0 = off, 1 = designed, 2 = double)
+var tool := "select"            ## the toolbar tool in use (restored on launch)
+var draw_type := 0              ## what the Draw tool places: 0 = Note, 2 = Relay
+var hover_preview := true       ## the pitch ring plays each note as the pointer moves onto it
+var midi_in_port := ""          ## MIDI controller whose pads fire keypad slots ("" = off)
+var midi_in_base := 36          ## the note that fires slot 1; the next eight fire slots 2-9
+## Colour-blind safe channel colours (channels 9-16 get a double outline).
+var colorblind := false:
+	set(v):
+		colorblind = v
+		Palette.colorblind = v
+## Deprecated: touch to snap (touch an object while dragging to snap to it). Off by default and
+## not in the Options panel; set touch_snap=true in the settings file to bring it back.
+var touch_snap := false
 var snap_memory := true         ## remember the target snapped to on drop for the next drag
 var snap_centres := true        ## snap onto the centre of a note or emitter the item is dropped on
 
@@ -160,6 +182,7 @@ func load_settings() -> void:
 		scale_name = "Minor Pentatonic"
 	if not DIVISION_OPTIONS.has(divisions):
 		divisions = 4
+	beat_spacing = clampf(beat_spacing, BEAT_SPACING_MIN, BEAT_SPACING_MAX)
 	if not SPOKE_OPTIONS.has(spoke_count):
 		spoke_count = 8
 	if not LOOKS.has(look):

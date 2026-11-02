@@ -45,6 +45,19 @@ static func quantize(note: int, root: int, scale_name: String) -> int:
 	return clampi(note, 0, 127)
 
 
+## The in-scale note `steps` scale steps from `note` (negative = down), or -1 past the MIDI range.
+static func step(note: int, steps: int, root: int, scale_name: String) -> int:
+	var p := note
+	var dir := 1 if steps > 0 else -1
+	for i in absi(steps):
+		p += dir
+		while p >= 0 and p <= 127 and not in_scale(p, root, scale_name):
+			p += dir
+		if p < 0 or p > 127:
+			return -1
+	return p
+
+
 ## Octave number (C4 = 60 convention) of the root-based octave containing `note`.
 static func octave_of(note: int, root: int) -> int:
 	return floori(float(note - root) / 12.0) - 1
