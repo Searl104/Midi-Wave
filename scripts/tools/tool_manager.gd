@@ -21,6 +21,7 @@ var _editing := true               # false in the Tap tool; a nav tool leaves th
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
 var radial: RadialMenu
 var open_ring: RingTool = null     ## the ring tool using the radial menu
+var _tool_options: ToolOptionsRing
 var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id(); not on the toolbar
 
 
@@ -31,6 +32,7 @@ func _init(owner_surface: WaveSurface) -> void:
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
+	_tool_options = ToolOptionsRing.new(surface)
 	current = get_tool("select")
 	_before_tap = current
 
@@ -259,6 +261,16 @@ func close_ring() -> void:
 func open_ring_for(ring_id: String, note_id: int, at: Vector2, hold: bool = false) -> void:
 	open_ring = _settings_rings[ring_id] if _settings_rings.has(ring_id) else get_tool(ring_id)
 	open_ring.open(radial, note_id, at, hold)
+
+
+## Opens a toolbar item's options, held for a quick pick. Returns false if it has none.
+func open_tool_options(t: Tool, at: Vector2) -> bool:
+	if t.options().is_empty():
+		return false
+	_tool_options.target = t
+	open_ring = _tool_options
+	open_ring.open(radial, -1, at, true)
+	return true
 
 
 ## Opens a modifier's settings ring at `at`, held for a quick pick.

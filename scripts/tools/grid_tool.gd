@@ -21,6 +21,16 @@ func section() -> int:
 	return 1
 
 
+func options() -> Array:
+	return [{"id": "clear_all", "label": "Clear All", "color": Palette.RED}]
+
+
+func option_chosen(id: Variant) -> void:
+	if id == "clear_all":
+		var cleared := surface.snapping.clear_grids()
+		surface.tools.notice.emit("Grids cleared" if cleared > 0 else "No grids on")
+
+
 func deactivate() -> void:
 	if _dragging:
 		surface.save_notes()

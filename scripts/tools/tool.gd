@@ -42,6 +42,16 @@ func ring_target() -> int:
 	return -1
 
 
+## Items for the ring a right-click on the toolbar opens: {id, label, color, selected}. Each can
+## be an action or a parameter. Empty means the tool has no options.
+func options() -> Array:
+	return []
+
+
+func option_chosen(_id: Variant) -> void:
+	pass
+
+
 ## Returns true if the event was used.
 func handle_input(_event: InputEvent) -> bool:
 	return false

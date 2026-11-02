@@ -1,7 +1,8 @@
 class_name Toolbar
 extends Control
 ## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
-## the active tool is lit, and a yellow bar marks the ring option.
+## the active tool is lit, and a yellow bar marks the ring option. Right-click opens an item's
+## options, if it has any.
 
 const SLOT := 44.0
 const PAD := 6.0
@@ -42,10 +43,13 @@ func _gui_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb:
 		accept_event()
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			var i := _slot_at(mb.position)
-			if i != -1:
-				surface.tools.pick(surface.tools.tools[i].tool_id())
+		var i := _slot_at(mb.position)
+		if mb.pressed and i != -1:
+			var item: Tool = surface.tools.tools[i]
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				surface.tools.pick(item.tool_id())
+			elif mb.button_index == MOUSE_BUTTON_RIGHT:
+				surface.tools.open_tool_options(item, global_position + mb.position)
 
 
 func _notification(what: int) -> void:
