@@ -129,7 +129,8 @@ var _snapshot_ready := false
 var _last_edit_frame := -1
 var _restoring := false
 var selection: Dictionary = {}    # selected note ids (box select: Ctrl + right-drag)
-var _group_start: Dictionary = {} # id -> [pos, emit] for the group being dragged
+var emit_selection: Dictionary = {}   # note ids whose detached emitter diamond is box-selected
+var _group_start: Dictionary = {} # id -> [pos, emit, moves_note, moves_emit] for the group being dragged
 var _box_active := false
 var _box_start := Vector2.ZERO
 var _box_end := Vector2.ZERO
@@ -326,6 +327,7 @@ func _apply_snapshot(snap: Array) -> void:
 		_silence(n)
 		live[n.id] = [n.mod, n.mod_on, n.ready_at]
 	var kept: Array = selection.keys()
+	var kept_emit: Array = emit_selection.keys()
 	_restoring = true
 	Settings.notes = snap.duplicate(true)
 	load_notes()
@@ -338,6 +340,11 @@ func _apply_snapshot(snap: Array) -> void:
 	for id in kept:
 		if not get_note(id).is_empty():
 			selection[id] = true
+	emit_selection = {}
+	for id in kept_emit:
+		var en := get_note(id)
+		if not en.is_empty() and en.mode != Mode.NOTE and not en.attached:
+			emit_selection[id] = true
 	_hover_id = -1
 	_last_edit_frame = -1
 	Settings.queue_save()
@@ -605,11 +612,14 @@ func group_for(id: int) -> Array:
 
 func select_in_rect(screen_rect: Rect2, add: bool = false) -> void:
 	if not add:
-		selection.clear()
+		clear_selection()
 	var r := screen_rect.abs()
 	for n in notes:
 		if r.has_point(note_screen_pos(n)):
 			selection[n.id] = true
+		# A detached emitter diamond inside the box is selected on its own.
+		if n.mode != Mode.NOTE and not n.attached and r.has_point(handle_screen_pos(n)):
+			emit_selection[n.id] = true
 
 
 ## M: mute the selection (or the hovered note). If any of them is unmuted they all mute,
@@ -641,6 +651,16 @@ func toggle_mute() -> int:
 
 func clear_selection() -> void:
 	selection.clear()
+	emit_selection.clear()
+
+
+## Notes plus emitter diamonds selected.
+func selection_count() -> int:
+	return selection.size() + emit_selection.size()
+
+
+func has_selection() -> bool:
+	return not selection.is_empty() or not emit_selection.is_empty()
 
 
 func delete_selection() -> void:
@@ -651,7 +671,7 @@ func delete_selection() -> void:
 				flash_brackets(notes[i])
 				notes.remove_at(i)
 				break
-	selection.clear()
+	clear_selection()
 	_hover_id = -1
 	save_notes()
 
@@ -685,7 +705,7 @@ func paste_at(screen_pos: Vector2) -> int:
 	# The first copied note lands on the nearest grid point; the rest keep their places around it.
 	var first: Vector2 = centre + _clipboard[0].off
 	centre += grid_snap(first) - first
-	selection.clear()
+	clear_selection()
 	for c in _clipboard:
 		var id := _add(centre + c.off, c.note, c.channel)
 		var n := get_note(id)
@@ -722,7 +742,7 @@ func clear_notes() -> void:
 	for n in notes:
 		_silence(n)
 	notes.clear()
-	selection.clear()
+	clear_selection()
 	save_notes()
 
 
@@ -742,7 +762,7 @@ func hint_context() -> String:
 		if selection.has(_hover_id):
 			return "selected"
 		return "note" if get_note(_hover_id).get("mode", Mode.NOTE) == Mode.NOTE else "pulser"
-	if not selection.is_empty():
+	if has_selection():
 		return "selection"
 	return "empty"
 
@@ -754,7 +774,7 @@ func set_edit_mode(on: bool) -> void:
 	_end_press()
 	_box_active = false
 	if not on:
-		selection.clear()
+		clear_selection()
 	mode_changed.emit(on)
 
 
@@ -1359,27 +1379,34 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 	var p := to_world(screen_pos)
 	_update_touches(n, p)
 	drag_info = compute_drag(n, _press_kind, p, free, _touched)
+	var delta := Vector2.ZERO
 	if _press_kind == "emitter":
 		n.attached = false
 		n.emit = drag_info.pos
+		if _group_start.has(n.id):
+			delta = n.emit - _group_start[n.id][1]
+			if _group_start[n.id][2]:
+				n.pos = _group_start[n.id][0] + delta       # its note is selected too
 	else:
 		n.pos = drag_info.pos
-		if not _group_start.is_empty():
-			# The rest of the selection follows the held note, keeping its shape.
-			var delta: Vector2 = n.pos - _group_start[n.id][0]
-			for gid in _group_start:
-				if gid == n.id:
-					continue
-				var g := get_note(gid)
-				if g.is_empty():
-					continue
-				g.pos = _group_start[gid][0] + delta
-				if not g.attached:
-					g.emit = _group_start[gid][1] + delta
-				else:
-					g.emit = g.pos
+		if _group_start.has(n.id):
+			delta = n.pos - _group_start[n.id][0]
 			if not n.attached:
 				n.emit = _group_start[n.id][1] + delta
+	if _group_start.has(n.id):
+		# The rest of the selection follows the held item, keeping its shape.
+		for gid in _group_start:
+			if gid == n.id:
+				continue
+			var g := get_note(gid)
+			if g.is_empty():
+				continue
+			var st: Array = _group_start[gid]
+			if st[2]:
+				g.pos = st[0] + delta
+				g.emit = st[1] + delta if not g.attached else g.pos
+			elif not g.attached:
+				g.emit = st[1] + delta
 
 
 ## Ctrl + left-drag: the distance from the emitter to the cursor becomes its reach, snapped to
@@ -1466,13 +1493,15 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				elif mb.shift_pressed:
 					add_note_at(pos, last_pitch, last_channel)
 				elif handle != -1:
+					if not emit_selection.has(handle):
+						clear_selection()
 					_begin_press(handle, "emitter", pos)
 				elif hit != -1:
 					if not selection.has(hit):
-						selection.clear()
+						clear_selection()
 					_begin_press(hit, "note", pos)
 				else:
-					selection.clear()
+					clear_selection()
 					spawn_wave(pos)
 			else:
 				_end_press()
@@ -1499,7 +1528,7 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				if _box_start.distance_to(_box_end) > DRAG_THRESHOLD:
 					select_in_rect(Rect2(_box_start, _box_end - _box_start), mb.shift_pressed)
 				else:
-					selection.clear()
+					clear_selection()
 		MOUSE_BUTTON_MIDDLE:
 			# Middle only pans. (It used to delete on a click, which a short pan could trigger.)
 			if mb.pressed:
@@ -1518,10 +1547,21 @@ func _begin_press(id: int, kind: String, pos: Vector2) -> void:
 	_dragging = false
 	_touched = {}
 	_group_start = {}
-	if (kind == "note" or kind == "range") and selection.has(id) and selection.size() > 1:
+	if kind == "range" and selection.has(id) and selection.size() > 1:
 		for gid in group_for(id):
 			var g := get_note(gid)
-			_group_start[gid] = [g.pos, g.emit]
+			_group_start[gid] = [g.pos, g.emit, true, true]
+	elif ((kind == "note" and selection.has(id)) or (kind == "emitter" and emit_selection.has(id))) \
+			and selection_count() > 1:
+		# Selected notes move with their emitters; selected diamonds move on their own.
+		for gid in selection:
+			var g := get_note(gid)
+			if not g.is_empty():
+				_group_start[gid] = [g.pos, g.emit, true, true]
+		for gid in emit_selection:
+			var g := get_note(gid)
+			if not g.is_empty() and not _group_start.has(gid):
+				_group_start[gid] = [g.pos, g.emit, false, true]
 	var n := get_note(id)
 	if not n.is_empty():
 		var remembered: String = n.snap_emit if kind == "emitter" else n.snap_note
@@ -1557,6 +1597,7 @@ func _end_press() -> void:
 				if _press_kind == "emitter" and n.emit.distance_to(n.pos) <= NOTE_RADIUS / z():
 					n.attached = true        # dropped back on its own note: re-attach
 					n.emit = n.pos
+					emit_selection.erase(n.id)
 				save_notes()
 			elif _press_kind == "note":
 				click_note(n.id)
@@ -1645,6 +1686,10 @@ func _draw() -> void:
 			_draw_brackets(note_screen_pos(n), bracket_half(n) + 2.0, 2.0, 0.95, 0.42)
 		elif n.id == _hover_id and _press_id == -1:
 			_draw_brackets(note_screen_pos(n), bracket_half(n), 1.0, 0.55, 0.28)
+	for eid in emit_selection:
+		var en := get_note(eid)
+		if not en.is_empty() and en.mode != Mode.NOTE and not en.attached:
+			_draw_brackets(handle_screen_pos(en), HANDLE_RADIUS + 6.0, 2.0, 0.95, 0.42)
 	for bfl in bracket_flashes:
 		var k: float = bfl.t / BRACKET_FLASH_TIME
 		_draw_brackets(to_screen(bfl.pos), bfl.half + 2.0 + 10.0 * ease(k, 0.4), 2.0, 0.9 * (1.0 - k), 0.42)

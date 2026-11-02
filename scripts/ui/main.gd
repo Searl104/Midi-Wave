@@ -253,7 +253,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif options.visible:
 				options.hide()
 				get_viewport().set_input_as_handled()
-			elif not surface.selection.is_empty():
+			elif surface.has_selection():
 				surface.clear_selection()
 				get_viewport().set_input_as_handled()
 
@@ -360,7 +360,7 @@ func _refresh_hint() -> void:
 		var ctx: String = surface.hint_context()
 		text = HINTS_EDIT[ctx]
 		if ctx == "selection":
-			text = text % surface.selection.size()
+			text = text % surface.selection_count()
 		elif ctx == "empty" and surface.has_grids():
 			text = text.replace("Shift-click: note with last pitch", "New notes land on grid points  ·  Ctrl+G: clear grids")
 	if text != _hint_key:
@@ -414,6 +414,8 @@ func _notification(what: int) -> void:
 	# A key released while the window is unfocused never arrives: don't leave slots held.
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
 		surface.release_all_slots()
+		if _held_ring != "":
+			_release_ring_key(_held_ring)       # its key-up will never arrive
 
 
 func _reopen_last_port() -> void:

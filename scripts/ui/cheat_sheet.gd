@@ -30,7 +30,7 @@ const SECTIONS := [
 		["Delete", "Remove the note"],
 	]],
 	["SELECT", [
-		["Ctrl + right-drag", "Box select (Shift adds)"],
+		["Ctrl + right-drag", "Box select notes and ◆ (Shift adds)"],
 		["Drag a selected note", "Move the group"],
 		["Menus, M, Delete, Ctrl+KP", "Apply to the whole selection"],
 		["Ctrl+C", "Copy the selection"],

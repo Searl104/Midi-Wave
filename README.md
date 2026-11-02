@@ -25,7 +25,8 @@ fires a MIDI note, with velocity set by how strong the wave still is when it arr
 | Delete | Remove the hovered note (or the selection, if any) |
 | < / > (comma / period) | Nudge the selected notes, or the hovered note, one scale step down / up; with Shift, an octave. Each moved note plays its new pitch; one undo step |
 | M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow (pulse-only) notes also show a bright centre dot when unmuted, a faint one when muted |
-| Ctrl + right-drag on empty space | Box select notes (Shift adds to the selection); Esc or a click on empty space clears it |
+| Ctrl + right-drag on empty space | Box select notes, and any detached emitter diamonds inside the box on their own (Shift adds to the selection); Esc or a click on empty space clears it |
+| Drag a selected diamond | Moves every selected diamond, plus any selected notes (with their emitters), keeping their shape. A selected note's drag carries selected diamonds the same way |
 | With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
 | Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
 | G over a note or emitter | Turn a grid on or off under it: its timing rings and spokes, drawn faintly and saved with the layout. Any number can be on · Ctrl+G clears every grid |
