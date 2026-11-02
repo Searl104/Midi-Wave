@@ -18,6 +18,18 @@ func title() -> String:
 	return "Pitch"
 
 
+func has_options() -> bool:
+	return true
+
+
+func build_options(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "SCALE", Palette.YELLOW)
+	PanelBuilder.pick(box, "Root", "root_note", range(Scales.ROOT_NAMES.size()), Scales.ROOT_NAMES)
+	var names: Array = Array(Scales.names())
+	PanelBuilder.pick(box, "Scale", "scale_name", names, names)
+	box.add_child(PanelBuilder.hint("Sets the notes the ring shows. Existing notes keep their pitch."))
+
+
 func _prepare(at: Vector2) -> void:
 	_pos = at
 	_previewed = -1

@@ -2,12 +2,13 @@ class_name Toolbar
 extends Control
 ## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
 ## the active tool is lit, and a yellow bar marks the ring option. Right-click opens an item's
-## options, if it has any.
+## ToolPanel, if it has options.
 
 const SLOT := 44.0
 const PAD := 6.0
 
 var surface: WaveSurface
+var panel: ToolPanel
 var _hover := -1
 
 
@@ -45,11 +46,23 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 		var i := _slot_at(mb.position)
 		if mb.pressed and i != -1:
-			var item: Tool = surface.tools.tools[i]
-			if mb.button_index == MOUSE_BUTTON_LEFT:
-				surface.tools.pick(item.tool_id())
-			elif mb.button_index == MOUSE_BUTTON_RIGHT:
-				surface.tools.open_tool_options(item, global_position + mb.position)
+			_slot_pressed(surface.tools.tools[i], mb.button_index, i)
+
+
+## Clicking the panel's own item closes it. A left click picks; a right click opens that tool's
+## panel, if it has one.
+func _slot_pressed(item: Tool, button: int, i: int) -> void:
+	if button != MOUSE_BUTTON_LEFT and button != MOUSE_BUTTON_RIGHT:
+		return
+	if panel.is_open_for(item):
+		panel.close()
+	elif button == MOUSE_BUTTON_LEFT:
+		panel.close()
+		surface.tools.pick(item.tool_id())
+	elif item.has_options():
+		panel.open(item, global_position.y + _slot_rect(i).get_center().y)
+	else:
+		panel.close()
 
 
 func _notification(what: int) -> void:

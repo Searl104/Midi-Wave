@@ -234,7 +234,7 @@ func _scenarios() -> void:
 		_layout("redo%d" % i)
 	_reset()
 
-	# Scale changes re-snap; nudging moves pitches.
+	# Scale changes leave notes alone; nudging lands on the scale.
 	var s1 := _note_at(Vector2(300, 300), 61)
 	var s2 := _note_at(Vector2(400, 300), 66)
 	Settings.set_value("scale_name", "Major")

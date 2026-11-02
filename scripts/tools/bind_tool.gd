@@ -19,6 +19,15 @@ func section() -> int:
 	return 1
 
 
+func has_options() -> bool:
+	return true
+
+
+func build_options(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
+	box.add_child(MidiInputControls.new())
+
+
 func deactivate() -> void:
 	_armed = []
 

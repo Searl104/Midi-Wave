@@ -17,6 +17,16 @@ func cursor() -> Control.CursorShape:
 	return Control.CURSOR_VSIZE
 
 
+func has_options() -> bool:
+	return true
+
+
+func build_options(box: VBoxContainer) -> void:
+	PanelBuilder.slider(box, "Beat spacing", "beat_spacing", Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX, 1.0, func(v: float) -> String:
+		return "%d px · %d%%" % [v, roundi(v / Settings.BEAT_UNIT * 100.0)])
+	box.add_child(PanelBuilder.hint("Zoom scales distances, not icons or timing."))
+
+
 func _dragged(delta: Vector2) -> void:
 	surface.zoom_at(_start, exp((delta.x - delta.y) * SPEED))
 

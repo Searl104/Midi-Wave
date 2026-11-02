@@ -23,7 +23,18 @@ ring a right-click on a note opens; a yellow bar marks the choice.
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
 
-**Tool options:** right-click a toolbar item for its options, if it has any. Grid has Clear All.
+**Tool panels:** right-click a toolbar item to open its panel, just right of the toolbar and centred
+on the item. Click the item again, or anywhere outside, to close it; a click outside does nothing
+else. Esc closes it too.
+
+| Item | Panel |
+|---|---|
+| Tap | Wave strength, reach and falloff curve |
+| Bind | MIDI input (also in Options) |
+| Grid | Clear All, snapping and guides |
+| Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
+| Channel | Default note length, and a note length per channel |
+| Zoom | Beat spacing |
 
 ## Rings
 
@@ -84,7 +95,7 @@ A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes ca
 at the note's upper left shows it. A binding fires like a tap, in any tool. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
 
-**Options → General → MIDI input** picks the controller. Any Note On from it can be bound, on any
+The Bind panel, or **Options → General → MIDI input**, picks the controller. Any Note On from it can be bound, on any
 channel; other inputs, including the loopMIDI port MIDI Wave sends to, are ignored. It uses Godot's
 own MIDI input, which opens every input at once, so inputs stay closed while this is Off. Windows
 lets only one app open a controller, so turn it off in your DAW's MIDI inputs first.
@@ -101,7 +112,7 @@ its own rings (bars brightest, beats bright, divisions faded).
 
 **Grids.** The Grid tool puts a grid on a note or remote diamond: its timing rings plus 8 spokes
 (every 45°, or 4, 6, 12 or 16). Grids are drawn faintly, with their division rings if Division rings
-is on, and saved with the layout. Any number can be on, and Grid's Clear All option removes them.
+is on, and saved with the layout. Any number can be on, and Clear All in the Grid panel removes them.
 A grid's reach is automatic until you drag it: a beat past the wave Reach, or a relay's own reach
 for a remote diamond or a note with a docked relay. Nothing draws or snaps past it.
 
@@ -110,13 +121,13 @@ grid point: where a ring crosses a spoke, else a spoke, else a ring. The Draw gh
 land on the nearest grid point. Centre snapping puts the item exactly on top of any note or emitter
 whose centre is within the snap distance, ahead of grid points. Alt places freely.
 
-**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
+The **Grid panel** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
 
 Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
-A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → General → Wave → Cursor glow** sets its strength (0% hides it, up to 200%).
+A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → Look → Cursor glow** sets its strength (0% hides it, up to 200%).
 
 Hover a note to see its pitch and channel number. **Options → General → Colour-blind palette** swaps the 16 channel colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
 
@@ -130,11 +141,12 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 - **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
-**Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
+The **Channel panel** sets a note length per MIDI channel (Default follows the Default slider).
 
-Options (General tab): MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
-wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
-Changing the scale snaps every note to it. Settings and the note layout save automatically to
+Options (General tab): MIDI output port (remembered and reopened on launch), hover preview, MIDI
+input, tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
+are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
+but changing it doesn't touch existing notes. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
 
 ## Routing on Windows
@@ -160,6 +172,8 @@ scripts/
   ui/wave_surface.gd      Holds the view and entities, runs the simulation, draws in order
   ui/radial_menu.gd       The ring picker, with quick pick
   ui/toolbar.gd           The strip of tools and ring choices
+  ui/tool_panel.gd        The popup that holds a tool's options
+  ui/panel_builder.gd     Sliders, buttons and other controls for the panels
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
 tests/                    Headless checks: baseline (MIDI and layouts), tools, demo; render

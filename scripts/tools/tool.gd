@@ -42,13 +42,13 @@ func ring_target() -> int:
 	return -1
 
 
-## Items for the ring a right-click on the toolbar opens: {id, label, color, selected}. Each can
-## be an action or a parameter. Empty means the tool has no options.
-func options() -> Array:
-	return []
+## True if the tool has a panel of options; a right-click on the toolbar opens it.
+func has_options() -> bool:
+	return false
 
 
-func option_chosen(_id: Variant) -> void:
+## Fills the tool panel, using PanelBuilder.
+func build_options(_box: VBoxContainer) -> void:
 	pass
 
 

@@ -21,14 +21,28 @@ func section() -> int:
 	return 1
 
 
-func options() -> Array:
-	return [{"id": "clear_all", "label": "Clear All", "color": Palette.RED}]
+func has_options() -> bool:
+	return true
 
 
-func option_chosen(id: Variant) -> void:
-	if id == "clear_all":
-		var cleared := surface.snapping.clear_grids()
-		surface.tools.notice.emit("Grids cleared" if cleared > 0 else "No grids on")
+func build_options(box: VBoxContainer) -> void:
+	box.add_child(PanelBuilder.button("Clear All", clear_all))
+	PanelBuilder.section(box, "SNAPPING", Palette.ACCENT)
+	PanelBuilder.check(box, "Snap to grids", "snap_enabled")
+	PanelBuilder.slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
+	PanelBuilder.check(box, "Snap to spokes", "snap_spokes")
+	PanelBuilder.check(box, "Snap to centres", "snap_centres")
+	PanelBuilder.section(box, "GUIDES", Palette.YELLOW)
+	PanelBuilder.pick(box, "Spokes per grid", "spoke_count", Settings.SPOKE_OPTIONS,
+			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
+	PanelBuilder.pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
+	PanelBuilder.check(box, "Division rings", "guide_divisions")
+	PanelBuilder.slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
+
+
+func clear_all() -> void:
+	var cleared := surface.snapping.clear_grids()
+	surface.tools.notice.emit("Grids cleared" if cleared > 0 else "No grids on")
 
 
 func deactivate() -> void:

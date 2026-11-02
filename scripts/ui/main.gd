@@ -9,6 +9,7 @@ var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
 var toolbar: Toolbar
+var tool_panel: ToolPanel
 var midi_in: MidiInput
 
 
@@ -42,6 +43,10 @@ func _ready() -> void:
 	toolbar = Toolbar.new()
 	toolbar.surface = surface
 	add_child(toolbar)
+	tool_panel = ToolPanel.new()
+	tool_panel.toolbar = toolbar
+	toolbar.panel = tool_panel
+	add_child(tool_panel)
 	surface.tools.set_ring_option(Settings.ring_option)
 	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 

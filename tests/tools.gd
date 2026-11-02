@@ -584,11 +584,7 @@ func _draw_tool() -> void:
 	_check(brush.emitter().cooldown == 1.0 and brush.relay().sound, "turned off and on, a modifier is back to defaults")
 	radial.outer_chosen.emit("")
 	tools.pick("pitch")
-	# Scale changes keep the brush in scale, and it reloads.
-	var scale_before: String = Settings.scale_name
-	Settings.set_value("scale_name", "Major")
-	_check(Scales.quantize(brush.note, Settings.root_note, "Major") == brush.note, "the brush stays in scale")
-	Settings.set_value("scale_name", scale_before)
+	# It reloads.
 	var reloaded := DrawTool.new(surface)
 	_check(reloaded.brush.note == brush.note and reloaded.brush.channel == 5, "reloads from settings")
 	# Leaving mid-drag closes the undo step.
@@ -1101,6 +1097,18 @@ func _grid_tool() -> void:
 
 
 func _tool_options() -> void:
+	var has: Array = []
+	for item in tools.tools:
+		if item.has_options():
+			has.append(item.tool_id())
+	has.sort()
+	_check(has == ["bind", "channel", "grid", "pitch", "tap", "zoom"], "these tools have panels")
+	for id in has:
+		var box := VBoxContainer.new()
+		add_child(box)
+		tools.get_tool(id).build_options(box)
+		_check(box.get_child_count() > 0, "%s builds its panel" % id)
+		box.queue_free()
 	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
 	var b := surface.add_note_at(Vector2(500, 300), 62, 0)
 	surface.snapping.toggle_grid(surface.get_note(a), false)
@@ -1109,28 +1117,40 @@ func _tool_options() -> void:
 	var notices: Array = []
 	var spy := func(text: String) -> void: notices.append(text)
 	tools.notice.connect(spy)
-	var grid: Tool = tools.get_tool("grid")
-	_check(not tools.open_tool_options(tools.get_tool("select"), Vector2(40, 300)), "no options, no ring")
-	_check(not radial.visible, "nothing opened")
-	_check(tools.open_tool_options(grid, Vector2(40, 300)), "Grid has options")
-	_check(radial.visible and radial.holding and radial.outer_items.size() == 1 and radial.title == "Grid", "its ring opens held")
+	var grid: GridTool = tools.get_tool("grid")
 	var steps := surface.history.undo_steps()
-	radial.outer_chosen.emit("clear_all")
+	grid.clear_all()
 	_check(surface.snapping.active_grids().is_empty() and notices == ["Grids cleared"], "Clear All works from any tool")
 	_check(surface.history.undo_steps() == steps + 1, "and can be undone")
-	radial.close()
 	surface.history.end_group()
 	surface.undo()
 	_check(surface.snapping.active_grids().size() == 2, "undo restores them")
 	surface.history.end_group()
 	surface.snapping.clear_grids()
 	surface.history.end_group()
-	tools.open_tool_options(grid, Vector2(40, 300))
-	radial.outer_chosen.emit("clear_all")
+	grid.clear_all()
 	_check(notices[-1] == "No grids on", "says when there are none")
-	radial.close()
-	_check(tools.current_id() == "select", "the tool doesn't change")
 	tools.notice.disconnect(spy)
+	surface.clear_notes()
+	# Scale: existing notes keep their pitch; a nudge lands on the scale.
+	var n := surface.add_note_at(Vector2(300, 300), 60, 0)
+	var scale_before: String = Settings.scale_name
+	var o := surface.get_note(n)
+	o.note = 61
+	Settings.set_value("scale_name", "Major")
+	_check(o.note == 61, "a scale change leaves notes alone")
+	surface.selection.notes = {n: true}
+	surface.nudge_pitch(1, false)
+	_check(Scales.quantize(o.note, Settings.root_note, "Major") == o.note and o.note > 61, "a nudge lands on the scale")
+	o.note = 61
+	surface.nudge_pitch(-1, false)
+	_check(Scales.quantize(o.note, Settings.root_note, "Major") == o.note and o.note < 61, "down too")
+	surface.selection.clear()
+	tools.open_ring_for("pitch", n, Vector2(600, 400))
+	var shown: Array = radial.outer_items.map(func(i: Dictionary) -> int: return i.id)
+	_check(shown == Scales.octave_notes(tools.get_tool("pitch")._octave, Settings.root_note, "Major"), "the ring shows the scale")
+	radial.close()
+	Settings.set_value("scale_name", scale_before)
 	surface.clear_notes()
 
 

@@ -534,13 +534,6 @@ func _on_setting_changed(key: String) -> void:
 		_zoom = z()
 		view_offset = anchor_w - anchor_s / _zoom
 		Settings.view_offset = view_offset
-	if key == "root_note" or key == "scale_name":
-		for o in notes + [_brush()]:
-			var q := Scales.quantize(o.note, Settings.root_note, Settings.scale_name)
-			if q != o.note:
-				o.silence()
-				o.note = q
-		save_notes()
 
 
 # --- Playing -------------------------------------------------------------------------------

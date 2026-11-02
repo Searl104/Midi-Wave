@@ -17,6 +17,19 @@ func edits_layout() -> bool:
 	return false
 
 
+func has_options() -> bool:
+	return true
+
+
+func build_options(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "WAVE", Palette.RED)
+	PanelBuilder.slider(box, "Strength", "wave_strength", 0.1, 1.0, 0.01, func(v: float) -> String: return "%d%%" % roundi(v * 100))
+	PanelBuilder.slider(box, "Reach", "wave_range", 150.0, 2500.0, 10.0, func(v: float) -> String:
+		return "%.1f beats" % (v / Settings.BEAT_UNIT))
+	PanelBuilder.slider(box, "Falloff curve", "falloff_curve", 0.4, 4.0, 0.05, func(v: float) -> String:
+		return "%.2f %s" % [v, "(linear)" if absf(v - 1.0) < 0.03 else ""])
+
+
 func handle_input(event: InputEvent) -> bool:
 	var mb := event as InputEventMouseButton
 	if mb and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
