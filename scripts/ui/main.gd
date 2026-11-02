@@ -19,6 +19,7 @@ var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
 var cheat_sheet: CheatSheet
+var toolbar: Toolbar
 var midi_in: MidiInput
 var _hint_key := ""
 
@@ -53,12 +54,24 @@ func _ready() -> void:
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(surface)
 	surface.mode_changed.connect(_on_mode_changed)
+	surface.tool_changed.connect(_on_tool_changed)
+	surface.ring_requested.connect(_on_ring_tool)
+	surface.tool_used.connect(func() -> void:
+		if _tool_key_held != KEY_NONE:
+			_tool_key_used = true)
 	surface.pitch_menu_requested.connect(_on_right_click)
 	surface.channel_menu_requested.connect(_open_channel_menu)
 	surface.pulse_menu_requested.connect(_open_pulse_menu)
 	surface.modifier_menu_requested.connect(_open_modifier_menu)
 
 	_build_hud()
+
+	toolbar = Toolbar.new()
+	toolbar.surface = surface
+	add_child(toolbar)
+	toolbar.tool_picked.connect(pick_tool)
+	surface.draw_type = WaveSurface.Mode.RELAY if int(Settings.draw_type) == WaveSurface.Mode.RELAY else WaveSurface.Mode.NOTE
+	surface.set_tool(Settings.tool if WaveSurface.TOOLS.has(Settings.tool) else "select")
 
 	options = OptionsPanel.new()
 	add_child(options)
@@ -160,8 +173,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not key.pressed:
 		if pad >= KEY_KP_1 and pad <= KEY_KP_9:
 			surface.release_slot(pad - KEY_KP_0)
-		elif RING_KEYS.has(key.keycode):
-			_release_ring_key(RING_KEYS[key.keycode])
+		elif TOOL_KEYS.has(key.keycode):
+			_tool_key_up(key.keycode)
 		return
 	if key.echo:
 		return
@@ -216,13 +229,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if key.ctrl_pressed and surface.edit_mode:
 				_undo_redo(true)
 				get_viewport().set_input_as_handled()
-		KEY_C, KEY_E, KEY_F:
-			if key.keycode == KEY_C and key.ctrl_pressed:
-				if surface.edit_mode:
-					surface.copy_selection()
-					get_viewport().set_input_as_handled()
-			elif not key.ctrl_pressed and not key.alt_pressed and surface.edit_mode and not radial.visible:
-				arm_ring(RING_KEYS[key.keycode])
+		KEY_C:
+			if key.ctrl_pressed and surface.edit_mode:
+				surface.copy_selection()
+				get_viewport().set_input_as_handled()
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7:
+			if not key.ctrl_pressed and not key.alt_pressed and not radial.visible:
+				_tool_key_down(key.keycode)
 				get_viewport().set_input_as_handled()
 		KEY_COMMA, KEY_PERIOD, KEY_LESS, KEY_GREATER:
 			# < / >: one scale step down / up; Shift: an octave. Selection, else the hovered note.
@@ -247,10 +260,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			surface.frame_notes()
 			get_viewport().set_input_as_handled()
 		KEY_ESCAPE:
-			if armed_ring != "":
-				arm_ring("")
-				get_viewport().set_input_as_handled()
-			elif options.visible:
+			if options.visible:
 				options.hide()
 				get_viewport().set_input_as_handled()
 			elif surface.has_selection():
@@ -259,106 +269,133 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 ## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
+## Hint bar (R3): the actions for whatever is under the mouse, from WaveSurface.hint_context().
+## These are the Select tool's; other tools show _tool_hint() over notes and empty space.
 const HINTS_EDIT := {
-	"empty": "Click: wave  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Shift-click: note with last pitch  ·  Ctrl + right-drag: box select  ·  Middle-drag: pan  ·  Tab: play mode  ·  ?: all controls",
-	"note": "Click: wave from it  ·  Drag: move  ·  Right-click: pitch (C / E / F first: channel / pulse / modifier)  ·  < >: nudge pitch  ·  Ctrl-click: make it a relay  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
-	"pulser": "Relay  ·  Click: trigger  ·  Drag: move  ·  Ctrl-click: make it a note  ·  Ctrl-drag: its reach  ·  Right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove  ·  Ctrl+KP: keypad key",
-	"emitter": "Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under the emitter",
-	"selected": "Drag: move the group  ·  Ring edits, < >, M, Delete and Ctrl+KP apply to all  ·  Ctrl+C: copy  ·  Esc: clear",
+	"empty": "Select  ·  Drag: box select (Shift adds)  ·  Right-click: pitch ring (hold, aim, release: place)  ·  Ctrl + wheel: zoom  ·  1-7: tools  ·  Tab: Wave  ·  ?: all controls",
+	"note": "Select  ·  Click: select it (Shift adds)  ·  Drag: move  ·  Right-click: pitch ring  ·  < >: nudge pitch  ·  Ctrl-click: make it a relay  ·  M: mute  ·  G: grid  ·  Delete: remove",
+	"pulser": "Relay  ·  Click: select it (Shift adds)  ·  Drag: move  ·  Ctrl-click: make it a note  ·  Ctrl-drag: its reach  ·  Right-click: pulse ring  ·  M: mute  ·  G: grid  ·  Delete: remove",
+	"emitter": "Click: select the diamond  ·  Drag: place where its wave starts (drop on the note to re-attach)  ·  Ctrl-drag: its reach  ·  G: grid under it",
+	"selected": "Drag: move the group  ·  Ring edits, < >, M, Delete and Ctrl+KP apply to all  ·  Shift-click: deselect  ·  Ctrl+C: copy  ·  Esc: clear",
 	"selection": "%d selected  ·  M: mute all  ·  Delete: remove all  ·  Ctrl+C: copy  ·  Ctrl+V: paste at the mouse  ·  Esc or click empty space: clear",
 	"drag_note": "Snapping to grid points (G over a note or emitter adds a grid)  ·  Drop on a note or emitter: snap to its centre  ·  Shift: free",
 	"drag_emitter": "Place where the wave starts  ·  Snaps to grid points and centres  ·  Drop on its note: re-attach  ·  Shift: free",
 	"range": "Set this emitter's reach (snaps to beat divisions)  ·  Back onto the note: global reach  ·  Shift: free",
 	"box": "Release to select  ·  Hold Shift to add to the selection",
 }
-const HINT_PLAY := "Play mode  ·  Click: wave or trigger  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab: edit mode  ·  ?: all controls"
+const HINT_PLAY := "Wave  ·  Click: wave, or play a note  ·  KP1-9: slots  ·  Middle-drag: pan  ·  Space: stop  ·  Tab or 2-7: edit  ·  ?: all controls"
+
+
+func _tool_hint() -> String:
+	match surface.tool:
+		"draw":
+			var what := "Relays" if surface.draw_type == WaveSurface.Mode.RELAY else "Notes"
+			return "Draw: %s  ·  Click or drag: place on grid points  ·  3 again: switch to %s  ·  Drag a note: move  ·  Right-click: ring" % [
+					what, "Notes" if what == "Relays" else "Relays"]
+		"pitch":
+			return "Pitch  ·  Click a note (or empty space to place): pitch ring  ·  Hold, aim, release to pick  ·  A / D: octave  ·  type 1-16: channel"
+		"channel":
+			return "Channel  ·  Click a note: channel ring  ·  Hold, aim, release to pick  ·  Right-click: pitch ring"
+		"pulse":
+			return "Pulse  ·  Click a note: pulse ring (cooldown, strength; centre: Note / Relay)  ·  Hold, aim, release to pick"
+		"modifier":
+			return "Modifier  ·  Click a note: modifier ring (Toggle and its start state)  ·  Hold, aim, release to pick"
+	return ""
 
 
 func _on_mode_changed(edit: bool) -> void:
 	if radial and radial.visible:
 		radial.close()
-	armed_ring = ""
-	_held_ring = ""
 	_refresh_hint()
-	_toast("Edit mode" if edit else "Play mode  ·  layout locked")
+	_toast(TOOL_NAMES[surface.tool] if edit else "Wave  ·  layout locked")
 
 
-# --- Ring choice (R8) --------------------------------------------------------------------------
-# Right-click always summons the active ring. Pitch is the default; C, E and F pick the channel,
-# pulse or modifier ring for the next right-click on a note, then it goes back to pitch. Holding
-# the key while right-dragging is a quick ring: flick to an item and release.
+# --- Toolbar tools ---------------------------------------------------------------------------
+# Number keys 1-7 pick a tool: Wave, Select, Draw, Pitch, Channel, Pulse, Modifier. A tap
+# switches; holding a key uses that tool only until it's let go (if it was used meanwhile).
+# Picking Draw again switches what it places (Note or Relay). Tab flips Wave <-> last edit tool.
 
-const RING_KEYS := {KEY_C: "channel", KEY_E: "pulse", KEY_F: "modifier"}
-const RING_NAMES := {"channel": "Channel", "pulse": "Pulse", "modifier": "Modifier"}
-const RING_KEY_LABELS := {"channel": "C", "pulse": "E", "modifier": "F"}
+const TOOL_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7]
+const TOOL_NAMES := {"wave": "Wave", "select": "Select", "draw": "Draw", "pitch": "Pitch",
+		"channel": "Channel", "pulse": "Pulse", "modifier": "Modifier"}
 
-var armed_ring := ""        ## "" = pitch (the default), else "channel", "pulse" or "modifier"
-var _held_ring := ""        ## the ring whose key is held down: it stays active until the key is let go
-var _held_used := false     ## the held ring was opened at least once while its key was down
-
-
-## Picks the ring the next right-click opens. Picking the armed ring again cancels it.
-func arm_ring(ring: String) -> void:
-	armed_ring = "" if ring == armed_ring else ring
-	_held_ring = armed_ring
-	_held_used = false
-	_refresh_hint()
+var _tool_key_held := KEY_NONE   ## the tool key still down, if any
+var _tool_prev := ""             ## the tool before that key went down
+var _tool_key_used := false      ## the held tool was used: letting go returns to _tool_prev
 
 
-## Letting go of C / E / F. A ring used while its key was held ends with the key; a quick tap
-## (not used yet) stays armed for one right-click.
-func _release_ring_key(ring: String) -> void:
-	if _held_ring != ring:
+func pick_tool(t_name: String) -> void:
+	if t_name == "draw" and surface.tool == "draw":
+		surface.toggle_draw_type()
+		_toast("Draw: %s" % ("Relays" if surface.draw_type == WaveSurface.Mode.RELAY else "Notes"))
 		return
-	_held_ring = ""
-	if _held_used and armed_ring == ring:
-		armed_ring = ""
-	_held_used = false
+	surface.set_tool(t_name)
+
+
+func _tool_key_down(key: int) -> void:
+	var t_name: String = WaveSurface.TOOLS[TOOL_KEYS.find(key)]
+	var before: String = surface.tool
+	pick_tool(t_name)
+	if surface.tool != before:
+		_tool_key_held = key
+		_tool_prev = before
+		_tool_key_used = false
+
+
+func _tool_key_up(key: int) -> void:
+	if key != _tool_key_held:
+		return
+	_tool_key_held = KEY_NONE
+	if _tool_key_used and _tool_prev != "":
+		surface.set_tool(_tool_prev)       # held: back to the tool from before
+	_tool_prev = ""
+
+
+func _on_tool_changed(_t: String) -> void:
+	if radial and radial.visible:
+		radial.close()
+	if toolbar:
+		toolbar.queue_redraw()
+	Settings.set_value("tool", surface.tool)
+	Settings.set_value("draw_type", surface.draw_type)
 	_refresh_hint()
 
 
-func _on_right_click(note_id: int, at: Vector2) -> void:
-	var ring := armed_ring
-	if ring == "":
-		var n := surface.get_note(note_id)
-		if not n.is_empty() and n.mode == WaveSurface.Mode.RELAY:
-			# A relay has no pitch to play: its default ring is the pulse ring.
-			_open_pulse_menu(note_id, at, true)
-		else:
-			_open_pitch_menu(note_id, at)
-		return
-	if note_id == -1:
-		_toast("Right-click a note for the %s ring" % RING_NAMES[ring])
-		return
-	if _held_ring == ring:
-		_held_used = true            # key still held: the ring stays active until it's let go
-	else:
-		armed_ring = ""              # tapped: used once, then back to pitch
-	_refresh_hint()
-	# Opened as a held ring: flick and release to choose (the quick ring); a tap keeps it open.
+## A ring tool's left press on a note (Pitch also on empty space): open that ring, held with the
+## left button, so press-aim-release picks and a quick click leaves it open.
+func _on_ring_tool(ring: String, note_id: int, at: Vector2) -> void:
 	match ring:
+		"pitch":
+			_open_pitch_menu(note_id, at)
 		"channel":
 			_open_channel_menu(note_id, at, true)
 		"pulse":
 			_open_pulse_menu(note_id, at, true)
 		"modifier":
 			_open_modifier_menu(note_id, at, true)
+	radial.holding = true
+	radial.hold_button = MOUSE_BUTTON_LEFT
+
+
+## Right-click: the default ring. A relay has no pitch to play, so its default is the pulse ring.
+func _on_right_click(note_id: int, at: Vector2) -> void:
+	var n := surface.get_note(note_id)
+	if not n.is_empty() and n.mode == WaveSurface.Mode.RELAY:
+		_open_pulse_menu(note_id, at, true)
+	else:
+		_open_pitch_menu(note_id, at)
 
 
 func _refresh_hint() -> void:
 	var text: String
-	if armed_ring != "" and _held_ring == armed_ring and _held_used:
-		text = "%s ring while %s is held  ·  Right-click notes  ·  let go of %s for pitch" % [
-				RING_NAMES[armed_ring], RING_KEY_LABELS[armed_ring], RING_KEY_LABELS[armed_ring]]
-	elif armed_ring != "":
-		var k: String = RING_KEY_LABELS[armed_ring]
-		text = "%s ring armed  ·  Right-click a note (or hold %s and right-drag, release to choose)  ·  %s or Esc cancels" % [
-				RING_NAMES[armed_ring], k, k]
-	elif not surface.edit_mode:
+	if not surface.edit_mode:
 		text = HINT_PLAY
 	else:
 		var ctx: String = surface.hint_context()
-		text = HINTS_EDIT[ctx]
+		if surface.tool != "select" and ["empty", "note", "pulser", "emitter", "selected"].has(ctx):
+			text = _tool_hint()
+		else:
+			text = HINTS_EDIT[ctx]
 		if ctx == "selection":
 			text = text % surface.selection_count()
 		elif ctx == "empty" and surface.has_grids():
@@ -414,8 +451,8 @@ func _notification(what: int) -> void:
 	# A key released while the window is unfocused never arrives: don't leave slots held.
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
 		surface.release_all_slots()
-		if _held_ring != "":
-			_release_ring_key(_held_ring)       # its key-up will never arrive
+		if _tool_key_held != KEY_NONE:
+			_tool_key_up(_tool_key_held)        # its key-up will never arrive
 
 
 func _reopen_last_port() -> void:

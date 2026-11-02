@@ -35,7 +35,8 @@ var outer_items: Array = []
 var inner_items: Array = []
 var center_item: Dictionary = {}
 
-var holding := false        ## true while the opening right-button press is still held
+var holding := false        ## true while the opening button press is still held
+var hold_button := MOUSE_BUTTON_RIGHT   ## the button that opened it held (left for a ring tool)
 
 var _center := Vector2.ZERO
 var _press_pos := Vector2.ZERO
@@ -53,7 +54,8 @@ func _ready() -> void:
 	hide()
 
 
-func open(at: Vector2, hold: bool = false) -> void:
+func open(at: Vector2, hold: bool = false, button: int = MOUSE_BUTTON_RIGHT) -> void:
+	hold_button = button
 	var m := OUTER_R1 + 12.0
 	var top := OUTER_R1 + 34.0   # room for the title
 	_center = Vector2(clampf(at.x, m, maxf(m, size.x - m)), clampf(at.y, top, maxf(top, size.y - m)))
@@ -155,6 +157,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if not visible:
 		return
+	# Opened held with the left button (a ring tool): its release works like a right release.
+	if lb and lb.button_index == MOUSE_BUTTON_LEFT and not lb.pressed and holding and hold_button == MOUSE_BUTTON_LEFT:
+		get_viewport().set_input_as_handled()
+		_release_hold(lb.position)
+		return
 	# Left clicks belong to the menu while it's open, held or not: an item is picked and the
 	# menu stays open for more picks; a click off the ring closes it. None reach the surface.
 	if lb and lb.button_index == MOUSE_BUTTON_LEFT:
@@ -181,15 +188,19 @@ func _input(event: InputEvent) -> void:
 		_set_hover(_ring_at(mm.position))
 		return
 	var mb := event as InputEventMouseButton
-	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
-		holding = false
-		if not _moved and Time.get_ticks_msec() - _opened_msec < TAP_MS:
-			return                      # a quick tap: stay open in click mode
-		# A held release picks whatever is under the pointer (outer, inner or centre) and
-		# closes; released in the dead zone it cancels.
-		_activate(mb.position)
-		if visible:
-			close()
+	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed and hold_button == MOUSE_BUTTON_RIGHT:
+		_release_hold(mb.position)
+
+
+## The held button came up: a quick tap leaves the menu open in click mode; otherwise pick
+## whatever is under the pointer (outer, inner or centre) and close, or cancel in the dead zone.
+func _release_hold(pos: Vector2) -> void:
+	holding = false
+	if not _moved and Time.get_ticks_msec() - _opened_msec < TAP_MS:
+		return
+	_activate(pos)
+	if visible:
+		close()
 
 
 func _handle_key(key: InputEventKey) -> bool:

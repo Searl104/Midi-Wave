@@ -3,38 +3,37 @@ extends Control
 ## The ? / F1 overlay: every control, grouped by task. Esc, ?, F1 or a click closes it.
 
 const SECTIONS := [
+	["TOOLS (TAP A KEY; HOLD IT FOR NOW ONLY)", [
+		["1  Wave", "Click: wave, or play a note · layout locked"],
+		["2  Select", "Click: select (Shift adds) · drag empty: box · drag: move"],
+		["3  Draw", "Click / drag: place on grid points · 3 again: Notes / Relays"],
+		["4  Pitch", "Click a note (or empty space): pitch ring"],
+		["5  Channel", "Click a note: channel ring"],
+		["6  Pulse", "Click a note: pulse ring"],
+		["7  Modifier", "Click a note: modifier ring"],
+		["Tab", "Wave ↔ the last editing tool"],
+	]],
 	["PLAY", [
-		["Click empty space", "Send a wave"],
-		["Click a note", "Plain note: a wave from it · pulser: trigger it"],
-		["KP1–KP9", "Trigger that key's notes (hold: pulsers refire)"],
-		["Space, KP0", "Stop: clear waves, reset toggles (cooldowns keep running)"],
+		["KP1–KP9, pads", "Fire that key's notes (hold: pulsers refire)"],
+		["Space, KP0", "Stop: clear waves, reset toggles"],
 		["Ctrl+S", "Save state: toggles' current state becomes their start"],
-		["Tab", "Edit / Play mode (Play locks the layout)"],
 	]],
-	["PLACE", [
-		["Right-click empty space", "Pitch ring; hold, aim, release: quick place"],
-		["Shift-click", "Note with the last pitch and channel"],
+	["RINGS", [
+		["Right-click", "Pitch ring (a relay: pulse ring)"],
+		["Hold, aim, release", "Pick and close (outer, inner or centre)"],
+		["Left-click in a ring", "Pick and keep it open"],
 		["In the pitch ring", "A / D or wheel: octave · type 1–16: channel"],
-		["Ctrl+V", "Paste the copied group at the mouse"],
+		["Pitch ring centre", "Delete the note"],
 	]],
-	["EDIT A NOTE", [
-		["Right-click a note", "Pitch ring (hold: retune; release on centre: delete)"],
-		["C / E / F, right-click", "Channel / pulse / modifier ring, once"],
-		["Hold C / E / F", "That ring for every right-click until let go"],
+	["EDIT", [
 		["Ctrl-click", "Switch Note ↔ Relay"],
-		["Drag the ◆", "Place where a pulser's wave starts"],
-		["Ctrl-drag a pulser", "Its own wave reach (back onto it: global)"],
+		["Drag the ◆", "Place where a relay's wave starts"],
+		["Ctrl-drag a relay", "Its own wave reach (back onto it: global)"],
 		["< / >", "Nudge a scale step (Shift: an octave)"],
 		["M", "Mute / unmute (no sound, no pulse)"],
 		["Ctrl+KP1–KP9", "Assign / unassign a keypad key"],
-		["Delete", "Remove the note"],
-	]],
-	["SELECT", [
-		["Ctrl + right-drag", "Box select notes and ◆ (Shift adds)"],
-		["Drag a selected note", "Move the group"],
-		["Menus, M, Delete, Ctrl+KP", "Apply to the whole selection"],
-		["Ctrl+C", "Copy the selection"],
-		["Esc", "Clear the selection"],
+		["Delete", "Remove the selection or hovered note"],
+		["Ctrl+C / Ctrl+V", "Copy / paste the selection"],
 	]],
 	["SNAP", [
 		["G over a note or ◆", "Grid on / off under it"],
@@ -44,6 +43,7 @@ const SECTIONS := [
 	]],
 	["VIEW AND APP", [
 		["Middle-drag, arrows", "Pan"],
+		["Ctrl + wheel", "Zoom about the pointer"],
 		["Home", "Centre on the notes"],
 		["Ctrl+Z", "Undo (Ctrl+Shift+Z or Ctrl+Y: redo)"],
 		["O", "Options"],

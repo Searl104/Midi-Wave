@@ -57,6 +57,21 @@ signal pulse_menu_requested(note_id: int, at: Vector2)
 signal modifier_menu_requested(note_id: int, at: Vector2)
 signal notes_changed
 signal mode_changed(edit: bool)
+signal tool_changed(tool: String)
+signal ring_requested(ring: String, note_id: int, at: Vector2)   # a ring tool's left press
+signal tool_used                                                 # any left press: ends a held tool key's tap
+
+## Toolbar tools (number keys 1-7). Wave is the old Play mode: it plays and edits nothing.
+const TOOLS := ["wave", "select", "draw", "pitch", "channel", "pulse", "modifier"]
+const RING_TOOLS := ["pitch", "channel", "pulse", "modifier"]
+var tool := "select"
+var last_edit_tool := "select"     ## what Tab returns to from the Wave tool
+var draw_type := 0                 ## what the Draw tool places: Mode.NOTE or Mode.RELAY
+var _draw_active := false          # a Draw stroke is under way
+var _draw_points: Array = []       # world points placed in this stroke
+var _box_add := false              # this box adds to the selection (Shift)
+var _zoom_anchor: Variant = null   # screen point a Ctrl + wheel zoom keeps still
+var _stroke_open := false          # edits during a Draw stroke share one undo step
 
 ## Edit mode (default) lets you change the layout. Play mode only plays it: clicks send waves
 ## or trigger notes, the keypad plays slots, Space stops, the view pans and zooms, and nothing
@@ -288,7 +303,7 @@ func _record_edit(layout: Array) -> void:
 	if JSON.stringify(layout) == JSON.stringify(_snapshot):
 		return
 	var frame := Engine.get_process_frames()
-	if frame != _last_edit_frame or _undo.is_empty():
+	if (frame != _last_edit_frame and not (_stroke_open and _last_edit_frame >= 0)) or _undo.is_empty():
 		_undo.append(_snapshot)
 		if _undo.size() > UNDO_LIMIT:
 			_undo.pop_front()
@@ -314,6 +329,13 @@ func redo_steps() -> int:
 
 
 ## The next edit starts a new undo step even if it lands in the same frame.
+## Starts or ends a stroke: every edit until it ends is one undo step (a Draw drag).
+func set_stroke(open: bool) -> void:
+	_stroke_open = open
+	if open:
+		_last_edit_frame = -1
+
+
 func end_undo_group() -> void:
 	_last_edit_frame = -1
 
@@ -785,14 +807,32 @@ func hint_context() -> String:
 
 
 func set_edit_mode(on: bool) -> void:
-	if on == edit_mode:
+	set_tool(last_edit_tool if on else "wave")
+
+
+## Picks a toolbar tool. The Wave tool is the old Play mode: the layout is locked.
+func set_tool(t_name: String) -> void:
+	if not TOOLS.has(t_name) or t_name == tool:
 		return
-	edit_mode = on
 	_end_press()
+	_end_draw()
 	_box_active = false
-	if not on:
-		clear_selection()
-	mode_changed.emit(on)
+	tool = t_name
+	if tool != "wave":
+		last_edit_tool = tool
+	var on := tool != "wave"
+	if on != edit_mode:
+		edit_mode = on
+		if not on:
+			clear_selection()
+		mode_changed.emit(on)
+	tool_changed.emit(tool)
+
+
+## Draw places Notes or Relays; picking Draw again switches.
+func toggle_draw_type() -> void:
+	draw_type = Mode.RELAY if draw_type == Mode.NOTE else Mode.NOTE
+	tool_changed.emit(tool)
 
 
 func get_note(id: int) -> Dictionary:
@@ -867,10 +907,11 @@ func _add(world_pos: Vector2, pitch: int, channel: int) -> int:
 
 func _on_setting_changed(key: String) -> void:
 	if key == "beat_spacing":
-		# Zoom about the centre of the window.
-		var centre := view_offset + size / (2.0 * _zoom)
+		# Zoom about the pointer (Ctrl + wheel) or the centre of the window (the slider).
+		var anchor_s: Vector2 = _zoom_anchor if _zoom_anchor != null else size / 2.0
+		var anchor_w := view_offset + anchor_s / _zoom
 		_zoom = z()
-		view_offset = centre - size / (2.0 * _zoom)
+		view_offset = anchor_w - anchor_s / _zoom
 		Settings.view_offset = view_offset
 	if key == "root_note" or key == "scale_name":
 		for n in notes:
@@ -1358,6 +1399,10 @@ static func _gcd(a: int, b: int) -> int:
 func _gui_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if mb:
+		if mb.ctrl_pressed and mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+			zoom_at(mb.position, 1.1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
+			accept_event()
+			return
 		_handle_button(mb)
 		accept_event()
 		return
@@ -1367,6 +1412,9 @@ func _gui_input(event: InputEvent) -> void:
 		_mouse_in = true
 		if _box_active:
 			_box_end = mm.position
+			return
+		if _draw_active:
+			_draw_to(mm.position)
 			return
 		if _pan_active:
 			if not _pan_moved and mm.position.distance_to(_pan_start) > DRAG_THRESHOLD:
@@ -1493,6 +1541,46 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 		return
 	if not edit_mode and mb.button_index == MOUSE_BUTTON_RIGHT:
 		return
+	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		tool_used.emit()
+	if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and (_box_active or _draw_active):
+		if _box_active:
+			_finish_box(pos)
+		_end_draw()
+		return
+	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and not mb.ctrl_pressed and not mb.alt_pressed:
+		if tool == "draw" and hit == -1 and handle == -1:
+			_begin_draw(pos)
+			return
+		if RING_TOOLS.has(tool):
+			if hit != -1 or tool == "pitch":
+				ring_requested.emit(tool, hit, pos)
+			return
+		if tool == "select" or tool == "draw":
+			if handle != -1:
+				if mb.shift_pressed and tool == "select":
+					_toggle_key(emit_selection, handle)
+				elif not emit_selection.has(handle):
+					clear_selection()
+					if tool == "select":
+						emit_selection[handle] = true
+				_begin_press(handle, "emitter", pos)
+				return
+			if hit != -1:
+				if mb.shift_pressed and tool == "select":
+					_toggle_key(selection, hit)
+				elif not selection.has(hit):
+					clear_selection()
+					if tool == "select":
+						selection[hit] = true
+				_begin_press(hit, "note", pos)
+				return
+			# Select: a drag on empty space is a box (Shift adds); a plain click clears.
+			_box_active = true
+			_box_add = mb.shift_pressed
+			_box_start = pos
+			_box_end = pos
+			return
 	match mb.button_index:
 		MOUSE_BUTTON_LEFT:
 			if mb.pressed:
@@ -1507,8 +1595,6 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				elif mb.alt_pressed:
 					if hit != -1:
 						channel_menu_requested.emit(hit, pos)
-				elif mb.shift_pressed:
-					add_note_at(pos, last_pitch, last_channel)
 				elif handle != -1:
 					if not emit_selection.has(handle):
 						clear_selection()
@@ -1529,6 +1615,7 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 						pulse_menu_requested.emit(hit, pos)
 					else:
 						_box_active = true          # box select from empty space
+						_box_add = false
 						_box_start = pos
 						_box_end = pos
 				elif mb.shift_pressed:
@@ -1540,12 +1627,8 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				else:
 					pitch_menu_requested.emit(hit, pos)
 			elif _box_active:
-				_box_active = false
-				_box_end = pos
-				if _box_start.distance_to(_box_end) > DRAG_THRESHOLD:
-					select_in_rect(Rect2(_box_start, _box_end - _box_start), mb.shift_pressed)
-				else:
-					clear_selection()
+				_box_add = _box_add or mb.shift_pressed
+				_finish_box(pos)
 		MOUSE_BUTTON_MIDDLE:
 			# Middle only pans. (It used to delete on a click, which a short pan could trigger.)
 			if mb.pressed:
@@ -1555,6 +1638,64 @@ func _handle_button(mb: InputEventMouseButton) -> void:
 				_pan_last = pos
 			elif _pan_active:
 				_pan_active = false
+
+
+func _toggle_key(d: Dictionary, key: int) -> void:
+	if d.has(key):
+		d.erase(key)
+	else:
+		d[key] = true
+
+
+func _finish_box(pos: Vector2) -> void:
+	_box_active = false
+	_box_end = pos
+	if _box_start.distance_to(_box_end) > DRAG_THRESHOLD:
+		select_in_rect(Rect2(_box_start, _box_end - _box_start), _box_add)
+	elif not _box_add:
+		clear_selection()
+
+
+## Ctrl + wheel: zoom (beat spacing) by `factor`, keeping the world point under `at` still.
+func zoom_at(at: Vector2, factor: float) -> void:
+	var v := clampf(Settings.beat_spacing * factor, Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX)
+	if is_equal_approx(v, Settings.beat_spacing):
+		return
+	_zoom_anchor = at
+	Settings.set_value("beat_spacing", v)
+	_zoom_anchor = null
+
+
+# --- Draw tool: places the current type on grid points; a drag places one per point passed. ---
+
+func _begin_draw(pos: Vector2) -> void:
+	clear_selection()
+	_draw_active = true
+	_draw_points = []
+	set_stroke(true)
+	_draw_to(pos)
+
+
+func _draw_to(screen_pos: Vector2) -> void:
+	var w := grid_snap(to_world(screen_pos))
+	var gap := ring_step() * 0.99               # at most one object per division along a stroke
+	for q in _draw_points:
+		if (q as Vector2).distance_to(w) < gap:
+			return
+	if not _draw_points.is_empty() and note_at(to_screen(w)) != -1:
+		return                                  # don't stack onto existing notes mid-stroke
+	_draw_points.append(w)
+	var id := _add(w, Scales.quantize(last_pitch, Settings.root_note, Settings.scale_name), last_channel)
+	if draw_type == Mode.RELAY:
+		get_note(id).mode = Mode.RELAY
+	save_notes()
+
+
+func _end_draw() -> void:
+	if _draw_active:
+		_draw_active = false
+		_draw_points = []
+		set_stroke(false)
 
 
 func _begin_press(id: int, kind: String, pos: Vector2) -> void:
@@ -1616,7 +1757,7 @@ func _end_press() -> void:
 					n.emit = n.pos
 					emit_selection.erase(n.id)
 				save_notes()
-			elif _press_kind == "note":
+			elif _press_kind == "note" and tool == "wave":
 				click_note(n.id)
 	_press_id = -1
 	_press_kind = ""
