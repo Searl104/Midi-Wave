@@ -167,14 +167,14 @@ func close_ring() -> void:
 
 
 ## Opens `ring_id`'s ring for an object (-1 = no object: the pitch ring places a new one).
-func open_ring_for(ring_id: String, note_id: int, at: Vector2) -> void:
+func open_ring_for(ring_id: String, note_id: int, at: Vector2, hold: bool = false) -> void:
 	open_ring = _settings_rings[ring_id] if _settings_rings.has(ring_id) else get_tool(ring_id)
-	open_ring.open(radial, note_id, at)
+	open_ring.open(radial, note_id, at, hold)
 
 
-## Opens a modifier's settings ring at `at`.
+## Opens a modifier's settings ring at `at`, held for a quick pick.
 func open_tab(note: Note, modifier: Modifier, at: Vector2) -> void:
-	open_ring_for(modifier.ring_id(), note.id, at)
+	open_ring_for(modifier.ring_id(), note.id, at, true)
 
 
 ## The default ring, on a note or on empty space.

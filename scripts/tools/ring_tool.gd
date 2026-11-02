@@ -11,12 +11,12 @@ func section() -> int:
 	return 2
 
 
-func open(menu: RadialMenu, id: int, at: Vector2) -> void:
+func open(menu: RadialMenu, id: int, at: Vector2, hold: bool = false) -> void:
 	radial = menu
 	note_id = id
 	_prepare(at)
 	build()
-	radial.open(at)
+	radial.open(at, hold)
 
 
 ## Before the first build().

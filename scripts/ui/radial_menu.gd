@@ -1,8 +1,11 @@
 class_name RadialMenu
 extends Control
 ## Ring-shaped picker. It draws the rings and reports what is under a point. Left clicks pick and
-## keep it open, and any click off the rings closes it. activate() can also pick directly; outer
-## and centre picks close it unless `keep_open` is set.
+## keep it open, and any click off the rings closes it.
+##
+## Quick pick: opened with `hold` on a right-button press, it follows the pointer while the button
+## stays down. Releasing over any item picks it and closes; releasing off the rings cancels. A
+## release without moving leaves it open for clicking.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 
@@ -18,15 +21,19 @@ const INNER_R1 := 72.0
 const OUTER_R0 := 78.0
 const OUTER_R1 := 148.0
 const SOLO_R0 := 44.0
+const MOVE_SLOP := 6.0             ## px the pointer must move for a release to pick
 
 var title := ""
 var subtitle := ""
 var outer_items: Array = []
 var inner_items: Array = []
 var center_item: Dictionary = {}
+var holding := false               ## the opening right-button press is still down
 
 
 var _center := Vector2.ZERO
+var _press_pos := Vector2.ZERO
+var _moved := false
 var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
@@ -38,7 +45,10 @@ func _ready() -> void:
 	hide()
 
 
-func open(at: Vector2) -> void:
+func open(at: Vector2, hold: bool = false) -> void:
+	holding = hold
+	_press_pos = at
+	_moved = false
 	var m := OUTER_R1 + 12.0
 	var top := OUTER_R1 + 34.0   # room for the title
 	_center = Vector2(clampf(at.x, m, maxf(m, size.x - m)), clampf(at.y, top, maxf(top, size.y - m)))
@@ -51,6 +61,7 @@ func open(at: Vector2) -> void:
 
 
 func close() -> void:
+	holding = false
 	if visible:
 		hide()
 		closed.emit()
@@ -124,6 +135,30 @@ func activate(pos: Vector2, keep_open: bool = false) -> bool:
 		_:
 			return false
 	return true
+
+
+## While held, the press belongs to the control under it, so motion and the release go there.
+## Watch them here. They aren't consumed: that control must also see its release.
+func _input(event: InputEvent) -> void:
+	if not visible or not holding:
+		return
+	var mm := event as InputEventMouseMotion
+	if mm:
+		_moved = _moved or mm.position.distance_to(_press_pos) > MOVE_SLOP
+		hover_at(mm.position)
+		return
+	var mb := event as InputEventMouseButton
+	if mb == null:
+		return
+	if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
+		holding = false
+		if _moved:
+			activate(mb.position)
+			close()
+	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		get_viewport().set_input_as_handled()
+		if not activate(mb.position, true):
+			close()
 
 
 func _gui_input(event: InputEvent) -> void:

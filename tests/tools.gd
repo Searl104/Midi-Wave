@@ -29,6 +29,7 @@ func _ready() -> void:
 	_channel()
 	_modifiers()
 	_tabs()
+	_quick_pick()
 	_saves()
 	_default_ring()
 	print("TOOLS %s: %d checks, %d failed" % ["OK" if failures == 0 else "FAILED", checks, failures])
@@ -588,6 +589,88 @@ func _tabs() -> void:
 	_check(not radial.visible, "Tap locks tabs too")
 	tools.set_tool("select")
 	surface.selection.clear()
+	surface.clear_notes()
+
+
+func _radial_press(button: MouseButton, down: bool, at: Vector2) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = button
+	e.pressed = down
+	e.position = at
+	radial._input(e)
+
+
+func _radial_move(at: Vector2) -> void:
+	var e := InputEventMouseMotion.new()
+	e.position = at
+	radial._input(e)
+
+
+func _quick_pick() -> void:
+	var a := surface.add_note_at(Vector2(640, 400), 60, 0)
+	surface.add_modifier(a, "relay")
+	surface.add_modifier(a, "toggle")
+	var o := surface.get_note(a)
+	var e: Emitter = o.emitter()
+	tools.set_tool("select")
+	var dock: Vector2 = e.dock_screen_pos(surface, o)
+	var open_ring := func() -> Vector2:
+		_press(MOUSE_BUTTON_RIGHT, true, dock)
+		return radial._center
+	# Outer: release picks and closes.
+	var c: Vector2 = open_ring.call()
+	_check(radial.holding, "opens held")
+	var item: Vector2 = c + Vector2(0, -112)         # the top of the outer ring: Retrigger
+	_radial_move(item)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
+	_check(e.cooldown == 0.0 and not radial.visible, "release on the outer ring picks and closes")
+	# Inner.
+	c = open_ring.call()
+	item = c + Vector2(0, -54)                       # the top of the inner ring: 25%
+	_radial_move(item)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
+	_check(e.strength == 0.25 and not radial.visible, "release on the inner ring picks and closes")
+	# Centre.
+	c = open_ring.call()
+	_radial_move(c + Vector2(0, -112))
+	_radial_move(c)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
+	_check(not o.relay().sound and not radial.visible, "release on the centre picks and closes")
+	o.relay().sound = true
+	# Off the rings: cancels.
+	var settings := JSON.stringify(e.to_dict())
+	c = open_ring.call()
+	_radial_move(c + Vector2(250, 0))
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(250, 0))
+	_check(not radial.visible and JSON.stringify(e.to_dict()) == settings and o.relay().sound, "release off the rings cancels")
+	# No move: stays open, and left clicks pick without closing.
+	c = open_ring.call()
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
+	_check(radial.visible and not radial.holding and o.relay().sound, "release without moving stays open")
+	var left := InputEventMouseButton.new()
+	left.button_index = MOUSE_BUTTON_LEFT
+	left.pressed = true
+	left.position = c + Vector2(0, -112)
+	radial._gui_input(left)
+	_check(radial.visible and e.cooldown == 0.0, "left click picks and stays open")
+	left.position = c + Vector2(250, 0)
+	radial._gui_input(left)
+	_check(not radial.visible, "left click off the rings closes")
+	# A left click during the hold picks too.
+	e.cooldown = 1.0
+	c = open_ring.call()
+	_radial_press(MOUSE_BUTTON_LEFT, true, c + Vector2(0, -112))
+	_check(radial.visible and radial.holding and e.cooldown == 0.0, "left click during the hold keeps it open")
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
+	radial.close()
+	# The toggle's ring, and the group.
+	var tab: Vector2 = o.get_modifier("toggle")._tab_centre(surface, o)
+	_press(MOUSE_BUTTON_RIGHT, true, tab)
+	c = radial._center
+	item = c + Vector2(0, 100)                       # Off, the lower half
+	_radial_move(item)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
+	_check(not o.get_modifier("toggle").on and not radial.visible, "works on the toggle ring")
 	surface.clear_notes()
 
 
