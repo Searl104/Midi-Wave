@@ -17,6 +17,11 @@ func clicked(surface: WaveSurface) -> void:
 	surface.trigger_note(id)
 
 
+## It has no sound of its own, so a tap fires it, as a click does.
+func tap(surface: WaveSurface) -> void:
+	surface.trigger_note(id)
+
+
 func shows_pitch() -> bool:
 	return false
 

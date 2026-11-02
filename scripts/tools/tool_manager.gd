@@ -11,8 +11,8 @@ signal mode_changed(editing: bool)
 var surface: WaveSurface
 var tools: Array[Tool] = []
 var current: Tool
-var last_edit: Tool                ## the editing tool to go back to from the Wave tool
-var _editing := true               # false in the Wave tool; a nav tool leaves this as it was
+var last_edit: Tool                ## the editing tool to go back to from the Tap tool
+var _editing := true               # false in the Tap tool; a nav tool leaves this as it was
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
 var radial: RadialMenu
 var open_ring: RingTool = null     ## the ring tool using the radial menu
@@ -20,7 +20,7 @@ var open_ring: RingTool = null     ## the ring tool using the radial menu
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
-	tools = [WaveTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), PitchTool.new(surface),
+	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), PitchTool.new(surface),
 			ChannelTool.new(surface), PulseTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	current = get_tool("select")
@@ -38,7 +38,7 @@ func current_id() -> String:
 	return current.tool_id()
 
 
-## False while the Wave tool is in use: the layout is locked.
+## False while the Tap tool is in use: the layout is locked.
 func is_editing() -> bool:
 	return _editing
 
@@ -104,9 +104,9 @@ func springing() -> bool:
 	return _spring_from != null
 
 
-## Flips between the Wave tool and the last editing tool.
-func toggle_wave() -> void:
-	set_tool(last_edit.tool_id() if not is_editing() else "wave")
+## Flips between the Tap tool and the last editing tool.
+func toggle_tap() -> void:
+	set_tool(last_edit.tool_id() if not is_editing() else "tap")
 
 
 func draw_overlay(canvas: WaveSurface) -> void:

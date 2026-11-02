@@ -98,6 +98,11 @@ func clicked(_surface: WaveSurface) -> void:
 	pass
 
 
+## Tapped with the Tap tool: acts on its own, with no wave, and isn't a hit, so a toggle stays put.
+func tap(_surface: WaveSurface) -> void:
+	pass
+
+
 func play(surface: WaveSurface, amp: float, now: int) -> void:
 	var velocity := clampi(roundi(amp * 127.0), 1, 127)
 	if playing:

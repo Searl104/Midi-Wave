@@ -42,7 +42,7 @@ func _ready() -> void:
 	toolbar.surface = surface
 	add_child(toolbar)
 	_draw_tool().place_type = SurfaceObject.Mode.RELAY if int(Settings.draw_type) == SurfaceObject.Mode.RELAY else SurfaceObject.Mode.NOTE
-	surface.tools.set_tool(Settings.tool)
+	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 
 	options = OptionsPanel.new()
 	add_child(options)
@@ -119,7 +119,7 @@ func _apply_look_params() -> void:
 
 func _on_mode_changed(editing: bool) -> void:
 	surface.tools.close_ring()
-	_toast(surface.tools.current.title() if editing else "Wave  ·  layout locked")
+	_toast(surface.tools.current.title() if editing else "Tap  ·  layout locked")
 
 
 func _on_tool_changed(_t: String) -> void:

@@ -1,25 +1,34 @@
-class_name WaveTool
+class_name TapTool
 extends Tool
-## Waves and note triggers. The layout is locked while it's in use.
+## Plays the surface. A left click on empty space starts a wave; on an object it taps just that
+## object, with no wave. The layout is locked while it's in use.
 
 
 func tool_id() -> String:
-	return "wave"
+	return "tap"
 
 
 func title() -> String:
-	return "Wave"
+	return "Tap"
 
 
 func edits_layout() -> bool:
 	return false
 
 
-## Plays whatever is at a screen position: a note or relay, else a new wave there.
-func play_at(pos: Vector2) -> void:
-	var hit := surface.note_at(pos)
-	if hit != -1:
-		surface.click_note(hit)
+func handle_input(event: InputEvent) -> bool:
+	var mb := event as InputEventMouseButton
+	if mb and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		tap_at(mb.position)
+		return true
+	return false
+
+
+## Taps the object at a screen position, or starts a wave there if there's none.
+func tap_at(pos: Vector2) -> void:
+	var hit := surface.get_note(surface.note_at(pos))
+	if hit:
+		hit.tap(surface)
 	else:
 		surface.spawn_wave(pos)
 
