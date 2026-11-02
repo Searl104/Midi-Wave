@@ -417,7 +417,7 @@ func clear_modifiers(id: int) -> void:
 	save_notes()
 
 
-## A relay's Sound: off makes it silent and hollow; its pitch is kept.
+## A relay's Sound: off makes it Silent and hollow; its pitch is kept.
 func set_relay_sound(id: int, on: bool) -> void:
 	var o := get_note(id)
 	if o == null or o.relay() == null:

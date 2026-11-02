@@ -30,9 +30,9 @@ func build() -> void:
 	for s in STRENGTHS:
 		radial.inner_items.append({"id": s, "label": "%d%%" % roundi(s * 100), "color": Palette.RED,
 				"selected": absf(e.strength - s) < 0.001})
-	radial.center_item = {"id": "sound", "label": "Sound" if o.relay().sound else "Mute", "color": Palette.channel_color(o.channel)}
+	radial.center_item = {"id": "sound", "label": "Sound" if o.relay().sound else "Silent", "color": Palette.channel_color(o.channel)}
 	radial.title = "Relay · cooldown in beats or Retrigger (outer) · strength (inner)"
-	radial.subtitle = "Centre: note sound on / off"
+	radial.subtitle = "Centre: Sound / Silent"
 	radial.refresh()
 
 
