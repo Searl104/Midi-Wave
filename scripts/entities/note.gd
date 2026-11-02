@@ -282,6 +282,25 @@ func tab_at(surface: WaveSurface, at: Vector2) -> Modifier:
 	return null
 
 
+## The faint preview of a note about to be placed: pitch, channel colour, and marks for modifiers.
+func draw_ghost(surface: WaveSurface, p: Vector2) -> void:
+	var col := Palette.channel_color(channel)
+	if sounds() and not muted:
+		surface.draw_circle(p, RADIUS, Color(Palette.GLASS.lerp(col, 0.12), 0.4))
+	surface.draw_arc(p, RADIUS, 0.0, TAU, 48, Color(col, 0.5), 2.0, true)
+	if relay():
+		surface.draw_arc(p, RADIUS + 5.0, 0.0, TAU, 48, Color(Palette.YELLOW, 0.4), 1.5, true)
+		var d := p + Vector2(1, -1).normalized() * (RADIUS + (Modifier.RING + 8.0 if has_ring() else 9.0))
+		var r := Emitter.HANDLE_RADIUS
+		surface.draw_polyline(PackedVector2Array([d + Vector2(0, -r), d + Vector2(r, 0), d + Vector2(0, r), d + Vector2(-r, 0), d + Vector2(0, -r)]),
+				Color(Palette.YELLOW, 0.5), 1.5, true)
+	if has_ring():
+		surface.draw_arc(p, RADIUS + Modifier.RING, 0.0, TAU, 56, Color(col, 0.4), 1.0, true)
+	if shows_pitch():
+		surface.draw_string(surface.get_theme_default_font(), p + Vector2(-RADIUS, 5.0), MidiMessage.note_name(note),
+				HORIZONTAL_ALIGNMENT_CENTER, RADIUS * 2.0, 13, Color(Palette.TEXT, 0.6))
+
+
 ## Off screen and firing: a marker on the nearest window edge.
 func draw_edge_marker(surface: WaveSurface) -> void:
 	var e := emitter()

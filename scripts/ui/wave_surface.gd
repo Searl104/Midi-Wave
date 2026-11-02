@@ -15,6 +15,7 @@ signal notes_changed
 const MAX_WAVES := 64           ## must match MAX_WAVES in water.gdshader
 const MIN_AMPLITUDE := 0.01
 const EDGE_INSET := 16.0
+const BRUSH_ID := -2            ## get_note() id of the Draw brush, so rings can edit it
 
 var waves: Array = []           # of Wave
 var notes: Array = []           # of Note
@@ -142,6 +143,10 @@ func pointer() -> Vector2:
 	return _pointer
 
 
+func pointer_inside() -> bool:
+	return _pointer_in
+
+
 func hovered_note() -> int:
 	return _hover_id
 
@@ -189,6 +194,8 @@ func tab_at(screen_pos: Vector2) -> Array:
 
 
 func get_note(id: int) -> Note:
+	if id == BRUSH_ID:
+		return _brush()
 	for o in notes:
 		if o.id == id:
 			return o
@@ -217,6 +224,10 @@ func load_layout(layout: Array) -> void:
 	_build(layout)
 	save_notes()
 	frame_notes()
+
+
+func _brush() -> Note:
+	return tools.get_tool("draw").brush
 
 
 ## Makes the objects in `layout`.
@@ -257,6 +268,7 @@ func save_notes() -> void:
 	for o in notes:
 		out.append(o.to_dict())
 	Settings.notes = out
+	Settings.brush = _brush().to_dict()
 	history.record(out)
 	Settings.queue_save()
 	notes_changed.emit()
@@ -523,7 +535,7 @@ func _on_setting_changed(key: String) -> void:
 		view_offset = anchor_w - anchor_s / _zoom
 		Settings.view_offset = view_offset
 	if key == "root_note" or key == "scale_name":
-		for o in notes:
+		for o in notes + [_brush()]:
 			var q := Scales.quantize(o.note, Settings.root_note, Settings.scale_name)
 			if q != o.note:
 				o.silence()

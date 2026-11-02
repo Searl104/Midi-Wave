@@ -167,6 +167,9 @@ func handle_input(event: InputEvent) -> bool:
 		if hit != -1 and not surface.drag.active():
 			open_ring_for(ring_option.tool_id(), hit, mb.position, true)
 			return true
+		if current.ring_target() != -1 and surface.pick_at(mb.position).is_empty() and not surface.drag.active():
+			open_ring_for(ring_option.tool_id(), current.ring_target(), mb.position, true)
+			return true
 	var used := current.handle_input(event)
 	if middle and not mb.pressed:
 		end_spring()

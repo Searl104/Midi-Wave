@@ -24,7 +24,7 @@ func _ready() -> void:
 	_navigation()
 	_tap()
 	_select()
-	_draw_strokes()
+	_draw_tool()
 	_pitch()
 	_channel()
 	_modifiers()
@@ -278,13 +278,13 @@ func _navigation() -> void:
 	surface.selection.notes = {id: true}
 	var saved_view := surface.view_offset
 	# Middle-drag spring-loads Pan and then returns.
-	tools.set_tool("draw")
+	tools.set_tool("select")
 	_press(MOUSE_BUTTON_MIDDLE, true, Vector2(100, 100))
 	_check(tools.current_id() == "pan" and tools.springing(), "middle spring-loads pan")
 	_move(Vector2(160, 130))
 	_check(surface.to_screen(saved_view) == Vector2(60, 30), "pan follows the pointer")
 	_press(MOUSE_BUTTON_MIDDLE, false, Vector2(160, 130))
-	_check(tools.current_id() == "draw" and not tools.springing(), "release returns to the tool")
+	_check(tools.current_id() == "select" and not tools.springing(), "release returns to the tool")
 	_check(tools.is_editing() and surface.selection.notes.has(id), "mode and selection kept")
 	# Shift + middle spring-loads Zoom, about the pressed point.
 	var pivot := Vector2(400, 300)
@@ -304,7 +304,7 @@ func _navigation() -> void:
 		_move(pivot + Vector2(-50 - 200 * i, 100))
 	_check(Settings.beat_spacing == Settings.BEAT_SPACING_MIN, "stops at the minimum")
 	_press(MOUSE_BUTTON_MIDDLE, false, pivot, true)
-	_check(tools.current_id() == "draw", "zoom returns too")
+	_check(tools.current_id() == "select", "zoom returns too")
 	Settings.set_value("beat_spacing", spacing)
 	# From the Wave tool, stays locked; picked from the bar, left-drag works and stays.
 	tools.set_tool("tap")
@@ -443,21 +443,164 @@ func _select() -> void:
 	surface.clear_notes()
 
 
-func _draw_strokes() -> void:
+func _draw_tool() -> void:
 	var draw: DrawTool = tools.get_tool("draw")
-	surface.history.end_group()
-	var before := surface.history.undo_steps()
-	draw.extend_stroke(Vector2(100, 100))
-	_check(surface.notes.is_empty(), "no stroke, no object")
-	draw.begin_stroke(Vector2(100, 100))
-	draw.extend_stroke(Vector2(120, 100))
-	_check(surface.notes.size() == 1, "at most one per division")
-	draw.extend_stroke(Vector2(400, 100))
-	draw.extend_stroke(Vector2(700, 100))
-	draw.end_stroke()
-	_check(surface.notes.size() == 3 and surface.notes[0].modifiers.is_empty(), "places plain notes")
-	_check(surface.history.undo_steps() == before + 1, "one undo step")
+	var sel := surface.selection
+	surface.add_note_at(Vector2(100, 700), 60, 0)
+	sel.notes = {surface.notes[0].id: true}
+	tools.set_tool("draw")
+	_check(not sel.has_any(), "entering Draw clears the selection")
 	surface.clear_notes()
+	surface.history.end_group()
+	var brush := draw.brush
+	# Click places; the note plays once.
+	var sent: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			sent.append(m)
+	Midi.message_sent.connect(spy)
+	var steps := surface.history.undo_steps()
+	_click(Vector2(300, 300))
+	_check(surface.notes.size() == 1 and surface.notes[0].note == brush.note, "a click places the brush")
+	_check(sent.size() == 1, "and plays it once")
+	_check(surface.history.undo_steps() == steps + 1, "one undo step")
+	Midi.message_sent.disconnect(spy)
+	surface.history.end_group()
+	# Press places, drag positions, all one step.
+	steps = surface.history.undo_steps()
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
+	_check(surface.notes.size() == 2, "placed on press")
+	_move(Vector2(560, 400), true)
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(560, 400))
+	_check(surface.to_screen(surface.notes[1].pos) == Vector2(560, 400), "the drag positions it")
+	_check(surface.history.undo_steps() == steps + 1, "placing and dragging is one undo step")
+	surface.history.end_group()
+	_check(surface.undo() and surface.notes.size() == 1, "undo removes it")
+	surface.history.end_group()
+	surface.redo()
+	surface.history.end_group()
+	# Existing notes move, and nothing is placed.
+	var a: int = surface.notes[0].id
+	_drag(Vector2(300, 300), Vector2(320, 340), true)
+	_check(surface.notes.size() == 2 and surface.to_screen(surface.get_note(a).pos) == Vector2(320, 340), "drags an existing note")
+	_check(not sel.has_any(), "without selecting it")
+	surface.history.end_group()
+	_click(Vector2(320, 340))
+	_check(surface.notes.size() == 2, "a click on a note places nothing")
+	# Snapping: the ghost lands where the note will.
+	var ao := surface.get_note(a)
+	surface.set_pointer(Vector2(320, 340))
+	surface.snapping.toggle_at_hover()
+	surface.history.end_group()
+	var near := Vector2(523, 342)
+	var land := draw.landing(near, false)
+	_check(land.is_equal_approx(ao.pos + Vector2(200, 0) / surface.z()), "snaps to a grid point")
+	_check(surface.to_screen(draw.landing(near, true)) == near, "Alt lands freely")
+	_click(near)
+	_check(surface.notes[-1].pos.is_equal_approx(land), "the note lands on the ghost")
+	surface.history.end_group()
+	surface.snapping.clear_grids()
+	surface.history.end_group()
+	surface.remove_note(surface.notes[-1].id)
+	surface.history.end_group()
+	# Right-click on empty space sets the brush; on a note it edits the note.
+	tools.pick("channel")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
+	_check(radial.visible and tools.open_ring.note_id == WaveSurface.BRUSH_ID, "the ring opens on the brush")
+	radial.outer_chosen.emit(5)
+	radial.close()
+	_check(brush.channel == 5 and ao.channel != 5, "and sets it")
+	tools.pick("pitch")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
+	_check(radial.center_item.is_empty(), "no delete on the brush")
+	var pitch: int = radial.outer_items[2].id
+	radial.outer_chosen.emit(pitch)
+	radial.close()
+	_check(brush.note == pitch and surface.notes.size() == 2, "pitch sets it too, placing nothing")
+	tools.pick("modifier")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
+	radial.outer_chosen.emit("relay")
+	radial.outer_chosen.emit("toggle")
+	radial.close()
+	_check(brush.relay() != null and brush.get_modifier("toggle") != null, "modifiers go on the brush")
+	_check(not Settings.notes.is_empty() and surface.get_note(a).relay() == null, "and only there")
+	var channel_before: int = ao.channel
+	tools.pick("channel")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(320, 340))
+	_check(tools.open_ring.note_id == a, "on a note it edits the note")
+	radial.outer_chosen.emit(9)
+	radial.close()
+	_check(ao.channel == 9 and brush.channel == 5, "and leaves the brush")
+	surface.set_note_channel(a, channel_before)
+	surface.history.end_group()
+	tools.pick("pitch")
+	# Placing carries the modifiers, with a fresh copy.
+	_click(Vector2(800, 200))
+	var placed: Note = surface.notes[-1]
+	_check(placed.channel == 5 and placed.relay() and placed.get_modifier("toggle"), "placed with the brush settings")
+	_check(placed.emitter() != brush.emitter() and placed.emitter().attached and placed.emitter().pos == placed.pos, "its own docked relay")
+	surface.history.end_group()
+	# Handles: move, dock, reach; Ctrl-drag on empty does nothing.
+	var dock: Vector2 = placed.emitter().dock_screen_pos(surface, placed)
+	_drag(dock, Vector2(1000, 500), true)
+	_check(not placed.emitter().attached, "drags a diamond out")
+	surface.history.end_group()
+	_drag(Vector2(1000, 500), surface.to_screen(placed.pos), true)
+	_check(placed.emitter().attached, "and docks it")
+	surface.history.end_group()
+	_drag(dock, surface.to_screen(placed.pos) + Vector2(300, 0), false, true)
+	_check(is_equal_approx(placed.emitter().own_reach, 300.0 / surface.z()), "Ctrl-drag sets reach")
+	surface.history.end_group()
+	var count := surface.notes.size()
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(1100, 700), false, true)
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(1100, 700), false, true)
+	_check(surface.notes.size() == count, "Ctrl-click on empty space does nothing")
+	# Ctrl-click copies exactly; a tab doesn't place.
+	placed.emitter().cooldown = 3.0
+	placed.emitter().strength = 0.5
+	placed.relay().sound = false
+	placed.emitter().attached = false
+	placed.emitter().pos = Vector2(900, 900)
+	surface.save_notes()
+	surface.set_binding(placed.id, "kp2")
+	surface.history.end_group()
+	_press(MOUSE_BUTTON_LEFT, true, surface.to_screen(placed.pos), false, true)
+	_press(MOUSE_BUTTON_LEFT, false, surface.to_screen(placed.pos), false, true)
+	var be: Emitter = brush.emitter()
+	_check(be.cooldown == 3.0 and be.strength == 0.5 and be.own_reach > 0.0 and not brush.relay().sound, "Ctrl-click copies the settings")
+	_check(be != placed.emitter() and be.attached and brush.binding == "", "but not the spot or binding")
+	_check(Settings.brush.get("channel", -1) == 5 and Settings.brush.mods.size() == 2, "the brush is saved")
+	var tab: Vector2 = placed.get_modifier("toggle")._tab_centre(surface, placed)
+	count = surface.notes.size()
+	_click(tab)
+	_check(surface.notes.size() == count, "a tab doesn't place")
+	# Turning a modifier off clears its settings.
+	tools.pick("modifier")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
+	radial.outer_chosen.emit("relay")
+	radial.outer_chosen.emit("relay")
+	radial.close()
+	_check(brush.emitter().cooldown == 1.0 and brush.relay().sound, "turned off and on, a modifier is back to defaults")
+	radial.outer_chosen.emit("")
+	tools.pick("pitch")
+	# Scale changes keep the brush in scale, and it reloads.
+	var scale_before: String = Settings.scale_name
+	Settings.set_value("scale_name", "Major")
+	_check(Scales.quantize(brush.note, Settings.root_note, "Major") == brush.note, "the brush stays in scale")
+	Settings.set_value("scale_name", scale_before)
+	var reloaded := DrawTool.new(surface)
+	_check(reloaded.brush.note == brush.note and reloaded.brush.channel == 5, "reloads from settings")
+	# Leaving mid-drag closes the undo step.
+	surface.history.end_group()
+	steps = surface.history.undo_steps()
+	tools.set_tool("draw")
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(400, 600))
+	tools.set_tool("select")
+	_check(not surface.history._stroke_open and not surface.drag.active(), "leaving mid-drag closes the undo step")
+	surface.clear_notes()
+	Settings.brush = {}
+	brush.channel = 0
+	brush.modifiers.clear()
 
 
 func _pitch() -> void:
@@ -680,12 +823,12 @@ func _quick_pick() -> void:
 func _ring_options() -> void:
 	var a := surface.add_note_at(Vector2(640, 400), 60, 0)
 	var b := surface.add_note_at(Vector2(900, 400), 62, 0)
-	tools.set_tool("draw")
+	tools.set_tool("select")
 	_check(tools.ring_option.tool_id() == "pitch", "pitch by default")
 	tools.pick("modifier")
-	_check(tools.current_id() == "draw" and tools.ring_option.tool_id() == "modifier", "an option doesn't change the tool")
+	_check(tools.current_id() == "select" and tools.ring_option.tool_id() == "modifier", "an option doesn't change the tool")
 	tools.set_tool("channel")
-	_check(tools.current_id() == "draw", "and can't be made the tool")
+	_check(tools.current_id() == "select", "and can't be made the tool")
 	for option in ["pitch", "channel", "modifier"]:
 		tools.pick(option)
 		_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
@@ -725,35 +868,35 @@ func _ring_options() -> void:
 
 
 func _tab() -> void:
-	var cases := ["select", "draw", "pan", "zoom"]
+	var cases := ["select", "select", "pan", "zoom"]
 	for id in cases:
 		tools.set_tool(id)
 		_key(KEY_TAB)
 		_check(tools.current_id() == "tap" and not tools.is_editing(), "Tab from %s goes to Tap" % id)
 		_key(KEY_TAB)
 		_check(tools.current_id() == id and tools.is_editing(), "Tab returns to %s" % id)
-	tools.set_tool("draw")
+	tools.set_tool("select")
 	tools.pick("tap")
 	_key(KEY_TAB)
-	_check(tools.current_id() == "draw", "Tap picked on the bar returns too")
+	_check(tools.current_id() == "select", "Tap picked on the bar returns too")
 	# A ring option isn't a tool, so it's left alone.
 	tools.pick("channel")
 	_key(KEY_TAB)
 	_key(KEY_TAB)
-	_check(tools.current_id() == "draw" and tools.ring_option.tool_id() == "channel", "the ring option stays")
+	_check(tools.current_id() == "select" and tools.ring_option.tool_id() == "channel", "the ring option stays")
 	tools.pick("pitch")
 	# Nothing happens during a spring-load.
 	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
 	_key(KEY_TAB)
 	_check(tools.current_id() == "pan", "ignored while spring-loaded")
 	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
-	_check(tools.current_id() == "draw", "spring-load still returns")
+	_check(tools.current_id() == "select", "spring-load still returns")
 	var ctrl := InputEventKey.new()
 	ctrl.keycode = KEY_TAB
 	ctrl.pressed = true
 	ctrl.ctrl_pressed = true
 	tools.handle_input(ctrl)
-	_check(tools.current_id() == "draw", "Ctrl+Tab does nothing")
+	_check(tools.current_id() == "select", "Ctrl+Tab does nothing")
 	tools.set_tool("select")
 
 

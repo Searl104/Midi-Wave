@@ -35,7 +35,7 @@ func _prepare(at: Vector2) -> void:
 		_channel = o.channel
 		_pitch = o.note
 	_octave = clampi(Scales.octave_of(current, Settings.root_note), 1, 7)
-	radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED} if o else {}
+	radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED} if note_id >= 0 else {}
 
 
 func build() -> void:

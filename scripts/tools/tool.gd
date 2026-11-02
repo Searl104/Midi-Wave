@@ -37,6 +37,11 @@ func edits_layout() -> bool:
 	return true
 
 
+## What a right-click on empty space opens the ring option for, or -1 for nothing.
+func ring_target() -> int:
+	return -1
+
+
 ## Returns true if the event was used.
 func handle_input(_event: InputEvent) -> bool:
 	return false
