@@ -1,8 +1,7 @@
 class_name Toolbar
 extends Control
-## The tool strip on the left edge: Wave, Select, Draw, then the ring tools Pitch, Channel,
-## Pulse and Modifier. Icons are drawn here; the active tool is lit, and Draw
-## shows what it places (a solid dot for Notes, a hollow ring and diamond for Relays).
+## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
+## the active tool is lit.
 
 const SLOT := 44.0
 const PAD := 6.0
@@ -12,7 +11,7 @@ var surface: WaveSurface
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var n := WaveSurface.TOOLS.size()
+	var n := surface.tools.tools.size()
 	custom_minimum_size = Vector2(SLOT + PAD * 2.0, n * SLOT + (n - 1) * 2.0 + PAD * 2.0)
 	size = custom_minimum_size
 	set_anchors_preset(Control.PRESET_CENTER_LEFT)
@@ -33,11 +32,11 @@ func _draw() -> void:
 	bg.set_border_width_all(1)
 	bg.set_corner_radius_all(10)
 	draw_style_box(bg, Rect2(Vector2.ZERO, size))
-	var active: String = surface.tool if surface else "select"
-	for i in WaveSurface.TOOLS.size():
-		var t_name: String = WaveSurface.TOOLS[i]
+	var manager := surface.tools
+	for i in manager.tools.size():
+		var t: Tool = manager.tools[i]
 		var r := _slot_rect(i)
-		var on := t_name == active
+		var on := t == manager.current
 		if on:
 			var sb := StyleBoxFlat.new()
 			sb.bg_color = Color(Palette.ACCENT, 0.32)
@@ -50,57 +49,4 @@ func _draw() -> void:
 		if i == 3:
 			draw_line(Vector2(PAD + 6, r.position.y - 1), Vector2(PAD + SLOT - 6, r.position.y - 1), Color(1, 1, 1, 0.14), 1.0)
 		var ink := Palette.TEXT if on else Palette.TEXT_DIM
-		_draw_icon(t_name, r.get_center(), ink)
-
-
-func _draw_icon(t_name: String, c: Vector2, ink: Color) -> void:
-	match t_name:
-		"wave":
-			# A teardrop: a circle with a point, the sides tangent to it.
-			var ctr := c + Vector2(0, 3)
-			var r := 6.5
-			var tip := ctr + Vector2(0, -13.0)
-			var pts := PackedVector2Array([tip])
-			var a0 := -PI / 2.0 + acos(r / 13.0)
-			var a1 := -PI / 2.0 - acos(r / 13.0) + TAU
-			for k in 25:
-				var a := lerpf(a0, a1, k / 24.0)
-				pts.append(ctr + Vector2(cos(a), sin(a)) * r)
-			draw_colored_polygon(pts, ink)
-		"select":
-			var a := c + Vector2(-5, -9)
-			draw_colored_polygon(PackedVector2Array([a, a + Vector2(0, 16), a + Vector2(4, 12), a + Vector2(7, 18),
-					a + Vector2(9.5, 17), a + Vector2(6.5, 11), a + Vector2(11.5, 11)]), ink)
-		"draw":
-			var d := Vector2(1, -1).normalized()
-			var nrm := Vector2(d.y, -d.x)
-			var tip := c + Vector2(-8, 8)
-			var back := tip + d * 18.0
-			draw_colored_polygon(PackedVector2Array([tip, tip + d * 5.0 + nrm * 3.0, back + nrm * 3.0,
-					back - nrm * 3.0, tip + d * 5.0 - nrm * 3.0]), ink)
-			# What it places: Note = solid dot, Relay = hollow ring with a diamond.
-			var b := c + Vector2(9, 9)
-			if surface and surface.draw_type == WaveSurface.Mode.RELAY:
-				draw_arc(b, 4.0, 0.0, TAU, 16, Palette.YELLOW, 1.5, true)
-				draw_colored_polygon(PackedVector2Array([b + Vector2(0, -2), b + Vector2(2, 0), b + Vector2(0, 2), b + Vector2(-2, 0)]), Palette.YELLOW)
-			else:
-				draw_circle(b, 4.0, Palette.ACCENT.lightened(0.2))
-		"pitch":
-			# A quaver.
-			draw_circle(c + Vector2(-3, 6), 4.0, ink)
-			draw_line(c + Vector2(0.5, 6), c + Vector2(0.5, -9), ink, 2.0, true)
-			draw_line(c + Vector2(0.5, -9), c + Vector2(6, -4), ink, 2.0, true)
-		"channel":
-			for k in 4:
-				var o := Vector2(-5 if k % 2 == 0 else 5, -5 if k < 2 else 5)
-				draw_circle(c + o, 3.6, Color(Palette.channel_color(k), 0.95 if ink == Palette.TEXT else 0.7))
-		"pulse":
-			draw_circle(c, 3.0, ink)
-			draw_arc(c, 9.0, 0.0, TAU, 32, Color(1, 1, 1, 0.12), 2.0, true)
-			draw_arc(c, 9.0, -PI / 2.0, PI, 32, Color(Palette.YELLOW, 0.95 if ink == Palette.TEXT else 0.7), 2.0, true)
-		"modifier":
-			draw_circle(c, 2.2, ink)
-			draw_arc(c, 6.0, -0.9, 0.9, 10, ink, 1.5, true)
-			draw_arc(c, 6.0, PI - 0.9, PI + 0.9, 10, ink, 1.5, true)
-			draw_arc(c, 10.0, -0.75, 0.75, 12, Color(ink, 0.6), 1.5, true)
-			draw_arc(c, 10.0, PI - 0.75, PI + 0.75, 12, Color(ink, 0.6), 1.5, true)
+		t.draw_icon(self, r.get_center(), ink)

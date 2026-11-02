@@ -47,7 +47,7 @@ func _note_at(world: Vector2, pitch: int, channel: int = 0) -> int:
 
 func _relay_at(world: Vector2, pitch: int, cooldown: float, strength: float = 0.8) -> int:
 	var id := _note_at(world, pitch, 1)
-	surface.set_note_mode(id, WaveSurface.Mode.RELAY)
+	surface.set_note_mode(id, SurfaceObject.Mode.RELAY)
 	surface.set_pulse_params(id, strength, cooldown)
 	return id
 
@@ -55,11 +55,11 @@ func _relay_at(world: Vector2, pitch: int, cooldown: float, strength: float = 0.
 ## Press, move and release an object through the surface's drag operation.
 func _drag(id: int, kind: String, to_world: Vector2, free: bool = false) -> void:
 	var to := surface.to_screen(to_world)
-	surface._begin_press(id, kind, surface.to_screen(surface.get_note(id).pos))
-	surface._dragging = true
-	surface._drag_to(to, free)
-	_log("drag %s" % JSON.stringify(_clean(surface.drag_info)))
-	surface._end_press()
+	surface.drag.begin(id, kind, surface.to_screen(surface.get_note(id).pos))
+	surface.drag.moved = true
+	surface.drag.move_to(to, free)
+	_log("drag %s" % JSON.stringify(_clean(surface.drag.info)))
+	surface.drag.end()
 
 
 func _set_hover(id: int, handle: int = -1) -> void:
@@ -77,7 +77,7 @@ func _clean(d: Dictionary) -> Dictionary:
 func _reset() -> void:
 	surface.stop()
 	surface.clear_notes()
-	surface.end_undo_group()
+	surface.history.end_group()
 
 
 func _scenarios() -> void:
@@ -88,7 +88,7 @@ func _scenarios() -> void:
 	_run(2.0)
 	surface.click_note(b)
 	_run(1.0)
-	_log("text %s | %s" % [surface.hover_text(surface.get_note(a)), surface.hover_text(surface.get_note(b))])
+	_log("text %s | %s" % [surface.get_note(a).hover_text(), surface.get_note(b).hover_text()])
 	_layout("plain")
 	_reset()
 
@@ -100,7 +100,7 @@ func _scenarios() -> void:
 	surface.trigger_note(r1)
 	_run(4.0)
 	surface.set_pulse_params(r1, 0.6, 0.0)
-	_log("text %s" % surface.hover_text(surface.get_note(r1)))
+	_log("text %s" % surface.get_note(r1).hover_text())
 	_run(2.0)
 	_log("skipped %d" % surface.skipped_pulses)
 	surface.stop()
@@ -117,7 +117,7 @@ func _scenarios() -> void:
 	_drag(c2, "emitter", Vector2(800, 100), true)
 	surface.trigger_note(c1)
 	_run(1.0)
-	_log("chain %s" % surface.hover_text(surface.get_note(c3)))
+	_log("chain %s" % surface.get_note(c3).hover_text())
 	_reset()
 
 	# Toggle, mute, slots and held refires.
@@ -127,7 +127,7 @@ func _scenarios() -> void:
 	surface.set_modifier(t, "toggle")
 	surface.set_modifier(p, "toggle")
 	surface.set_modifier_state(p, false)
-	_log("text %s | %s" % [surface.hover_text(surface.get_note(t)), surface.hover_text(surface.get_note(p))])
+	_log("text %s | %s" % [surface.get_note(t).hover_text(), surface.get_note(p).hover_text()])
 	surface.toggle_slot(t, 1)
 	surface.toggle_slot(p, 1)
 	surface.toggle_slot(m, 2)
@@ -141,7 +141,7 @@ func _scenarios() -> void:
 	surface.release_slot(2)
 	_run(1.0)
 	surface.save_state()
-	_log("text %s" % surface.hover_text(surface.get_note(t)))
+	_log("text %s" % surface.get_note(t).hover_text())
 	surface.stop()
 	_layout("toggles")
 	surface.set_modifier(t, "")
@@ -161,8 +161,8 @@ func _scenarios() -> void:
 	_run(2.0)
 	surface.release_slot(4)
 	_run(1.0)
-	_log("cool %s %s" % [surface.hover_text(surface.get_note(cool)), surface.hover_text(surface.get_note(far))])
-	_log("heard %s" % surface.hover_text(surface.get_note(heard)))
+	_log("cool %s %s" % [surface.get_note(cool).hover_text(), surface.get_note(far).hover_text()])
+	_log("heard %s" % surface.get_note(heard).hover_text())
 	_reset()
 
 	# Grids, snapping, group drags and range.
@@ -170,70 +170,70 @@ func _scenarios() -> void:
 	var q := _note_at(Vector2(530, 410), 62)
 	var e := _relay_at(Vector2(800, 400), 65, 1.0)
 	_set_hover(g)
-	_log("grid %s" % surface.toggle_grid_at_hover())
+	_log("grid %s" % surface.snapping.toggle_at_hover())
 	_set_hover(-1)
 	_drag(e, "emitter", Vector2(900, 500), true)
 	_set_hover(-1, e)
-	_log("grid %s" % surface.toggle_grid_at_hover())
+	_log("grid %s" % surface.snapping.toggle_at_hover())
 	_set_hover(-1)
 	for pt in [Vector2(610, 395), Vector2(420, 610), Vector2(530, 530), Vector2(400, 402), Vector2(901, 503), Vector2(2000, 2000)]:
-		_log("snap %s %s" % [str(surface.grid_snap(pt)), JSON.stringify(_clean(surface.compute_drag(surface.get_note(q), "note", pt, false)))])
-		_log("free %s" % JSON.stringify(_clean(surface.compute_drag(surface.get_note(q), "emitter", pt, true))))
+		_log("snap %s %s" % [str(surface.snapping.grid_snap(pt)), JSON.stringify(_clean(surface.snapping.compute_drag(surface.get_note(q), "note", pt, false)))])
+		_log("free %s" % JSON.stringify(_clean(surface.snapping.compute_drag(surface.get_note(q), "emitter", pt, true))))
 	_drag(q, "note", Vector2(612, 402))
 	var id_new := _note_at(Vector2(555, 545), 64)
 	_log("placed %s" % str(surface.get_note(id_new).pos))
-	surface.select_in_rect(Rect2(surface.to_screen(Vector2(350, 350)), surface.to_screen(Vector2(1000, 1000)) - surface.to_screen(Vector2(350, 350))))
-	_log("selected %d" % surface.selection_count())
+	surface.selection.select_in_rect(Rect2(surface.to_screen(Vector2(350, 350)), surface.to_screen(Vector2(1000, 1000)) - surface.to_screen(Vector2(350, 350))))
+	_log("selected %d" % surface.selection.count())
 	_drag(q, "note", Vector2(700, 480), true)
-	_log("group %s" % str(surface.group_for(q)))
-	surface.clear_selection()
-	surface.select_in_rect(Rect2(surface.to_screen(Vector2(850, 450)), surface.to_screen(Vector2(100, 100)) * surface.z() ))
-	_log("selected %d" % surface.selection_count())
-	surface.clear_selection()
-	surface._begin_press(e, "range", surface.to_screen(surface.get_note(e).pos))
-	surface._dragging = true
-	surface._drag_to(surface.to_screen(Vector2(1000, 620)), false)
-	_log("range %s" % JSON.stringify(_clean(surface.drag_info)))
-	surface._end_press()
-	_log("text %s" % surface.hover_text(surface.get_note(e)))
+	_log("group %s" % str(surface.selection.group_for(q)))
+	surface.selection.clear()
+	surface.selection.select_in_rect(Rect2(surface.to_screen(Vector2(850, 450)), surface.to_screen(Vector2(100, 100)) * surface.z() ))
+	_log("selected %d" % surface.selection.count())
+	surface.selection.clear()
+	surface.drag.begin(e, "range", surface.to_screen(surface.get_note(e).pos))
+	surface.drag.moved = true
+	surface.drag.move_to(surface.to_screen(Vector2(1000, 620)), false)
+	_log("range %s" % JSON.stringify(_clean(surface.drag.info)))
+	surface.drag.end()
+	_log("text %s" % surface.get_note(e).hover_text())
 	_layout("grids")
-	_log("cleared %d" % surface.clear_grids())
+	_log("cleared %d" % surface.snapping.clear_grids())
 	_reset()
 
 	# Copy, paste, delete, undo and redo; Note <-> Relay keeps every setting.
 	var u := _note_at(Vector2(300, 300), 60)
-	surface.end_undo_group()
+	surface.history.end_group()
 	var v := _relay_at(Vector2(500, 300), 67, 2.0, 0.5)
-	surface.end_undo_group()
+	surface.history.end_group()
 	_drag(v, "emitter", Vector2(600, 450), true)
-	surface.end_undo_group()
+	surface.history.end_group()
 	surface.set_modifier(v, "toggle")
-	surface.end_undo_group()
-	surface.select_in_rect(Rect2(Vector2.ZERO, Vector2(1280, 800)))
-	_log("copied %d" % surface.copy_selection())
-	surface.end_undo_group()
-	_log("pasted %d" % surface.paste_at(Vector2(640, 500)))
-	surface.end_undo_group()
+	surface.history.end_group()
+	surface.selection.select_in_rect(Rect2(Vector2.ZERO, Vector2(1280, 800)))
+	_log("copied %d" % surface.selection.copy())
+	surface.history.end_group()
+	_log("pasted %d" % surface.selection.paste_at(Vector2(640, 500)))
+	surface.history.end_group()
 	_layout("pasted")
 	surface.cycle_mode(v)
-	surface.end_undo_group()
+	surface.history.end_group()
 	_layout("cycled")
 	surface.cycle_mode(v)
-	surface.end_undo_group()
+	surface.history.end_group()
 	_layout("cycled_back")
 	surface.set_note_pitch(u, 72)
-	surface.end_undo_group()
+	surface.history.end_group()
 	surface.set_note_channel(u, 9)
-	surface.end_undo_group()
+	surface.history.end_group()
 	surface.remove_note(u)
-	surface.end_undo_group()
+	surface.history.end_group()
 	surface.delete_selection()
-	surface.end_undo_group()
+	surface.history.end_group()
 	for i in 4:
-		_log("undo %s %d" % [surface.undo(), surface.undo_steps()])
+		_log("undo %s %d" % [surface.undo(), surface.history.undo_steps()])
 		_layout("undo%d" % i)
 	for i in 2:
-		_log("redo %s %d" % [surface.redo(), surface.redo_steps()])
+		_log("redo %s %d" % [surface.redo(), surface.history.redo_steps()])
 		_layout("redo%d" % i)
 	_reset()
 
@@ -242,12 +242,12 @@ func _scenarios() -> void:
 	var s2 := _note_at(Vector2(400, 300), 66)
 	Settings.set_value("scale_name", "Major")
 	_layout("rescale")
-	surface.selection = {s1: true, s2: true}
+	surface.selection.notes = {s1: true, s2: true}
 	_log("nudge %d" % surface.nudge_pitch(1, false))
 	_log("nudge %d" % surface.nudge_pitch(-1, true))
 	Settings.set_value("scale_name", "Minor Pentatonic")
 	_layout("nudged")
-	surface.clear_selection()
+	surface.selection.clear()
 	_reset()
 
 	# Old saves: seconds cooldowns and the note + pulse hybrid; an unknown modifier is dropped.
@@ -262,7 +262,7 @@ func _scenarios() -> void:
 	_log("view %s" % str(surface.view_offset))
 	surface.seed_default_layout()
 	_layout("seeded")
-	_log("beats %s %s %s" % [WaveSurface.format_beats(1.75), WaveSurface.format_beats(0.5), WaveSurface.format_beats(1.37)])
+	_log("beats %s %s %s" % [Snapping.format_beats(1.75), Snapping.format_beats(0.5), Snapping.format_beats(1.37)])
 
 
 func _finish() -> void:
