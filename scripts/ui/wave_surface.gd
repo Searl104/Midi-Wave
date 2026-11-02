@@ -23,16 +23,6 @@ extends Control
 ## emitter within reach: beats bright, bars brighter, divisions faded. The dragged item snaps
 ## to the nearest ring; Shift places freely. A readout shows the delay in beats and any pulser loop.
 ##
-## Mouse:  click = wave (on a plain note: a wave from the note; on a pulser: trigger it,
-##         no click wave) · drag note = move · drag emitter handle = place emitter
-##         right-click (hold / tap) = pitch radial · alt-click = channel radial
-##         ctrl-click = cycle mode · ctrl-drag from a pulser = set its own reach
-##         ctrl-right-click = pulse radial
-##         shift-click = new note · shift-right-click = modifier radial
-##         Delete = remove note (or the selection) · middle-drag = pan
-##         M = mute / unmute the selection or hovered note (no sound, no pulse; the mode is kept)
-##         ctrl + right-drag on empty space = box select; Esc clears it
-##
 ## Selection: dragging a selected note moves the whole group (snapping applies to the note
 ## held; the group's own notes are never snap targets). Delete removes it; channel, pulse,
 ## mode, modifier and keypad-slot edits on a selected note apply to every selected note;
@@ -51,15 +41,9 @@ extends Control
 ## object while dragging toggles it as a snap target too. Touches reset on drop, except the target
 ## snapped to when dropped, which is remembered for that item's next drag.
 
-signal pitch_menu_requested(note_id: int, at: Vector2)    # note_id -1 = place a new note at `at`
-signal channel_menu_requested(note_id: int, at: Vector2)
-signal pulse_menu_requested(note_id: int, at: Vector2)
-signal modifier_menu_requested(note_id: int, at: Vector2)
 signal notes_changed
 signal mode_changed(edit: bool)
 signal tool_changed(tool: String)
-signal ring_requested(ring: String, note_id: int, at: Vector2)   # a ring tool's left press
-signal tool_used                                                 # any left press: ends a held tool key's tap
 
 ## Toolbar tools (number keys 1-7). Wave is the old Play mode: it plays and edits nothing.
 const TOOLS := ["wave", "select", "draw", "pitch", "channel", "pulse", "modifier"]
@@ -122,10 +106,6 @@ var _press_id := -1
 var _press_kind := ""      # "note" or "emitter"
 var _press_pos := Vector2.ZERO
 var _dragging := false
-var _pan_active := false
-var _pan_moved := false
-var _pan_start := Vector2.ZERO
-var _pan_last := Vector2.ZERO
 var _mouse_pos := Vector2.ZERO
 var _mouse_in := false
 var _glow_tex: GradientTexture2D
@@ -154,7 +134,7 @@ var _clipboard: Array = []        # copied notes, positions relative to the grou
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	focus_mode = Control.FOCUS_NONE
 	view_offset = Settings.view_offset
 	_zoom = Settings.zoom()
@@ -562,6 +542,14 @@ func trigger_slot(slot: int) -> int:
 			click_note(n.id)
 			count += 1
 	return count
+
+
+## Where the pointer is, for hover and the reach glow; `inside` = false when it has left.
+func set_pointer(pos: Vector2, inside: bool = true) -> void:
+	_mouse_pos = pos
+	_mouse_in = inside
+	_hover_handle = handle_at(pos) if inside else -1
+	_hover_id = (note_at(pos) if _hover_handle == -1 else -1) if inside else -1
 
 
 func hovered_note() -> int:
@@ -1394,45 +1382,7 @@ static func _gcd(a: int, b: int) -> int:
 	return a
 
 
-# --- Input -------------------------------------------------------------------------------
-
-func _gui_input(event: InputEvent) -> void:
-	var mb := event as InputEventMouseButton
-	if mb:
-		if mb.ctrl_pressed and mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
-			zoom_at(mb.position, 1.1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
-			accept_event()
-			return
-		_handle_button(mb)
-		accept_event()
-		return
-	var mm := event as InputEventMouseMotion
-	if mm:
-		_mouse_pos = mm.position
-		_mouse_in = true
-		if _box_active:
-			_box_end = mm.position
-			return
-		if _draw_active:
-			_draw_to(mm.position)
-			return
-		if _pan_active:
-			if not _pan_moved and mm.position.distance_to(_pan_start) > DRAG_THRESHOLD:
-				_pan_moved = true
-			if _pan_moved:
-				pan_by(_pan_last - mm.position)
-			_pan_last = mm.position
-			return
-		if _press_id != -1:
-			if edit_mode and not _dragging and mm.position.distance_to(_press_pos) > DRAG_THRESHOLD:
-				_dragging = true
-			if _dragging:
-				_drag_to(mm.position, mm.shift_pressed)
-		_hover_handle = handle_at(mm.position)
-		_hover_id = note_at(mm.position) if _hover_handle == -1 else -1
-		var over := _hover_id != -1 or _hover_handle != -1
-		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if over else Control.CURSOR_ARROW
-
+# --- Operations: bound to input in the remap stage ------------------------------------------
 
 func _drag_to(screen_pos: Vector2, free: bool) -> void:
 	var n := get_note(_press_id)
@@ -1474,7 +1424,7 @@ func _drag_to(screen_pos: Vector2, free: bool) -> void:
 				g.emit = st[1] + delta
 
 
-## Ctrl + left-drag: the distance from the emitter to the cursor becomes its reach, snapped to
+## The distance from the emitter to the cursor becomes its reach, snapped to
 ## the timing divisions (Shift: free). Back onto the note resets it to the global Reach.
 ## Applies to every selected pulser when the note is in the selection.
 func _drag_range(n: Dictionary, p: Vector2, free: bool) -> void:
@@ -1526,127 +1476,6 @@ func _overlaps_at(n: Dictionary, p: Vector2) -> Dictionary:
 	return out
 
 
-func _handle_button(mb: InputEventMouseButton) -> void:
-	var pos := mb.position
-	var handle := handle_at(pos)
-	var hit := note_at(pos)
-	if not edit_mode and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-		# Play mode: a click plays whatever is under it; nothing is edited.
-		if mb.alt_pressed or mb.shift_pressed or handle != -1 or (mb.ctrl_pressed and hit != -1):
-			return
-		if hit != -1:
-			_begin_press(hit, "note", pos)
-		else:
-			spawn_wave(pos)
-		return
-	if not edit_mode and mb.button_index == MOUSE_BUTTON_RIGHT:
-		return
-	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-		tool_used.emit()
-	if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and (_box_active or _draw_active):
-		if _box_active:
-			_finish_box(pos)
-		_end_draw()
-		return
-	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and not mb.ctrl_pressed and not mb.alt_pressed:
-		if tool == "draw" and hit == -1 and handle == -1:
-			_begin_draw(pos)
-			return
-		if RING_TOOLS.has(tool):
-			if hit != -1 or tool == "pitch":
-				ring_requested.emit(tool, hit, pos)
-			return
-		if tool == "select" or tool == "draw":
-			if handle != -1:
-				if mb.shift_pressed and tool == "select":
-					_toggle_key(emit_selection, handle)
-				elif not emit_selection.has(handle):
-					clear_selection()
-					if tool == "select":
-						emit_selection[handle] = true
-				_begin_press(handle, "emitter", pos)
-				return
-			if hit != -1:
-				if mb.shift_pressed and tool == "select":
-					_toggle_key(selection, hit)
-				elif not selection.has(hit):
-					clear_selection()
-					if tool == "select":
-						selection[hit] = true
-				_begin_press(hit, "note", pos)
-				return
-			# Select: a drag on empty space is a box (Shift adds); a plain click clears.
-			_box_active = true
-			_box_add = mb.shift_pressed
-			_box_start = pos
-			_box_end = pos
-			return
-	match mb.button_index:
-		MOUSE_BUTTON_LEFT:
-			if mb.pressed:
-				if mb.ctrl_pressed:
-					# Ctrl-click a note: cycle its mode. Ctrl-drag from a pulser or its emitter:
-					# set that emitter's own wave reach.
-					var rid := handle if handle != -1 else hit
-					if rid != -1:
-						_begin_press(rid, "range", pos)
-					else:
-						spawn_wave(pos)
-				elif mb.alt_pressed:
-					if hit != -1:
-						channel_menu_requested.emit(hit, pos)
-				elif handle != -1:
-					if not emit_selection.has(handle):
-						clear_selection()
-					_begin_press(handle, "emitter", pos)
-				elif hit != -1:
-					if not selection.has(hit):
-						clear_selection()
-					_begin_press(hit, "note", pos)
-				else:
-					clear_selection()
-					spawn_wave(pos)
-			else:
-				_end_press()
-		MOUSE_BUTTON_RIGHT:
-			if mb.pressed:
-				if mb.ctrl_pressed:
-					if hit != -1:
-						pulse_menu_requested.emit(hit, pos)
-					else:
-						_box_active = true          # box select from empty space
-						_box_add = false
-						_box_start = pos
-						_box_end = pos
-				elif mb.shift_pressed:
-					if hit != -1:
-						modifier_menu_requested.emit(hit, pos)
-				elif mb.alt_pressed:
-					if hit != -1:
-						channel_menu_requested.emit(hit, pos)
-				else:
-					pitch_menu_requested.emit(hit, pos)
-			elif _box_active:
-				_box_add = _box_add or mb.shift_pressed
-				_finish_box(pos)
-		MOUSE_BUTTON_MIDDLE:
-			# Middle only pans. (It used to delete on a click, which a short pan could trigger.)
-			if mb.pressed:
-				_pan_active = true
-				_pan_moved = false
-				_pan_start = pos
-				_pan_last = pos
-			elif _pan_active:
-				_pan_active = false
-
-
-func _toggle_key(d: Dictionary, key: int) -> void:
-	if d.has(key):
-		d.erase(key)
-	else:
-		d[key] = true
-
-
 func _finish_box(pos: Vector2) -> void:
 	_box_active = false
 	_box_end = pos
@@ -1656,7 +1485,7 @@ func _finish_box(pos: Vector2) -> void:
 		clear_selection()
 
 
-## Ctrl + wheel: zoom (beat spacing) by `factor`, keeping the world point under `at` still.
+## Zooms (beat spacing) by `factor`, keeping the world point under `at` still.
 func zoom_at(at: Vector2, factor: float) -> void:
 	var v := clampf(Settings.beat_spacing * factor, Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX)
 	if is_equal_approx(v, Settings.beat_spacing):
@@ -1768,31 +1597,13 @@ func _end_press() -> void:
 	_group_start = {}
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	if key and key.pressed and not key.echo and edit_mode and (key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE):
-		if not selection.is_empty():
-			delete_selection()
-			get_viewport().set_input_as_handled()
-		elif _hover_id != -1:
-			remove_note(_hover_id)
-			get_viewport().set_input_as_handled()
-
-
 # --- Drawing -------------------------------------------------------------------------------
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_EXIT:
-		_mouse_in = false
-	elif what == NOTIFICATION_MOUSE_ENTER:
-		_mouse_in = true
-
 
 func _draw() -> void:
 	var font := get_theme_default_font()
 	var now := clock_usec
 
-	if _mouse_in and not _pan_active:
+	if _mouse_in:
 		_draw_reach_glow(_mouse_pos)
 	_draw_limit_rings()
 
@@ -1860,7 +1671,7 @@ func _draw() -> void:
 		if not drag_info.get("range_edit", false):
 			_draw_touches()
 		_draw_readout(font)
-	elif _hover_id != -1 and _press_id == -1 and not _pan_active:
+	elif _hover_id != -1 and _press_id == -1:
 		var hn := get_note(_hover_id)
 		if not hn.is_empty():
 			_draw_tooltip(hn, font)

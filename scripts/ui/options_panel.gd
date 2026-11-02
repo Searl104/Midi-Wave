@@ -167,9 +167,6 @@ func _build() -> void:
 	notes_row.add_child(_button("Clear all", func() -> void: clear_notes_requested.emit()))
 	notes_row.add_child(_button("Default layout", func() -> void: reset_layout_requested.emit()))
 
-	_section(box, "CONTROLS", Palette.TEXT_DIM)
-	box.add_child(_hint("Press ? or F1 for every control, grouped by task. The bar at the bottom of the window shows what you can do with whatever is under the mouse."))
-
 
 ## Channels tab: per-channel settings. Note length: "Default" follows the global Note length.
 func _build_channels(box: VBoxContainer) -> void:
@@ -289,7 +286,7 @@ func _build_snap(box: VBoxContainer) -> void:
 	_slider(box, "Snap distance", "snap_distance", 4.0, 30.0, 1.0, func(v: float) -> String: return "%d px" % v)
 	_check(box, "Snap to spokes", "snap_spokes")
 	_check(box, "Snap to centres", "snap_centres")
-	box.add_child(_hint("G over a note or emitter turns a grid on under it (its timing rings and spokes); Ctrl+G clears every grid. Dragged items snap to the nearest grid point, and new notes are placed on the nearest grid point under the mouse. Drag onto any note or emitter to snap to its centre. Hold Shift to place freely."))
+	box.add_child(_hint("Dragged items snap to the nearest grid point, and new notes are placed on the nearest grid point. Dragging onto a note or emitter snaps to its centre."))
 
 	_section(box, "GUIDES", Palette.YELLOW)
 	_pick(box, "Spokes per grid", "spoke_count", Settings.SPOKE_OPTIONS,
