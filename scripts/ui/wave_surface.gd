@@ -75,7 +75,21 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## A collection dragged from its panel.
+func _can_drop_data(at: Vector2, data: Variant) -> bool:
+	if not data is Dictionary or not data.has("collection"):
+		return false
+	tools.get_tool("collection").hover_drop(data["collection"], at)
+	return true
+
+
+func _drop_data(at: Vector2, data: Variant) -> void:
+	tools.get_tool("collection").drop(data["collection"], at, Input.is_key_pressed(KEY_ALT))
+
+
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_END:
+		tools.get_tool("collection").end_drop()
 	if what == NOTIFICATION_MOUSE_EXIT:
 		set_pointer(_pointer, false)
 

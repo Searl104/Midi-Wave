@@ -15,6 +15,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
 | Grid | Click a note or remote diamond to add or remove a grid origin. Drag from it to set the grid's reach (Alt: unsnapped); back onto it returns to automatic |
+| Paste Collection | Click to stamp the collection picked in its panel (Alt: free) |
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
 Pitch, Channel and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which
@@ -33,6 +34,7 @@ else. Esc closes it too.
 | Tap | Wave strength, reach and falloff curve |
 | Bind | MIDI input (also in Options) |
 | Grid | Clear All, snapping and guides |
+| Paste Collection | Save the selection under a name, and the list of collections |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
 | Channel | Default note length, and a Volume and a Length knob per channel. Volume scales velocity; Off silences notes, though relays still fire |
 | Zoom | Beat spacing |
@@ -57,6 +59,16 @@ Edits on a selected note apply to the whole selection. A pitch pick moves the ot
 scale steps, so a chord keeps its shape; an octave moves them all, and the pitch ring's centre
 deletes the selection. A note that would leave the MIDI range stays put. Relay settings also reach
 selected diamonds.
+
+## Collections
+
+Select some notes, right-click Paste Collection, type a name and press Save. Each name can be used
+once, ignoring case. Drag a row onto the surface in any tool, or click it, then click the surface to
+stamp copies. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
+undo step. Delete is in each row and asks first; it can't be undone.
+
+Each collection is a JSON file in `user://collections`, which is
+`%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows.
 
 ## Keys
 
@@ -189,6 +201,7 @@ scripts/
   ui/toolbar.gd           The strip of tools and ring choices
   ui/tool_panel.gd        The popup that holds a tool's options
   ui/panel_builder.gd     Sliders, buttons and other controls for the panels
+  ui/collection_row.gd    A row in Paste Collection's list
   ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme

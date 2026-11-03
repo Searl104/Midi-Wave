@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_rest()
+	_collections()
 	_held_during_cooldown()
 	_midi_controls()
 	_note_lengths()
@@ -63,7 +64,7 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 10, "ten tools")
+	_check(tools.tools.size() == 11, "eleven tools")
 	_check(tools.get_tool("pulse") == null, "no Pulse tool")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
@@ -1111,7 +1112,7 @@ func _tool_options() -> void:
 		if item.has_options():
 			has.append(item.tool_id())
 	has.sort()
-	_check(has == ["bind", "channel", "grid", "pitch", "tap", "zoom"], "these tools have panels")
+	_check(has == ["bind", "channel", "collection", "grid", "pitch", "tap", "zoom"], "these tools have panels")
 	for id in has:
 		var box := VBoxContainer.new()
 		add_child(box)
@@ -1420,6 +1421,100 @@ func _held_during_cooldown() -> void:
 	run.call(length * 0.7)
 	_check(e.ready_at == second, "released in time, it doesn't")
 	surface.stop()
+	surface.clear_notes()
+
+
+func _collections() -> void:
+	var tool: CollectionTool = tools.get_tool("collection")
+	tools.set_tool("select")
+	surface.clear_notes()
+	surface.selection.clear()
+	for n in Collections.list():
+		Collections.remove(n)
+	var a := surface.add_object(Vector2(100, 100), 60, 2)
+	var b := surface.add_object(Vector2(300, 100), 64, 3)
+	var c := surface.add_object(Vector2(900, 900), 67, 4)
+	surface.add_modifier(a, "relay")
+	surface.add_modifier(b, "rest")
+	surface.set_rest_value(b, 5)
+	surface.set_rest_start(b, 2)
+	surface.set_binding(b, "kp4")
+	surface.snapping.toggle_grid(surface.get_note(b), false)
+	var e: Emitter = surface.get_note(a).emitter()
+	e.attached = false
+	e.pos = Vector2(100, 200)
+	surface.get_note(a).snap_note = "n%d" % b
+	surface.get_note(b).snap_note = "n%d" % c          # outside the group
+	# Saving.
+	_check(tool.save_selection("Pair") == "Select some notes first.", "saving needs a selection")
+	surface.selection.notes = {a: true, b: true}
+	_check(tool.save_selection("  ") == "Give it a name first.", "and a name")
+	_check(tool.save_selection(" Bells: 1/2? ") == "", "any name saves")
+	_check(Array(Collections.list()) == ["Bells: 1/2?"], "trimmed, and listed")
+	_check(FileAccess.file_exists("user://collections/" + "Bells: 1/2?".uri_encode() + ".json"), "as a JSON file")
+	_check(tool.save_selection("Bells: 1/2?") == "That name is already used.", "a used name is refused")
+	_check(tool.save_selection("bells: 1/2?") == "That name is already used.", "in any case")
+	_check(Collections.list().size() == 1, "and nothing changes")
+	# Placing a copy: everything comes back, around the drop point.
+	var before := surface.notes.size()
+	Settings.snap_enabled = false
+	var added := tool.drop("Bells: 1/2?", surface.to_screen(Vector2(500, 500)))
+	Settings.snap_enabled = true
+	_check(added == 2 and surface.notes.size() == before + 2, "dropping adds the notes")
+	_check(surface.selection.notes.size() == 2 and not surface.selection.notes.has(a), "which become the selection")
+	var ids: Array = surface.selection.notes.keys()
+	ids.sort()
+	var pa := surface.get_note(ids[0])
+	var pb := surface.get_note(ids[1])
+	_check(pa.pos == Vector2(400, 500) and pb.pos == Vector2(600, 500), "around the drop point")
+	_check(pa.emitter().pos == Vector2(400, 600) and not pa.emitter().attached, "with its remote emitter")
+	_check(pb.note == 64 and pb.channel == 3 and pb.binding == "kp4" and pb.grid != null, "binding and grid kept")
+	var rest: RestModifier = pb.get_modifier("rest")
+	_check(rest.value == 5 and rest.left == 2, "modifiers kept")
+	_check(pa.snap_note == "n%d" % pb.id, "snap memory follows the group")
+	_check(pb.snap_note == "", "and links outside it are dropped")
+	surface.undo()
+	_check(surface.notes.size() == before, "one undo removes the lot")
+	# Stamping.
+	surface.selection.clear()
+	tools.set_tool("select")
+	tool.pick("Bells: 1/2?")
+	_check(tools.current == tool, "picking a row switches to the tool")
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(500, 300))
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(700, 500))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(700, 500))
+	_check(surface.notes.size() == before + 4, "each click stamps a copy")
+	surface.undo()
+	surface.undo()
+	# The panel.
+	var box := VBoxContainer.new()
+	add_child(box)
+	tool.build_options(box)
+	var row: CollectionRow = box.find_children("*", "CollectionRow", true, false)[0]
+	_check(row.handle.button_pressed and row.handle.collection == "Bells: 1/2?", "the picked row is lit")
+	_check(surface._can_drop_data(Vector2(300, 300), {"collection": "Bells: 1/2?"}), "the surface takes it")
+	_check(not surface._can_drop_data(Vector2(300, 300), {"other": 1}), "and nothing else")
+	surface._notification(Control.NOTIFICATION_DRAG_END)
+	_check(not row.confirm_button.visible, "no confirm yet")
+	row.delete_button.pressed.emit()
+	_check(row.confirm_button.visible and not row.delete_button.visible and Collections.list().size() == 1, "Delete asks")
+	row.cancel_button.pressed.emit()
+	_check(row.delete_button.visible and not row.confirm_button.visible and Collections.list().size() == 1, "Keep keeps it")
+	row.delete_button.pressed.emit()
+	row.confirm_button.pressed.emit()
+	_check(Collections.list().is_empty() and tool.picked == "", "Confirm deletes it, and unpicks it")
+	box.queue_free()
+	# A bad file.
+	DirAccess.make_dir_recursive_absolute(Collections.DIR)
+	var bad := FileAccess.open(Collections.DIR + "Bad.json", FileAccess.WRITE)
+	bad.store_string("{not json")
+	bad.close()
+	_check(Collections.read("Bad").is_empty(), "a broken file reads as empty")
+	_check(tool.drop("Bad", Vector2(100, 100)) == 0, "and places nothing")
+	Collections.remove("Bad")
+	tools.set_tool("select")
+	surface.selection.clear()
 	surface.clear_notes()
 
 

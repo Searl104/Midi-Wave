@@ -10,6 +10,7 @@ extends RefCounted
 signal tool_changed(tool_id: String)
 signal mode_changed(editing: bool)
 signal notice(text: String)
+signal close_panel                 ## a tool is done with its panel
 
 var surface: WaveSurface
 var tools: Array[Tool] = []
@@ -26,7 +27,7 @@ var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id();
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
-	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), PitchTool.new(surface),
+	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), CollectionTool.new(surface), PitchTool.new(surface),
 			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "rest_settings": RestSettingsRing.new(surface)}
@@ -230,6 +231,7 @@ func toggle_tap() -> void:
 
 func draw_overlay(canvas: WaveSurface) -> void:
 	current.draw_overlay(canvas)
+	get_tool("collection").draw_drop(canvas)
 
 
 # --- Rings ---------------------------------------------------------------------------------

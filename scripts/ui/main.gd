@@ -46,6 +46,7 @@ func _ready() -> void:
 	add_child(toolbar)
 	tool_panel = ToolPanel.new()
 	tool_panel.toolbar = toolbar
+	surface.tools.close_panel.connect(tool_panel.close)
 	toolbar.panel = tool_panel
 	add_child(tool_panel)
 	surface.tools.set_ring_option(Settings.ring_option)

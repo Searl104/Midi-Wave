@@ -54,6 +54,7 @@ func open(t: Tool, anchor_y: float) -> void:
 	t.build_options(_box)
 	pad.add_child(_box)
 	_scroll.add_child(pad)
+	pad.minimum_size_changed.connect(_fit.bind(pad), CONNECT_DEFERRED)
 	show()
 	_fit.call_deferred(pad)
 
