@@ -1396,12 +1396,22 @@ func _held_during_cooldown() -> void:
 	surface.release_binding("kp1")
 	var first: int = e.ready_at
 	run.call(length * 0.5)
+	var sent: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			sent.append(m)
+	Midi.message_sent.connect(spy)
+	surface.add_modifier(a, "rest")
+	var rest: RestModifier = surface.get_note(a).get_modifier("rest")
 	surface.press_binding("kp1")
-	_check(e.ready_at == first, "a press during a cooldown doesn't fire")
+	_check(e.ready_at == first and sent.is_empty() and rest.left == 0, "a press during a cooldown does nothing")
 	run.call(length * 0.4)
-	_check(e.ready_at == first, "nor before it ends")
+	_check(e.ready_at == first and sent.is_empty(), "nor before it ends")
 	run.call(length * 0.15)
 	_check(e.ready_at > first and e.ready_at <= first + e.cooldown_usec() + 20000, "held, it fires as the cooldown ends")
+	_check(sent.size() == 1 and rest.left == 1, "once, with its sound and counting one hit")
+	surface.remove_modifier(a, "rest")
+	Midi.message_sent.disconnect(spy)
 	var second: int = e.ready_at
 	surface.release_binding("kp1")
 	run.call(length * 0.5)

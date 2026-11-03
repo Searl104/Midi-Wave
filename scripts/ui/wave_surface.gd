@@ -574,12 +574,15 @@ func trigger_note(id: int) -> void:
 func press_binding(binding: String) -> void:
 	held_bindings[binding] = true
 	for o in notes.duplicate():
-		if o.binding == binding:
-			o.tap(self)
-			if o.relay():
-				# A press during a cooldown refires as soon as it ends, if still held.
-				var e: Emitter = o.emitter()
-				e.hold_next = e.ready_at if e.ready_at > clock_usec else clock_usec + e.cooldown_usec()
+		if o.binding != binding:
+			continue
+		var e: Emitter = o.emitter()
+		if e and e.cooling(clock_usec):
+			e.hold_next = e.ready_at         # nothing yet: it fires when this ends, if still held
+			continue
+		o.tap(self)
+		if e:
+			e.hold_next = clock_usec + e.cooldown_usec()
 
 
 func release_binding(binding: String) -> void:

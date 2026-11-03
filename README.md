@@ -100,7 +100,7 @@ it, or firing its binding, plays it anyway.
 ## Bindings
 
 A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes can share one. A badge
-at the note's upper left shows it. A binding fires like a tap, in any tool. A press during a cooldown fires when it ends, if still held. While it's held, relays
+at the note's upper left shows it. A binding fires like a tap, in any tool. A press during a cooldown does nothing until it ends, and fires then if still held. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
 
 **Options → Controls** maps MIDI messages to Stop, Save state and Panic. Press Learn, then press a key,

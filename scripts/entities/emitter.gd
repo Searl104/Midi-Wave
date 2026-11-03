@@ -80,9 +80,14 @@ func grid_limit() -> float:
 ## Fires a wave. `overshoot` is how far the hit's wave had passed when this frame noticed it: the new
 ## wave starts that far out and the cooldown counts from the true hit, so links don't add frames
 ## and loops keep their tempo. Hits land on frames, so one a little early still fires.
+## True if it can't fire yet at `time`.
+func cooling(time: int) -> bool:
+	return time < ready_at - COOLDOWN_GRACE
+
+
 func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array, overshoot: float = 0.0) -> void:
 	var hit_at := now - int(overshoot / Settings.wave_speed * 1_000_000.0)
-	if hit_at < ready_at - COOLDOWN_GRACE:
+	if cooling(hit_at):
 		return
 	if surface.waves.size() + spawned.size() >= WaveSurface.MAX_WAVES:
 		surface.skipped_pulses += 1  # surface full: skip this beat, stay ready
