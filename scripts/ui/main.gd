@@ -56,10 +56,6 @@ func _ready() -> void:
 	options.reset_layout_requested.connect(func() -> void:
 		surface.clear_notes()
 		surface.seed_default_layout())
-	options.song_layout_requested.connect(func() -> void:
-		surface.load_layout(SongLayout.new().layout)
-		surface.fit_view()
-		_toast("KP1 KP1, KP2 KP2, KP3 KP3 KP3, KP4"))
 	options.test_layout_requested.connect(func() -> void:
 		var demo := DemoLayout.new()
 		surface.load_layout(demo.layout)

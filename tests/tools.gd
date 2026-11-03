@@ -38,7 +38,7 @@ func _ready() -> void:
 	_tool_options()
 	_note_lengths()
 	_timing()
-	_song()
+	_slow_frame()
 	_wave_end()
 	_tweaks()
 	_saves()
@@ -1314,74 +1314,12 @@ func _timing() -> void:
 	surface.clear_notes()
 
 
-func _play_part(part: Array, fps: float, held: float, heard: Array) -> int:
-	heard.clear()
-	var start: int = surface.clock_usec
-	surface.press_binding(part[0])
-	var total := 0.0
-	for n in part[3]:
-		total += n[1]
-	var t := 0.0
-	var released := false
-	while t < total * 0.5 + 1.0:
-		if not released and t >= held:
-			surface.release_binding(part[0])
-			released = true
-		surface.step(1.0 / fps)
-		t += 1.0 / fps
-	if not released:
-		surface.release_binding(part[0])
-	return start
-
-
-func _song() -> void:
-	var bpm: float = Settings.bpm
-	var falloff: float = Settings.falloff_curve
-	Settings.bpm = 120.0
-	surface.load_layout(SongLayout.new().layout)
+func _slow_frame() -> void:
 	var heard: Array = []
 	var spy := func(m: PackedByteArray) -> void:
 		if (m[0] & 0xF0) == 0x90:
 			heard.append([surface.clock_usec, m[1], m[2]])
-	Midi.message_sent.connect(spy)
 	var melody := func() -> Array: return heard.map(func(h: Array) -> int: return h[1])
-	for part in SongLayout.PARTS:
-		var wants: Array = part[3].map(func(w: Array) -> int: return w[0])
-		var start := _play_part(part, 60.0, 0.1, heard)
-		_check(melody.call() == wants, "%s plays once from a normal key press" % part[0])
-		var at := 0.0
-		for i in mini(heard.size(), wants.size()):
-			var off: float = (heard[i][0] - start) / 1000.0 - at * 500.0
-			_check(off >= -1.0 and off < 20.0, "%s note %d on time (%.1f ms)" % [part[0], i, off])
-			at += part[3][i][1]
-			if i > 0:
-				_check(heard[i][2] == roundi(0.8 * 127.0), "%s note %d at a steady velocity" % [part[0], i])
-		_check(surface.waves.is_empty(), "%s leaves no waves" % part[0])
-		_play_part(part, 12.0, 0.1, heard)
-		_check(melody.call() == wants, "%s survives slow frames" % part[0])
-		surface.step(5.0)
-		Settings.falloff_curve = 4.0
-		_play_part(part, 60.0, 0.1, heard)
-		_check(melody.call() == wants, "%s survives a raised Falloff" % part[0])
-		Settings.falloff_curve = falloff
-		surface.step(5.0)
-	# Holding a key repeats the part.
-	var first: Array = SongLayout.PARTS[0]
-	_play_part(first, 60.0, 3.0, heard)
-	_check(melody.call().count(64) >= 2, "holding a key repeats the part")
-	surface.step(5.0)
-	surface.fit_view()
-	var visible := Rect2(Vector2.ZERO, surface.size)
-	var inside := true
-	for o in surface.notes:
-		inside = inside and visible.has_point(surface.to_screen(o.pos))
-	_check(inside, "the whole song fits the window")
-	Midi.message_sent.disconnect(spy)
-	Settings.bpm = bpm
-	Settings.set_value("beat_spacing", 200.0)
-	surface.view_offset = Vector2.ZERO
-	surface.stop()
-	surface.clear_notes()
 	# A wave ending in one slow frame still hits what it reached, and nothing past its end.
 	var inner := surface.add_object(Vector2(100, 0), 60, 0)
 	var outer := surface.add_object(Vector2(400, 0), 62, 0)

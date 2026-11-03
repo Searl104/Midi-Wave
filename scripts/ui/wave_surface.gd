@@ -125,22 +125,6 @@ func frame_notes() -> void:
 	pan_by((box.get_center() - view_offset) * z() - size / 2.0)
 
 
-## Zooms and pans so the objects and their emitters all fit in the window.
-func fit_view() -> void:
-	if notes.is_empty():
-		return
-	var box := Rect2(notes[0].pos, Vector2.ZERO)
-	for o in notes:
-		box = box.expand(o.pos)
-		var e: Emitter = o.emitter()
-		if e and not e.attached:
-			box = box.expand(e.pos)
-	var room := size - Vector2(220, 180)
-	var fit := minf(room.x / maxf(box.size.x, 1.0), room.y / maxf(box.size.y, 1.0))
-	Settings.set_value("beat_spacing", clampf(fit * Settings.BEAT_UNIT, Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX))
-	frame_notes()
-
-
 func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
 	return Rect2(Vector2.ZERO, size).grow(margin).has_point(to_screen(world_pos))
 

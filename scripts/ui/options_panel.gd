@@ -6,7 +6,6 @@ extends PanelContainer
 signal clear_notes_requested
 signal reset_layout_requested
 signal test_layout_requested
-signal song_layout_requested
 
 const WIDTH := 330.0
 
@@ -104,7 +103,6 @@ func _build() -> void:
 	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface."))
 	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
 	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
-	box.add_child(PanelBuilder.button("Three Blind Mice", func() -> void: song_layout_requested.emit(), "Replaces the notes with the song in four parts, played on KP1-4."))
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
