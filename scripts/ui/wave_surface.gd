@@ -126,6 +126,22 @@ func frame_notes() -> void:
 	pan_by((box.get_center() - view_offset) * z() - size / 2.0)
 
 
+## Zooms and pans so the objects and their emitters all fit in the window.
+func fit_view() -> void:
+	if notes.is_empty():
+		return
+	var box := Rect2(notes[0].pos, Vector2.ZERO)
+	for o in notes:
+		box = box.expand(o.pos)
+		var e: Emitter = o.emitter()
+		if e and not e.attached:
+			box = box.expand(e.pos)
+	var room := size - Vector2(220, 180)
+	var fit := minf(room.x / maxf(box.size.x, 1.0), room.y / maxf(box.size.y, 1.0))
+	Settings.set_value("beat_spacing", clampf(fit * Settings.BEAT_UNIT, Settings.BEAT_SPACING_MIN, Settings.BEAT_SPACING_MAX))
+	frame_notes()
+
+
 func is_on_screen(world_pos: Vector2, margin: float = 0.0) -> bool:
 	return Rect2(Vector2.ZERO, size).grow(margin).has_point(to_screen(world_pos))
 
@@ -614,11 +630,7 @@ func step(delta: float) -> void:
 		var w: Wave = waves[i]
 		if i < fresh_from:
 			w.grow(delta * speed)
-		if w.finished():
-			waves.remove_at(i)
-			if i < fresh_from:
-				fresh_from -= 1
-			continue
+		# Hits come first: on a slow frame a wave can reach its end and pass objects in one step.
 		for o in notes:
 			w.try_hit(self, o, now, spawned)
 		# Waves fired by relays join the loop now, at radius 0, so a note sitting on the emitter
@@ -626,6 +638,11 @@ func step(delta: float) -> void:
 		# frame. Cooldowns and MAX_WAVES keep this from running away.
 		waves.append_array(spawned)
 		spawned.clear()
+		if w.finished():
+			waves.remove_at(i)
+			if i < fresh_from:
+				fresh_from -= 1
+			continue
 		i += 1
 
 	# Held bindings: relays refire each time their cooldown runs out (a refire that a toggle

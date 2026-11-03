@@ -45,6 +45,8 @@ func try_hit(surface: WaveSurface, o: Note, now: int, spawned: Array) -> void:
 	if o.id == source or hits.has(o.id):
 		return
 	var d := origin.distance_to(o.pos)
+	if d >= reach():
+		return                       # past the end: a slow frame's step doesn't stretch the reach
 	if r >= d or d <= Note.RADIUS:
 		hits[o.id] = true
 		var amp := Wave.amplitude(strength, d, reach())

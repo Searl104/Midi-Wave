@@ -4,6 +4,10 @@ A liquid surface you play with waves. With the Tap tool, click empty space to se
 note it reaches fires a MIDI note, with velocity set by how strong the wave still is when it
 arrives. Click a note to play it alone.
 
+**Three Blind Mice** (Options → General): a sample layout of the song in four parts. Play it on the
+keypad as KP1 KP1, KP2 KP2, KP3 KP3 KP3, KP4, or in any order. Holding a key repeats that part. It
+needs a Falloff curve of about 2.1 or less, since higher values stop its timing waves arriving.
+
 ## Toolbar
 
 A strip on the left edge holds the tools. Left-click picks one. The layout is locked in Tap.
