@@ -132,10 +132,10 @@ func _on_tool_changed(_t: String) -> void:
 	Settings.set_value("ring_option", surface.tools.ring_option.tool_id())
 
 
-## The Save state button: toggles' current states become their start states.
+## The Save state button: rests' current counts become their start counts.
 func _save_state() -> void:
 	surface.save_state()
-	_toast("Start states saved")
+	_toast("Start counts saved")
 
 
 var _toast_label: Label
@@ -205,7 +205,7 @@ func _build_hud() -> void:
 
 	var save := Button.new()
 	save.text = "Save state"
-	save.tooltip_text = "Make every toggle's current state its start state (Ctrl+S)"
+	save.tooltip_text = "Make every rest's current count its start count (Ctrl+S)"
 	save.focus_mode = Control.FOCUS_NONE
 	save.pressed.connect(_save_state)
 	top.add_child(save)

@@ -287,7 +287,7 @@ func redo() -> bool:
 	return true
 
 
-## Rebuilds the objects from a layout snapshot, keeping live play state (toggles, cooldowns) and
+## Rebuilds the objects from a layout snapshot, keeping live play state (rests, cooldowns) and
 ## the selection for objects that survive.
 func _apply_snapshot(snap: Array) -> void:
 	var live := {}
@@ -395,7 +395,7 @@ func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 
 
 ## Adds a modifier if the object doesn't have it. A new relay sounds and is ready to fire; a new
-## toggle starts on.
+## rest is ready to fire.
 func add_modifier(id: int, kind: String) -> void:
 	var o := get_note(id)
 	if o == null or o.get_modifier(kind):
@@ -439,12 +439,21 @@ func set_relay_sound(id: int, on: bool) -> void:
 	save_notes()
 
 
-## A state the user sets is a toggle's intended start state: sets current and start.
-func set_modifier_state(id: int, on: bool) -> void:
+## Sets how many hits a rest sits out after firing.
+func set_rest_value(id: int, value: int) -> void:
 	var o := get_note(id)
-	if o == null or o.get_modifier("toggle") == null:
+	if o == null or o.get_modifier("rest") == null:
 		return
-	o.get_modifier("toggle").set_state(on)
+	o.get_modifier("rest").set_value(value)
+	save_notes()
+
+
+## Sets how many hits a rest has left at the start, which is also its count now.
+func set_rest_start(id: int, count: int) -> void:
+	var o := get_note(id)
+	if o == null or o.get_modifier("rest") == null:
+		return
+	o.get_modifier("rest").set_start_left(count)
 	save_notes()
 
 
@@ -628,7 +637,7 @@ func step(delta: float) -> void:
 			continue
 		i += 1
 
-	# Held bindings: relays refire each time their cooldown runs out (a refire that a toggle
+	# Held bindings: relays refire each time their cooldown runs out (a refire that a rest
 	# silences still waits a full cooldown before the next). Retrigger relays don't refire.
 	if not held_bindings.is_empty():
 		for o in notes.duplicate():

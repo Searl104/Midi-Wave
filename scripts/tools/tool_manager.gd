@@ -29,7 +29,7 @@ func _init(owner_surface: WaveSurface) -> void:
 	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), PitchTool.new(surface),
 			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
-	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "toggle_settings": ToggleSettingsRing.new(surface)}
+	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "rest_settings": RestSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
 	current = get_tool("select")
 	_before_tap = current

@@ -36,6 +36,7 @@ func _ready() -> void:
 	_group_rings()
 	_grid_tool()
 	_tool_options()
+	_rest()
 	_note_lengths()
 	_channel_volume()
 	_timing()
@@ -369,14 +370,14 @@ func _tap() -> void:
 	_check(not o.playing and sent.size() == 2, "note off follows")
 	# Toggles: a tap counts as a hit.
 	sent.clear()
-	surface.add_modifier(note, "toggle")
+	surface.add_modifier(note, "rest")
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.size() == 1 and not surface.get_note(note).get_modifier("toggle").on, "a toggle on plays and flips")
+	_check(sent.size() == 1 and surface.get_note(note).get_modifier("rest").left == 1, "a ready rest plays, then rests")
 	surface.step(1.0)
 	sent.clear()
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
-	_check(sent.is_empty() and surface.get_note(note).get_modifier("toggle").on, "a toggle off is silent and flips")
-	surface.remove_modifier(note, "toggle")
+	_check(sent.is_empty() and surface.get_note(note).get_modifier("rest").left == 0, "a resting note is silent and counts down")
+	surface.remove_modifier(note, "rest")
 	# Mute: a tap overrides it, for notes and relays.
 	surface.get_note(note).muted = true
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 300))
@@ -527,9 +528,9 @@ func _draw_tool() -> void:
 	tools.pick("modifier")
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
 	radial.outer_chosen.emit("relay")
-	radial.outer_chosen.emit("toggle")
+	radial.outer_chosen.emit("rest")
 	radial.close()
-	_check(brush.relay() != null and brush.get_modifier("toggle") != null, "modifiers go on the brush")
+	_check(brush.relay() != null and brush.get_modifier("rest") != null, "modifiers go on the brush")
 	_check(not Settings.notes.is_empty() and surface.get_note(a).relay() == null, "and only there")
 	var channel_before: int = ao.channel
 	tools.pick("channel")
@@ -544,7 +545,7 @@ func _draw_tool() -> void:
 	# Placing carries the modifiers, with a fresh copy.
 	_click(Vector2(800, 200))
 	var placed: Note = surface.notes[-1]
-	_check(placed.channel == 5 and placed.relay() and placed.get_modifier("toggle"), "placed with the brush settings")
+	_check(placed.channel == 5 and placed.relay() and placed.get_modifier("rest"), "placed with the brush settings")
 	_check(placed.emitter() != brush.emitter() and placed.emitter().attached and placed.emitter().pos == placed.pos, "its own docked relay")
 	surface.history.end_group()
 	# Handles: move, dock, reach; Ctrl-drag on empty does nothing.
@@ -577,7 +578,7 @@ func _draw_tool() -> void:
 	_check(be.cooldown == 3.0 and be.strength == 0.5 and be.own_reach > 0.0 and not brush.relay().sound, "Ctrl-click copies the settings")
 	_check(be != placed.emitter() and be.attached and brush.binding == "", "but not the spot or binding")
 	_check(Settings.brush.get("channel", -1) == 5 and Settings.brush.mods.size() == 2, "the brush is saved")
-	var tab: Vector2 = placed.get_modifier("toggle")._tab_centre(surface, placed)
+	var tab: Vector2 = placed.get_modifier("rest")._tab_centre(surface, placed)
 	count = surface.notes.size()
 	_click(tab)
 	_check(surface.notes.size() == count, "a tab doesn't place")
@@ -642,10 +643,10 @@ func _modifiers() -> void:
 	var a := surface.add_note_at(Vector2(200, 200), 60, 0)
 	tools.open_ring_for("modifier", a, Vector2(200, 200))
 	_check(radial.outer_items.size() == 3 and radial.inner_items.is_empty(), "add and remove only")
-	radial.outer_chosen.emit("toggle")
+	radial.outer_chosen.emit("rest")
 	radial.outer_chosen.emit("relay")
 	var o := surface.get_note(a)
-	_check(o.modifiers.size() == 2 and o.modifiers[0] is ToggleModifier and o.modifiers[1] is RelayModifier, "holds both")
+	_check(o.modifiers.size() == 2 and o.modifiers[0] is RestModifier and o.modifiers[1] is RelayModifier, "holds both")
 	_check(o.sounds() and o.emitter().attached and o.shows_pitch(), "a new relay keeps sounding")
 	# Sounding relay on a toggle: acts on every other hit, playing and pulsing together.
 	var sent: Array = []
@@ -661,7 +662,7 @@ func _modifiers() -> void:
 	_check(sent.size() == 1 and surface.waves.is_empty(), "the toggle silences both")
 	Midi.message_sent.disconnect(spy)
 	surface.stop()
-	radial.outer_chosen.emit("toggle")
+	radial.outer_chosen.emit("rest")
 	_check(surface.get_note(a).modifiers.size() == 1, "removes just that one")
 	radial.outer_chosen.emit("")
 	_check(surface.get_note(a).modifiers.is_empty(), "None clears them")
@@ -673,7 +674,7 @@ func _tabs() -> void:
 	var a := surface.add_note_at(Vector2(400, 300), 60, 0)
 	var b := surface.add_note_at(Vector2(700, 300), 62, 0)
 	surface.add_modifier(a, "relay")
-	surface.add_modifier(a, "toggle")
+	surface.add_modifier(a, "rest")
 	surface.selection.notes = {a: true, b: true}
 	var o := surface.get_note(a)
 	var e := o.emitter()
@@ -714,12 +715,12 @@ func _tabs() -> void:
 	surface.drag.end()
 	_check(e.attached, "dropping on the note recalls it")
 	# The toggle's tab.
-	var tab: Vector2 = o.get_modifier("toggle")._tab_centre(surface, o)
+	var tab: Vector2 = o.get_modifier("rest")._tab_centre(surface, o)
 	_press(MOUSE_BUTTON_RIGHT, true, tab)
-	_check(radial.visible and tools.open_ring.tool_id() == "toggle_settings", "right-click the toggle tab")
-	radial.outer_chosen.emit(false)
-	var t: Modifier = o.get_modifier("toggle")
-	_check(not t.on and not t.start, "state sets current and start")
+	_check(radial.visible and tools.open_ring.tool_id() == "rest_settings", "right-click the toggle tab")
+	radial.inner_chosen.emit(1)
+	var t: RestModifier = o.get_modifier("rest")
+	_check(t.left == 1 and t.start_left == 1, "the inner ring sets current and start")
 	radial.close()
 	# Not on a tab, and not in Tap.
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(600, 600))
@@ -749,7 +750,7 @@ func _radial_move(at: Vector2) -> void:
 func _quick_pick() -> void:
 	var a := surface.add_note_at(Vector2(640, 400), 60, 0)
 	surface.add_modifier(a, "relay")
-	surface.add_modifier(a, "toggle")
+	surface.add_modifier(a, "rest")
 	var o := surface.get_note(a)
 	var e: Emitter = o.emitter()
 	tools.set_tool("select")
@@ -804,13 +805,13 @@ func _quick_pick() -> void:
 	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
 	radial.close()
 	# The toggle's ring, and the group.
-	var tab: Vector2 = o.get_modifier("toggle")._tab_centre(surface, o)
+	var tab: Vector2 = o.get_modifier("rest")._tab_centre(surface, o)
 	_press(MOUSE_BUTTON_RIGHT, true, tab)
 	c = radial._center
-	item = c + Vector2(0, 100)                       # Off, the lower half
+	item = c + Vector2(0, 100)                       # 5, at the bottom
 	_radial_move(item)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
-	_check(not o.get_modifier("toggle").on and not radial.visible, "works on the toggle ring")
+	_check(o.get_modifier("rest").value == 5 and not radial.visible, "works on the rest ring")
 	surface.clear_notes()
 
 
@@ -837,7 +838,7 @@ func _ring_options() -> void:
 	var toggle_at: Vector2 = c + Vector2.from_angle(-PI / 2.0 + TAU / 3.0) * 112.0
 	_radial_move(toggle_at)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
-	_check(surface.get_note(a).get_modifier("toggle") != null and not radial.visible, "quick pick adds a modifier")
+	_check(surface.get_note(a).get_modifier("rest") != null and not radial.visible, "quick pick adds a modifier")
 	surface.selection.notes = {a: true, b: true}
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
 	_radial_move(toggle_at)
@@ -846,12 +847,12 @@ func _ring_options() -> void:
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
 	_radial_move(toggle_at)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
-	_check(surface.get_note(b).get_modifier("toggle") != null, "the group follows")
+	_check(surface.get_note(b).get_modifier("rest") != null, "the group follows")
 	surface.selection.clear()
 	# A tab still wins, and Tap keeps rings off.
 	var o := surface.get_note(a)
-	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("toggle")._tab_centre(surface, o))
-	_check(tools.open_ring.tool_id() == "toggle_settings", "a tab opens its settings")
+	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("rest")._tab_centre(surface, o))
+	_check(tools.open_ring.tool_id() == "rest_settings", "a tab opens its settings")
 	radial.close()
 	tools.set_tool("tap")
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
@@ -1278,6 +1279,52 @@ func _channel_volume() -> void:
 	surface.clear_notes()
 
 
+func _rest() -> void:
+	var a := surface.add_object(Vector2.ZERO, 60, 0)
+	surface.add_modifier(a, "rest")
+	var o := surface.get_note(a)
+	var r: RestModifier = o.get_modifier("rest")
+	_check(r.value == 1 and r.left == 0 and not r.resting(), "new rests are Rest 1 and ready")
+	surface.set_rest_value(a, 3)
+	var fired: Array = []
+	for i in 9:
+		fired.append(r.passes_hit())
+	_check(fired == [true, false, false, false, true, false, false, false, true], "Rest 3 sits out three hits")
+	_check(r.left == 3, "it counts from Value after firing")
+	surface.set_rest_value(a, 2)
+	_check(r.left == 2, "lowering Value lowers the count")
+	surface.set_rest_value(a, 0)
+	_check(r.value == 1, "Value stops at 1")
+	surface.set_rest_value(a, 9)
+	_check(r.value == 8, "and at 8")
+	# The start count.
+	surface.set_rest_value(a, 4)
+	surface.set_rest_start(a, 2)
+	_check(r.left == 2 and r.start_left == 2 and r.off_start() == false, "the start count sets the count")
+	r.passes_hit()
+	_check(r.left == 1 and r.off_start() and "1 left" in o.hover_text(), "counting down is shown")
+	r.reset()
+	_check(r.left == 2, "Stop returns to the start count")
+	r.passes_hit()
+	surface.save_state()
+	_check(r.start_left == 1, "Save state keeps the count")
+	surface.set_rest_value(a, 1)
+	surface.set_rest_start(a, 5)
+	_check(r.start_left == 1, "the start count stops at Value")
+	# Saves.
+	surface.set_rest_value(a, 6)
+	surface.set_rest_start(a, 4)
+	var copy := RestModifier.new()
+	copy.load_dict(r.to_dict(), Vector2.ZERO)
+	_check(copy.value == 6 and copy.left == 4 and copy.start_left == 4, "rests save")
+	var old := Modifier.create("toggle")
+	old.load_dict({"kind": "toggle", "start": false}, Vector2.ZERO)
+	_check(old is RestModifier and old.value == 1 and old.left == 1, "an old toggle starting off")
+	old.load_dict({"kind": "toggle", "start": true}, Vector2.ZERO)
+	_check(old.left == 0, "an old toggle starting on")
+	surface.clear_notes()
+
+
 func _note_lengths() -> void:
 	_check(Settings.note_beats == 0.5, "the default is an eighth note")
 	var bpm: float = Settings.bpm
@@ -1481,8 +1528,8 @@ func _tweaks() -> void:
 	var a := surface.add_note_at(Vector2(300, 300), 60, 0)
 	var b := surface.add_note_at(Vector2(500, 300), 63, 0)
 	var ao := surface.get_note(a)
-	surface.add_modifier(b, "toggle")
-	var t: Modifier = surface.get_note(b).get_modifier("toggle")
+	surface.add_modifier(b, "rest")
+	var t: RestModifier = surface.get_note(b).get_modifier("rest")
 	for id in ["tap", "select", "draw", "bind", "grid", "pan"]:
 		tools.set_tool(id)
 		surface.selection.clear()
@@ -1506,10 +1553,10 @@ func _tweaks() -> void:
 		_check(ao.note == was + 12, "Shift: an octave in %s" % id)
 		e.keycode = KEY_COMMA
 		tools.handle_input(e)
-		t.on = false
-		t.start = true
+		t.left = 1
+		t.start_left = 0
 		_key(KEY_S, true)
-		_check(not t.start, "Ctrl+S in %s" % id)
+		_check(t.start_left == 1, "Ctrl+S in %s" % id)
 	surface.set_pointer(Vector2(1000, 700))
 	tools.set_tool("select")
 	surface.clear_notes()
@@ -1583,19 +1630,21 @@ func _group_rings() -> void:
 	tools.pick("modifier")
 	open_on.call(c4)
 	radial.outer_chosen.emit("relay")
-	radial.outer_chosen.emit("toggle")
+	radial.outer_chosen.emit("rest")
 	radial.close()
-	_check(surface.get_note(g4).relay() != null and surface.get_note(e4).get_modifier("toggle") != null, "modifiers spread")
+	_check(surface.get_note(g4).relay() != null and surface.get_note(e4).get_modifier("rest") != null, "modifiers spread")
 	var o := surface.get_note(c4)
 	_press(MOUSE_BUTTON_RIGHT, true, o.emitter().dock_screen_pos(surface, o))
 	radial.outer_chosen.emit(2.0)
 	radial.center_chosen.emit("sound")
 	radial.close()
 	_check(surface.get_note(g4).emitter().cooldown == 2.0 and not surface.get_note(e4).relay().sound, "relay settings spread")
-	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("toggle")._tab_centre(surface, o))
-	radial.outer_chosen.emit(false)
+	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("rest")._tab_centre(surface, o))
+	radial.outer_chosen.emit(4)
+	radial.inner_chosen.emit(3)
 	radial.close()
-	_check(not surface.get_note(g4).get_modifier("toggle").on, "toggle settings spread")
+	var spread: RestModifier = surface.get_note(g4).get_modifier("rest")
+	_check(spread.value == 4 and spread.start_left == 3, "rest settings spread")
 	# Selected diamonds count for relay settings.
 	sel.clear()
 	sel.emitters = {c4: true, g4: true}
@@ -1623,13 +1672,13 @@ func _group_rings() -> void:
 
 func _saves() -> void:
 	Settings.notes = [
-		{"x": 10.0, "y": 0.0, "note": 60, "channel": 0, "mode": 2, "pulse_strength": 0.5, "cooldown_beats": 2.0, "attached": false, "ex": 30.0, "ey": 40.0, "mod": "toggle", "mod_start": false, "id": 3, "range": 200.0, "grid_emit": true, "snap_emit": "n1"},
+		{"x": 10.0, "y": 0.0, "note": 60, "channel": 0, "mode": 2, "pulse_strength": 0.5, "cooldown_beats": 2.0, "attached": false, "ex": 30.0, "ey": 40.0, "mod": "rest", "mod_start": false, "id": 3, "range": 200.0, "grid_emit": true, "snap_emit": "n1"},
 		{"x": 20.0, "y": 0.0, "note": 62, "channel": 1, "mode": 1, "id": 4},
 		{"x": 30.0, "y": 0.0, "note": 64, "channel": 2, "mode": 0, "attached": false, "ex": 9.0, "ey": 9.0, "id": 5},
 	]
 	surface.load_notes()
 	var r := surface.get_note(3)
-	_check(r.relay() and not r.relay().sound and r.get_modifier("toggle") and not r.get_modifier("toggle").start, "old relay with a toggle")
+	_check(r.relay() and not r.relay().sound and r.get_modifier("rest") and r.get_modifier("rest").value == 1 and r.get_modifier("rest").start_left == 1, "an old toggle is Rest 1")
 	var e := r.emitter()
 	_check(e.strength == 0.5 and e.cooldown == 2.0 and not e.attached and e.pos == Vector2(30, 40) and e.own_reach == 200.0 and e.grid and e.snap == "n1", "keeps its emitter")
 	_check(surface.get_note(4).relay() and surface.get_note(4).relay().sound and surface.notes.size() == 3, "an old hybrid is one sounding relay")

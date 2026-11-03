@@ -10,7 +10,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 
 | Tool | Left click / drag |
 |---|---|
-| Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so toggles apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
+| Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so rests apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
 | Select and Move | Click a note or diamond to select it (Shift adds or removes); clicking one of a group narrows to it. Drag to move (Alt: free). Drag on empty space for a box (Shift adds). Ctrl-drag from a diamond sets its relay's reach |
 | Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
@@ -51,7 +51,7 @@ the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner), delete (centre). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Channel:** 1-16.
-- **Modifier:** None, Toggle and Relay. Picking one adds or removes it, and None clears them all.
+- **Modifier:** None, Rest and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
 scale steps, so a chord keeps its shape; an octave moves them all, and the pitch ring's centre
@@ -62,12 +62,12 @@ selected diamonds.
 
 | Key | Action |
 |---|---|
-| Space, KP Enter | Stop: clear all waves and return toggles to their start state. Cooldowns keep running |
+| Space, KP Enter | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
 | KP0-9 | Fire that binding |
 | Tab | Tap and the previous tool |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
 | < / > (comma / period) | Nudge the selection, or the hovered note, a scale step; with Shift, an octave. Every tool |
-| Ctrl+S | Save state: toggles' current state becomes their start. Every tool |
+| Ctrl+S | Save state: rests' current count becomes their start. Every tool |
 | Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y | Undo / redo (50 steps), in editing tools |
 | Esc | Close a ring, cancel Bind, or clear the selection |
 | Delete, Backspace | Remove the selection (Select and Move); clear the armed binding (Bind) |
@@ -87,12 +87,14 @@ once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
 - A hit up to 20 ms early still fires, so a cooldown equal to the time between hits doesn't skip any.
 - The surface holds 64 waves; when it's full, relays skip a beat instead of removing waves.
 
-**Toggle** switches the note off and on each hit, so it plays every other hit. Off silences its
-sound and pulse. A thin ring shows it, with a tab underneath: ripples = on, still water = off. Its
-settings ring sets On or Off, which is also the start state. A dot on the tab shows when the start
-state differs. Save state copies current states to start states, and Stop returns to them.
+**Rest** sits out a number of hits after firing, set by its Value (1-8): Rest 1 plays every other
+hit, and Rest 3 every fourth. Resting silences its sound and pulse. A thin ring shows it, with a tab
+underneath: ripples when the next hit will fire, otherwise the hits left. Its settings ring sets
+Value on the outer ring and the hits left at the start on the inner ring, which offsets it against
+other notes. A dot on the tab shows when the count differs from the start. Save state copies current
+counts to start counts, and Stop returns to them. Toggles in old saves load as Rest 1.
 
-**Mute** isn't a modifier: a muted note ignores waves, though a toggle on it still advances. Tapping
+**Mute** isn't a modifier: a muted note ignores waves, though a rest on it still counts. Tapping
 it, or firing its binding, plays it anyway.
 
 ## Bindings
@@ -171,7 +173,7 @@ scripts/
   midi/midi_out.gd        Autoload `Midi`: ports, note on/off, CC, panic
   midi/midi_message.gd    Raw MIDI byte helpers
   midi/midi_in.gd         Controller Note On / Off (Godot's built-in MIDI input)
-  entities/               note, emitter, wave, grid, modifier, relay_modifier, toggle_modifier
+  entities/               note, emitter, wave, grid, modifier, relay_modifier, rest_modifier
   surface/                undo_history, selection, snapping, surface_effects, demo_layout
   tools/                  One script per tool and ring, plus tool_manager and object_drag
   ui/main.gd              Builds the scene and HUD

@@ -2,7 +2,7 @@ class_name DemoLayout
 extends RefCounted
 ## The Options > Test layout: six groups, one per feature, three across and two down.
 ##
-##   Channels and falloff | Toggles       | Mute
+##   Channels and falloff | Rests         | Mute
 ##   Cooldowns            | Stacked chain | Grids and slots
 ##
 ## Each group is driven by its own pair of relays, which fire at each other. Their reach stops
@@ -19,7 +19,7 @@ var marks: Dictionary = {}         ## name -> id, for tests
 
 func _init() -> void:
 	_channels(Vector2(-420, -200))
-	_toggles(Vector2(0, -200))
+	_rests(Vector2(0, -200))
 	_mute(Vector2(420, -200))
 	_cooldowns(Vector2(-420, 200))
 	_chain(Vector2(0, 200))
@@ -66,16 +66,16 @@ func _driver(c: Vector2) -> void:
 	_pair(c + Vector2(-150, -60), c + Vector2(-150, 60), 155.0)
 
 
-## A toggle starting on, one starting off, a plain note to compare, and a toggle on a relay, which
-## passes on every other wave to its note.
-func _toggles(c: Vector2) -> void:
+## Rest 1, Rest 3 starting partway through its count, a plain note to compare, and a Rest 1 on a
+## relay, which passes on every other wave to its note.
+func _rests(c: Vector2) -> void:
 	_driver(c)
-	marks["toggle_on"] = _add(c + Vector2(-80, -44), 0, 0, NOTE, {"mod": "toggle", "mod_start": true})
-	marks["toggle_off"] = _add(c + Vector2(-80, 0), 2, 2, NOTE, {"mod": "toggle", "mod_start": false})
+	marks["rest_one"] = _add(c + Vector2(-80, -44), 0, 0, NOTE, {"mod": "rest", "mod_start": 0})
+	marks["rest_three"] = _add(c + Vector2(-80, 0), 2, 2, NOTE, {"mod": "rest", "mod_value": 3, "mod_start": 2})
 	marks["plain"] = _add(c + Vector2(-80, 44), 4, 3)
 	var target := c + Vector2(100, 90)
-	_sender(c + Vector2(-70, 90), target, 4, 60.0, 0.25, 1.0, {"mod": "toggle", "mod_start": true})
-	marks["toggled_target"] = _add(target, 6, 5)
+	_sender(c + Vector2(-70, 90), target, 4, 60.0, 0.25, 1.0, {"mod": "rest", "mod_start": 0})
+	marks["rested_target"] = _add(target, 6, 5)
 
 
 ## A muted note beside a plain one, and a muted relay that passes nothing to its note.

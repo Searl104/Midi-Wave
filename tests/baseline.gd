@@ -125,9 +125,9 @@ func _scenarios() -> void:
 	var t := _note_at(Vector2(300, 300), 60)
 	var m := _note_at(Vector2(350, 300), 62)
 	var p := _relay_at(Vector2(500, 300), 65, 0.5)
-	surface.add_modifier(t, "toggle")
-	surface.add_modifier(p, "toggle")
-	surface.set_modifier_state(p, false)
+	surface.add_modifier(t, "rest")
+	surface.add_modifier(p, "rest")
+	surface.set_rest_start(p, 1)
 	_log("text %s | %s" % [surface.get_note(t).hover_text(), surface.get_note(p).hover_text()])
 	surface.set_binding(t, "kp1")
 	surface.set_binding(p, "kp1")
@@ -145,7 +145,7 @@ func _scenarios() -> void:
 	_log("text %s" % surface.get_note(t).hover_text())
 	surface.stop()
 	_layout("toggles")
-	surface.remove_modifier(t, "toggle")
+	surface.remove_modifier(t, "rest")
 	_layout("toggle_removed")
 	_reset()
 
@@ -204,7 +204,7 @@ func _scenarios() -> void:
 	surface.history.end_group()
 	_drag(v, "emitter", Vector2(600, 450), true)
 	surface.history.end_group()
-	surface.add_modifier(v, "toggle")
+	surface.add_modifier(v, "rest")
 	surface.history.end_group()
 	surface.selection.select_in_rect(Rect2(Vector2.ZERO, Vector2(1280, 800)))
 	_log("copied %d" % surface.selection.copy())
@@ -249,7 +249,7 @@ func _scenarios() -> void:
 
 	# Old saves: seconds cooldowns and the note + pulse hybrid; an unknown modifier is dropped.
 	Settings.notes = [
-		{"x": 100.0, "y": 100.0, "note": 60, "channel": 1, "mode": 1, "pulse_strength": 0.5, "cooldown": 1.0, "mod": "toggle", "mod_start": false, "slot": 3, "id": 7},
+		{"x": 100.0, "y": 100.0, "note": 60, "channel": 1, "mode": 1, "pulse_strength": 0.5, "cooldown": 1.0, "mod": "rest", "mod_start": false, "slot": 3, "id": 7},
 		{"x": 200.0, "y": 100.0, "note": 62, "channel": 2, "mode": 2, "cooldown_beats": 0.01, "attached": false, "ex": 400.0, "ey": 500.0, "mod": "bogus", "id": 7},
 		{"x": 300.0, "y": 100.0, "note": 64, "channel": 3, "mode": 0, "grid": true, "range": 300.0, "muted": true},
 	]

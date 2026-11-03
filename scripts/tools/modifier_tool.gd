@@ -1,6 +1,6 @@
 class_name ModifierTool
 extends RingTool
-## Adds and removes modifiers: None, Toggle and Relay. Each modifier's settings are on its tab.
+## Adds and removes modifiers: None, Rest and Relay. Each modifier's settings are on its tab.
 
 
 func tool_id() -> String:
@@ -18,7 +18,7 @@ func build() -> void:
 	var col := Palette.channel_color(o.channel)
 	radial.outer_items = [
 		{"id": "", "label": "None", "color": Palette.TEXT_DIM, "selected": o.modifiers.is_empty()},
-		{"id": "toggle", "label": "Toggle", "color": col, "selected": o.get_modifier("toggle") != null},
+		{"id": "rest", "label": "Rest", "color": col, "selected": o.get_modifier("rest") != null},
 		{"id": "relay", "label": "Relay", "color": Palette.YELLOW, "selected": o.relay() != null},
 	]
 	radial.inner_items = []
