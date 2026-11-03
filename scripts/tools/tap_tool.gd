@@ -2,6 +2,7 @@ class_name TapTool
 extends Tool
 ## Plays the surface. A left click on empty space starts a wave; on an object it taps just that
 ## object, with no wave. Emitter diamonds don't react: a click goes through to what's under them.
+## A press on a relay during its cooldown does nothing until it ends, and fires then if still held.
 ## The layout is locked while it's in use.
 
 
@@ -32,16 +33,24 @@ func build_options(box: VBoxContainer) -> void:
 
 func handle_input(event: InputEvent) -> bool:
 	var mb := event as InputEventMouseButton
-	if mb and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-		tap_at(mb.position)
-		return true
+	if mb and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			tap_at(mb.position)
+			return true
+		surface.held_tap = -1
 	return false
+
+
+func deactivate() -> void:
+	surface.held_tap = -1
 
 
 ## Taps the object at a screen position, or starts a wave there if there's none.
 func tap_at(pos: Vector2) -> void:
 	var hit := surface.get_note(surface.note_at(pos))
-	if hit:
+	if hit and hit.emitter() and hit.emitter().cooling(surface.clock_usec):
+		surface.held_tap = hit.id
+	elif hit:
 		hit.tap(surface)
 	else:
 		surface.spawn_wave(pos)

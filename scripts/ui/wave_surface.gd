@@ -19,6 +19,7 @@ const BRUSH_ID := -2            ## get_note() id of the Draw brush, so rings can
 var waves: Array = []           # of Wave
 var notes: Array = []           # of Note
 var held_bindings: Dictionary = {}   # bindings currently held down
+var held_tap := -1                 ## a relay pressed in Tap during its cooldown, while held
 
 var tools: ToolManager
 var drag: ObjectDrag
@@ -605,6 +606,7 @@ func release_binding(binding: String) -> void:
 
 func release_all_bindings() -> void:
 	held_bindings.clear()
+	held_tap = -1
 
 
 ## Stop: clears all waves and returns every modifier to its start state. Cooldowns keep running,
@@ -655,6 +657,15 @@ func step(delta: float) -> void:
 				fresh_from -= 1
 			continue
 		i += 1
+
+	# A tap held through a cooldown fires once as it ends.
+	if held_tap != -1:
+		var tapped := get_note(held_tap)
+		if tapped == null or tapped.emitter() == null:
+			held_tap = -1
+		elif not tapped.emitter().cooling(now):
+			held_tap = -1
+			tapped.tap(self)
 
 	# Held bindings: relays refire each time their cooldown runs out (a refire that a rest
 	# silences still waits a full cooldown before the next). Retrigger relays don't refire.
