@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_rest()
+	_held_during_cooldown()
 	_midi_controls()
 	_note_lengths()
 	_channel_volume()
@@ -1379,6 +1380,37 @@ func _midi_controls() -> void:
 	options.queue_free()
 	midi_in.free()
 	Settings.midi_mappings = saved
+
+
+func _held_during_cooldown() -> void:
+	var a := surface.add_object(Vector2.ZERO, 60, 0)
+	surface.add_modifier(a, "relay")
+	surface.set_binding(a, "kp1")
+	var e: Emitter = surface.get_note(a).emitter()
+	e.cooldown = 2.0
+	var length := float(e.cooldown_usec()) / 1_000_000.0
+	var run := func(seconds: float) -> void:
+		for i in int(seconds * 120.0):
+			surface.step(1.0 / 120.0)
+	surface.press_binding("kp1")
+	surface.release_binding("kp1")
+	var first: int = e.ready_at
+	run.call(length * 0.5)
+	surface.press_binding("kp1")
+	_check(e.ready_at == first, "a press during a cooldown doesn't fire")
+	run.call(length * 0.4)
+	_check(e.ready_at == first, "nor before it ends")
+	run.call(length * 0.15)
+	_check(e.ready_at > first and e.ready_at <= first + e.cooldown_usec() + 20000, "held, it fires as the cooldown ends")
+	var second: int = e.ready_at
+	surface.release_binding("kp1")
+	run.call(length * 0.5)
+	surface.press_binding("kp1")
+	surface.release_binding("kp1")
+	run.call(length * 0.7)
+	_check(e.ready_at == second, "released in time, it doesn't")
+	surface.stop()
+	surface.clear_notes()
 
 
 func _rest() -> void:

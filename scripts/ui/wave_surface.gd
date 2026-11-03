@@ -577,7 +577,9 @@ func press_binding(binding: String) -> void:
 		if o.binding == binding:
 			o.tap(self)
 			if o.relay():
-				o.emitter().hold_next = clock_usec + o.emitter().cooldown_usec()
+				# A press during a cooldown refires as soon as it ends, if still held.
+				var e: Emitter = o.emitter()
+				e.hold_next = e.ready_at if e.ready_at > clock_usec else clock_usec + e.cooldown_usec()
 
 
 func release_binding(binding: String) -> void:
