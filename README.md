@@ -193,7 +193,7 @@ scripts/
   midi/midi_mappings.gd   MIDI messages that run app actions
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, rest_modifier
-  surface/                undo_history, selection, snapping, surface_effects, demo_layout
+  surface/                undo_history, selection, snapping, surface_effects, demo_layout, collections
   tools/                  One script per tool and ring, plus tool_manager and object_drag
   ui/main.gd              Builds the scene and HUD
   ui/wave_surface.gd      Holds the view and entities, runs the simulation, draws in order
