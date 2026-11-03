@@ -74,6 +74,7 @@ func _ready() -> void:
 	add_child(midi_in)
 	midi_in.note_pressed.connect(func(pitch: int) -> void: surface.tools.binding_pressed("midi%d" % pitch))
 	midi_in.note_released.connect(func(pitch: int) -> void: surface.tools.binding_released("midi%d" % pitch))
+	midi_in.stop_received.connect(surface.stop)
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()

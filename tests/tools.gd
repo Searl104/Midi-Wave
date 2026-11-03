@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_rest()
+	_midi_stop()
 	_note_lengths()
 	_channel_volume()
 	_timing()
@@ -1277,6 +1278,24 @@ func _channel_volume() -> void:
 	Midi.message_sent.disconnect(spy)
 	surface.stop()
 	surface.clear_notes()
+
+
+func _midi_stop() -> void:
+	var midi_in := MidiInput.new()
+	var stops: Array = []
+	midi_in.stop_received.connect(func() -> void: stops.append(true))
+	Settings.midi_in_port = "Keys"
+	midi_in._names = ["Keys", "loopMIDI"]
+	var stop := InputEventMIDI.new()
+	stop.message = MIDI_MESSAGE_STOP
+	_check(stop.message == 0xFC, "Stop is the MIDI Stop byte")
+	_check(midi_in.handle(stop) and stops.size() == 1, "Stop from the controller")
+	stop.device = 1
+	_check(not midi_in.handle(stop) and stops.size() == 1, "not from another input")
+	stop.device = 0
+	Settings.midi_in_port = ""
+	_check(not midi_in.handle(stop) and stops.size() == 1, "nor with input Off")
+	midi_in.free()
 
 
 func _rest() -> void:

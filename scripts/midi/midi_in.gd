@@ -1,6 +1,6 @@
 class_name MidiInput
 extends Node
-## MIDI input: Note On and Note Off from the chosen controller.
+## MIDI input: Note On, Note Off and transport Stop from the chosen controller.
 ##
 ## Uses Godot's own MIDI input (no native extension). Godot can only open every MIDI input at
 ## once, so inputs stay closed until a controller is chosen in Options; events from any other
@@ -9,6 +9,7 @@ extends Node
 
 signal note_pressed(pitch: int)
 signal note_released(pitch: int)
+signal stop_received
 
 var _names: PackedStringArray = []      ## names of the open inputs; event.device indexes this
 
@@ -50,11 +51,14 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Returns true if the event came from the chosen controller and was a note.
+## Returns true if the event came from the chosen controller and was a note or a Stop.
 func handle(ev: InputEventMIDI) -> bool:
 	if Settings.midi_in_port == "" or ev.device < 0 or ev.device >= _names.size() \
 			or _names[ev.device] != Settings.midi_in_port:
 		return false
+	if ev.message == MIDI_MESSAGE_STOP:
+		stop_received.emit()
+		return true
 	var on := ev.message == MIDI_MESSAGE_NOTE_ON and ev.velocity > 0
 	var off := ev.message == MIDI_MESSAGE_NOTE_OFF or (ev.message == MIDI_MESSAGE_NOTE_ON and ev.velocity == 0)
 	if not on and not off:

@@ -62,7 +62,7 @@ selected diamonds.
 
 | Key | Action |
 |---|---|
-| Space, KP Enter | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
+| Space, KP Enter, MIDI Stop | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
 | KP0-9 | Fire that binding |
 | Tab | Tap and the previous tool |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
@@ -102,6 +102,8 @@ it, or firing its binding, plays it anyway.
 A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes can share one. A badge
 at the note's upper left shows it. A binding fires like a tap, in any tool. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
+
+A MIDI Stop message from the controller does the same as the Stop button.
 
 The Bind panel, or **Options → General → MIDI input**, picks the controller. Any Note On from it can be bound, on any
 channel; other inputs, including the loopMIDI port MIDI Wave sends to, are ignored. It uses Godot's
@@ -172,7 +174,7 @@ scripts/
   core/palette.gd         Glassy greys + primary accents, per-channel colors
   midi/midi_out.gd        Autoload `Midi`: ports, note on/off, CC, panic
   midi/midi_message.gd    Raw MIDI byte helpers
-  midi/midi_in.gd         Controller Note On / Off (Godot's built-in MIDI input)
+  midi/midi_in.gd         Controller Note On / Off and Stop (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, rest_modifier
   surface/                undo_history, selection, snapping, surface_effects, demo_layout
   tools/                  One script per tool and ring, plus tool_manager and object_drag
