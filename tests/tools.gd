@@ -39,6 +39,7 @@ func _ready() -> void:
 	_note_lengths()
 	_timing()
 	_song()
+	_wave_end()
 	_tweaks()
 	_saves()
 	_default_ring()
@@ -1359,7 +1360,7 @@ func _song() -> void:
 		_play_part(part, 12.0, 0.1, heard)
 		_check(melody.call() == wants, "%s survives slow frames" % part[0])
 		surface.step(5.0)
-		Settings.falloff_curve = 2.1
+		Settings.falloff_curve = 4.0
 		_play_part(part, 60.0, 0.1, heard)
 		_check(melody.call() == wants, "%s survives a raised Falloff" % part[0])
 		Settings.falloff_curve = falloff
@@ -1389,6 +1390,47 @@ func _song() -> void:
 	surface.add_wave(Wave.new(Vector2.ZERO, 1.0, -1, 300.0))
 	surface.step(1.0)
 	_check(melody.call() == [60] and surface.waves.is_empty(), "a slow frame hits within reach only (%s, %d)" % [str(melody.call()), outer - inner])
+	Midi.message_sent.disconnect(spy)
+	surface.stop()
+	surface.clear_notes()
+
+
+func _wave_end() -> void:
+	var heard: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			heard.append([m[1], m[2]])
+	Midi.message_sent.connect(spy)
+	var four := 4.0 * Settings.BEAT_UNIT
+	for fps in [60.0, 144.0, 12.0]:
+		for b in [3.5, 3.9, 3.99, 4.0]:
+			surface.clear_notes()
+			heard.clear()
+			surface.add_object(Vector2(b * Settings.BEAT_UNIT, 0), 60, 0)
+			surface.add_wave(Wave.new(Vector2.ZERO, 1.0, -1, four))
+			_run_frames(3.0, fps, 0.0, RandomNumberGenerator.new())
+			_check(heard.size() == 1 and heard[0][1] >= 1, "%d fps: a 4-beat wave hits a note at %s beats" % [fps, b])
+			surface.stop()
+		surface.clear_notes()
+		heard.clear()
+		surface.add_object(Vector2(4.05 * Settings.BEAT_UNIT, 0), 60, 0)
+		surface.add_wave(Wave.new(Vector2.ZERO, 1.0, -1, four))
+		_run_frames(3.0, fps, 0.0, RandomNumberGenerator.new())
+		_check(heard.is_empty(), "%d fps: but not past its reach" % fps)
+		surface.stop()
+	# A relay at the very end of a wave fires too.
+	surface.clear_notes()
+	var r := surface.add_object(Vector2(four, 0), 60, 0)
+	surface.add_modifier(r, "relay")
+	surface.get_note(r).emitter().own_reach = 50.0
+	surface.add_wave(Wave.new(Vector2.ZERO, 1.0, -1, four))
+	var fired := false
+	var t := 0.0
+	while t < 2.5:
+		surface.step(1.0 / 60.0)
+		t += 1.0 / 60.0
+		fired = fired or surface.get_note(r).emitter().ready_at > 0
+	_check(fired, "a relay at the reach fires")
 	Midi.message_sent.disconnect(spy)
 	surface.stop()
 	surface.clear_notes()

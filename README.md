@@ -5,8 +5,7 @@ note it reaches fires a MIDI note, with velocity set by how strong the wave stil
 arrives. Click a note to play it alone.
 
 **Three Blind Mice** (Options → General): a sample layout of the song in four parts. Play it on the
-keypad as KP1 KP1, KP2 KP2, KP3 KP3 KP3, KP4, or in any order. Holding a key repeats that part. It
-needs a Falloff curve of about 2.1 or less, since higher values stop its timing waves arriving.
+keypad as KP1 KP1, KP2 KP2, KP3 KP3 KP3, KP4, or in any order. Holding a key repeats that part.
 
 ## Toolbar
 
@@ -217,4 +216,4 @@ Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extensio
 
 A wave's radius grows at *speed* = 200 world units × BPM / 60 (one beat of space per beat; relay waves too). Distances below are in world units. Its amplitude at distance *d* is
 `strength × (1 − d / reach) ^ curve`, reaching 0 at *reach*. When the ring passes a note, the note plays
-once per wave at velocity `amplitude × 127`, and turns off after its note length, set in beats so it follows the tempo.
+once per wave at velocity `amplitude × 127` (at least 1), right out to the reach, and turns off after its note length, set in beats so it follows the tempo.

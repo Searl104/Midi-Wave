@@ -13,7 +13,7 @@ extends RefCounted
 const STEP := 180.0                ## space between notes
 const PITCH_HEIGHT := 6.0          ## space per semitone
 const RELAY_GAP := 50.0            ## silent relays sit this far past the row
-const REACH_MARGIN := 1.15         ## enough to arrive under a raised Falloff curve (to about 2.1)
+const REACH_MARGIN := 1.15         ## safely past the target
 const STRENGTH := 0.8
 const SHORTEST := 0.125            ## cooldown in beats, for every relay but a part's first
 

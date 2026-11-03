@@ -60,10 +60,10 @@ func _channels(c: Vector2) -> void:
 		marks["channel%d" % i] = _add(c + Vector2.from_angle(TAU * i / 16.0) * 115.0, i, i)
 
 
-## The usual driver: a pair on the group's left edge. Anything right of x = 20 is out of its reach,
+## The usual driver: a pair on the group's left edge. Anything right of about x = 5 is out of its reach,
 ## so it only hears what a relay sends it.
 func _driver(c: Vector2) -> void:
-	_pair(c + Vector2(-150, -60), c + Vector2(-150, 60), 170.0)
+	_pair(c + Vector2(-150, -60), c + Vector2(-150, 60), 155.0)
 
 
 ## A toggle starting on, one starting off, a plain note to compare, and a toggle on a relay, which

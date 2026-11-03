@@ -13,7 +13,6 @@ extends Control
 signal notes_changed
 
 const MAX_WAVES := 64           ## must match MAX_WAVES in water.gdshader
-const MIN_AMPLITUDE := 0.01
 const EDGE_INSET := 16.0
 const BRUSH_ID := -2            ## get_note() id of the Draw brush, so rings can edit it
 

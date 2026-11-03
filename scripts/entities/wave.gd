@@ -3,6 +3,7 @@ extends RefCounted
 ## One expanding ring. It hits each object at most once, and never the relay that fired it.
 
 const FADE_IN := 40.0              ## world units over which a new wave fades in
+const REACH_TOLERANCE := 0.5       ## world units: an object exactly at the reach counts as reached
 
 var origin := Vector2.ZERO         ## world units
 var r := 0.0
@@ -45,13 +46,11 @@ func try_hit(surface: WaveSurface, o: Note, now: int, spawned: Array) -> void:
 	if o.id == source or hits.has(o.id):
 		return
 	var d := origin.distance_to(o.pos)
-	if d >= reach():
+	if d > reach() + REACH_TOLERANCE:
 		return                       # past the end: a slow frame's step doesn't stretch the reach
 	if r >= d or d <= Note.RADIUS:
 		hits[o.id] = true
-		var amp := Wave.amplitude(strength, d, reach())
-		if amp >= WaveSurface.MIN_AMPLITUDE:
-			o.hit(surface, amp, now, spawned, maxf(r - d, 0.0))
+		o.hit(surface, Wave.amplitude(strength, d, reach()), now, spawned, maxf(r - d, 0.0))
 
 
 func _level() -> float:
