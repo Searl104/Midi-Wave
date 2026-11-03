@@ -11,6 +11,7 @@ var hint_label: Label
 var toolbar: Toolbar
 var tool_panel: ToolPanel
 var midi_in: MidiInput
+var mappings: MidiMappings
 
 
 func _ready() -> void:
@@ -50,7 +51,10 @@ func _ready() -> void:
 	surface.tools.set_ring_option(Settings.ring_option)
 	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 
+	mappings = MidiMappings.new(surface)
+	mappings.triggered.connect(_run_action)
 	options = OptionsPanel.new()
+	options.mappings = mappings
 	add_child(options)
 	options.clear_notes_requested.connect(surface.clear_notes)
 	options.reset_layout_requested.connect(func() -> void:
@@ -72,9 +76,11 @@ func _ready() -> void:
 
 	midi_in = MidiInput.new()
 	add_child(midi_in)
-	midi_in.note_pressed.connect(func(pitch: int) -> void: surface.tools.binding_pressed("midi%d" % pitch))
+	midi_in.note_pressed.connect(func(pitch: int) -> void:
+		if mappings.listening == "":                    # otherwise the note is being learned
+			surface.tools.binding_pressed("midi%d" % pitch))
 	midi_in.note_released.connect(func(pitch: int) -> void: surface.tools.binding_released("midi%d" % pitch))
-	midi_in.stop_received.connect(surface.stop)
+	midi_in.message_received.connect(mappings.receive)
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
 	_reopen_last_port()
@@ -131,6 +137,17 @@ func _on_tool_changed(_t: String) -> void:
 	if not surface.tools.springing():
 		Settings.set_value("tool", surface.tools.current_id())
 	Settings.set_value("ring_option", surface.tools.ring_option.tool_id())
+
+
+## A mapped MIDI message arrived.
+func _run_action(action: String) -> void:
+	match action:
+		"stop":
+			surface.stop()
+		"save_state":
+			_save_state()
+		"panic":
+			Midi.panic()
 
 
 ## The Save state button: rests' current counts become their start counts.

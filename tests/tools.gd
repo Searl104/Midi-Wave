@@ -37,7 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_rest()
-	_midi_stop()
+	_midi_controls()
 	_note_lengths()
 	_channel_volume()
 	_timing()
@@ -1125,6 +1125,7 @@ func _tool_options() -> void:
 		tools.get_tool(id).build_options(box)
 		holders.append(box)
 	var options := OptionsPanel.new()
+	options.mappings = MidiMappings.new(surface)
 	add_child(options)
 	holders.append(options)
 	for holder in holders:
@@ -1280,22 +1281,104 @@ func _channel_volume() -> void:
 	surface.clear_notes()
 
 
-func _midi_stop() -> void:
+func _midi_event(message: int, field: String = "", value: int = 0, value2: int = 0) -> InputEventMIDI:
+	var e := InputEventMIDI.new()
+	e.message = message as MIDIMessage
+	if field == "note":
+		e.pitch = value
+		e.velocity = value2
+	elif field == "cc":
+		e.controller_number = value
+		e.controller_value = value2
+	return e
+
+
+func _midi_controls() -> void:
+	var saved: Dictionary = Settings.midi_mappings
+	Settings.midi_mappings = MidiMappings.DEFAULTS.duplicate()
+	var map := MidiMappings.new(surface)
+	var fired: Array = []
+	map.triggered.connect(func(a: String) -> void: fired.append(a))
 	var midi_in := MidiInput.new()
-	var stops: Array = []
-	midi_in.stop_received.connect(func() -> void: stops.append(true))
+	midi_in.message_received.connect(map.receive)
+	var pressed: Array = []
+	midi_in.note_pressed.connect(func(p: int) -> void: pressed.append(map.listening))
 	Settings.midi_in_port = "Keys"
 	midi_in._names = ["Keys", "loopMIDI"]
-	var stop := InputEventMIDI.new()
-	stop.message = MIDI_MESSAGE_STOP
-	_check(stop.message == 0xFC, "Stop is the MIDI Stop byte")
-	_check(midi_in.handle(stop) and stops.size() == 1, "Stop from the controller")
+	# The default, and where messages may come from.
+	var stop := _midi_event(MIDI_MESSAGE_STOP)
+	_check(midi_in.handle(stop) and fired == ["stop"], "MIDI Stop runs Stop by default")
 	stop.device = 1
-	_check(not midi_in.handle(stop) and stops.size() == 1, "not from another input")
+	_check(not midi_in.handle(stop) and fired.size() == 1, "not from another input")
 	stop.device = 0
 	Settings.midi_in_port = ""
-	_check(not midi_in.handle(stop) and stops.size() == 1, "nor with input Off")
+	_check(not midi_in.handle(stop) and fired.size() == 1, "nor with input Off")
+	Settings.midi_in_port = "Keys"
+	# Learning.
+	fired.clear()
+	map.listen("panic")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 127))
+	_check(map.listening == "" and map.key_for("panic") == "cc20" and fired.is_empty(), "learning doesn't fire")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 0))
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 40))
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 90))
+	_check(fired == ["panic"], "a CC fires once on rising above 0")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 0))
+	midi_in.handle(_midi_event(MIDI_MESSAGE_CONTROL_CHANGE, "cc", 20, 127))
+	_check(fired.size() == 2, "and again after returning to 0")
+	# Notes: the binding is told before the note is learned, and can stand aside.
+	map.listen("save_state")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_NOTE_ON, "note", 60, 100))
+	_check(pressed == ["save_state"] and map.key_for("save_state") == "note60", "a note learns")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_NOTE_OFF, "note", 60))
+	fired.clear()
+	midi_in.handle(_midi_event(MIDI_MESSAGE_NOTE_ON, "note", 60, 100))
+	_check(fired == ["save_state"] and pressed[-1] == "", "a mapped note fires")
+	midi_in.handle(_midi_event(MIDI_MESSAGE_NOTE_ON, "note", 60, 0))
+	_check(fired.size() == 1, "a Note On at velocity 0 is a release")
+	# One message, one action.
+	map.listen("stop")
+	map.receive("note60")
+	_check(map.key_for("stop") == "note60" and map.key_for("save_state") == "", "a message moves to the new action")
+	# Bound notes.
+	var a := surface.add_object(Vector2.ZERO, 60, 0)
+	var b := surface.add_object(Vector2(100, 0), 62, 0)
+	surface.set_binding(a, "midi60")
+	surface.set_binding(b, "midi60")
+	_check(map.bound_notes("note60") == 2 and map.bound_notes("cc60") == 0, "bound notes are counted")
+	surface.clear_notes()
+	# Labels, clearing and cancelling.
+	_check(MidiMappings.label("note60") == "Note C4" and MidiMappings.label("cc20") == "CC 20", "labels")
+	_check(MidiMappings.label("rt252") == "MIDI Stop" and MidiMappings.label("") == "Not set", "more labels")
+	map.clear("stop")
+	_check(map.key_for("stop") == "", "Clear removes it")
+	map.listen("stop")
+	map.cancel()
+	map.receive("cc1")
+	_check(map.key_for("stop") == "", "cancel stops listening")
+	map.reset()
+	_check(map.key_for("stop") == "rt252" and map.key_for("panic") == "", "Reset returns to the defaults")
+	# The tab. With no controller chosen, since the panel lists the inputs, and there are none here.
+	Settings.midi_in_port = ""
+	var options := OptionsPanel.new()
+	options.mappings = map
+	add_child(options)
+	options._control_rows["panic"].learn.pressed.emit()
+	_check(map.listening == "panic" and options._control_rows["panic"].learn.text == "Cancel", "Learn listens")
+	_check(options._control_rows["panic"].value.text == "Listening...", "and says so")
+	options.toggle()
+	options.toggle()
+	_check(map.listening == "", "closing Options cancels")
+	options.toggle()
+	options._control_rows["panic"].learn.pressed.emit()
+	options.tabs.current_tab = 2
+	_check(map.listening == "", "changing tab cancels")
+	options.tabs.current_tab = 0
+	options._control_rows["stop"].clear.pressed.emit()
+	_check(options._control_rows["stop"].value.text == "Not set" and options._control_rows["stop"].clear.disabled, "Clear shows")
+	options.queue_free()
 	midi_in.free()
+	Settings.midi_mappings = saved
 
 
 func _rest() -> void:

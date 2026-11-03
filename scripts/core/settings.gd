@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
 	"root_note", "scale_name", "midi_port", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "channel_volumes", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
@@ -112,6 +112,9 @@ var snap_centres := true        ## snap onto the centre of a note or emitter the
 ## Per-channel note length in beats (index 0 = channel 1); 0 = use note_beats.
 var channel_beats: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+
+## MIDI messages that run app actions: see MidiMappings.
+var midi_mappings: Dictionary = MidiMappings.DEFAULTS.duplicate()
 
 ## Per-channel volume, 0-1 (index 0 = channel 1): scales the velocity of every note on the channel.
 var channel_volumes: Array = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
@@ -217,6 +220,8 @@ func load_settings() -> void:
 	if not LOOKS.has(look):
 		look = "Abyssal"
 	_migrate_note_lengths(cfg)
+	if not midi_mappings is Dictionary:
+		midi_mappings = MidiMappings.DEFAULTS.duplicate()
 	if channel_volumes.size() != 16:
 		channel_volumes.resize(16)
 		channel_volumes = channel_volumes.map(func(v: Variant) -> float: return 1.0 if v == null else float(v))

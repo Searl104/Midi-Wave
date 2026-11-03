@@ -1,6 +1,6 @@
 class_name OptionsPanel
 extends PanelContainer
-## Slide-in options for the whole app, in two tabs: General and Look. Settings that belong to a
+## Slide-in options for the whole app, in three tabs: General, Controls and Look. Settings that belong to a
 ## tool are in its tool panel instead.
 
 signal clear_notes_requested
@@ -8,6 +8,8 @@ signal reset_layout_requested
 signal test_layout_requested
 
 const WIDTH := 330.0
+
+var mappings: MidiMappings
 
 var _ports: OptionButton
 var _port_status: Label
@@ -30,6 +32,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_build()
 	hide()
+	visibility_changed.connect(func() -> void:
+		if not visible:
+			mappings.cancel())
 	Midi.port_changed.connect(func(_n: String) -> void: _update_port_status())
 
 
@@ -38,6 +43,7 @@ func toggle() -> void:
 		hide()
 	else:
 		refresh_ports()
+		_refresh_controls()
 		show()
 
 
@@ -62,7 +68,9 @@ func _build() -> void:
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tabs.focus_mode = Control.FOCUS_NONE
 	outer.add_child(tabs)
+	tabs.tab_changed.connect(func(_i: int) -> void: mappings.cancel())
 	var box := _tab("General")
+	_build_controls(_tab("Controls"))
 	_build_look(_tab("Look"))
 
 	PanelBuilder.section(box, "MIDI OUTPUT", Palette.BLUE)
@@ -104,6 +112,72 @@ func _build() -> void:
 	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
 	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
+
+
+## Controls tab: a row per action, each learning the next MIDI message from the controller.
+var _control_rows := {}
+var _controller_hint: Label
+
+
+func _build_controls(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "MIDI MAPPINGS", Palette.BLUE)
+	box.add_child(PanelBuilder.hint("Press Learn, then press a key, pad or button, or move a knob. A control change fires each time it rises above 0."))
+	_controller_hint = PanelBuilder.hint("Pick a controller under MIDI input on the General tab first.")
+	_controller_hint.add_theme_color_override("font_color", Palette.YELLOW)
+	box.add_child(_controller_hint)
+	for action in MidiMappings.ACTIONS:
+		_control_rows[action] = _control_row(box, action)
+	box.add_child(PanelBuilder.button("Reset mappings", mappings.reset, "Returns to the starting mappings: MIDI Stop runs Stop."))
+	mappings.changed.connect(_refresh_controls)
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "midi_in_port":
+			_refresh_controls())
+	_refresh_controls()
+
+
+func _control_row(box: VBoxContainer, action: String) -> Dictionary:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	box.add_child(col)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	var name_l := Label.new()
+	name_l.text = MidiMappings.ACTIONS[action]
+	name_l.tooltip_text = MidiMappings.TIPS[action]
+	name_l.mouse_filter = Control.MOUSE_FILTER_PASS
+	name_l.custom_minimum_size.x = 84
+	row.add_child(name_l)
+	var value := Label.new()
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.clip_text = true
+	value.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	row.add_child(value)
+	var learn := PanelBuilder.button("Learn", func() -> void:
+		if mappings.listening == action:
+			mappings.cancel()
+		else:
+			mappings.listen(action), "Waits for the next MIDI message from the controller. Press again to cancel.")
+	row.add_child(learn)
+	var clear := PanelBuilder.button("Clear", func() -> void: mappings.clear(action), "Removes this mapping.")
+	row.add_child(clear)
+	var warning := PanelBuilder.hint("")
+	warning.add_theme_color_override("font_color", Palette.YELLOW)
+	col.add_child(warning)
+	return {"value": value, "learn": learn, "clear": clear, "warning": warning}
+
+
+func _refresh_controls() -> void:
+	_controller_hint.visible = Settings.midi_in_port == ""
+	for action in _control_rows:
+		var row: Dictionary = _control_rows[action]
+		var key := mappings.key_for(action)
+		var bound := mappings.bound_notes(key)
+		var listening: bool = mappings.listening == action
+		row.value.text = "Listening..." if listening else MidiMappings.label(key)
+		row.learn.text = "Cancel" if listening else "Learn"
+		row.clear.disabled = key == ""
+		row.warning.visible = bound > 0
+		row.warning.text = "Also fires %d bound note%s." % [bound, "" if bound == 1 else "s"]
 
 
 ## Look tab: the surface shader and its controls (only the chosen look's are shown).

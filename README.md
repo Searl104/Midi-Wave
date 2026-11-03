@@ -62,7 +62,7 @@ selected diamonds.
 
 | Key | Action |
 |---|---|
-| Space, KP Enter, MIDI Stop | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
+| Space, KP Enter | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
 | KP0-9 | Fire that binding |
 | Tab | Tap and the previous tool |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
@@ -103,7 +103,11 @@ A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes ca
 at the note's upper left shows it. A binding fires like a tap, in any tool. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
 
-A MIDI Stop message from the controller does the same as the Stop button.
+**Options → Controls** maps MIDI messages to Stop, Save state and Panic. Press Learn, then press a key,
+pad or button, or move a knob, on the chosen controller. Notes, control changes and Start, Stop and
+Continue can all be learned, on any channel, and a control change fires each time it rises above 0.
+One message drives one action, so learning it again moves it. If notes are bound to the same MIDI
+note, both fire, and the row says so. MIDI Stop runs Stop until you change it.
 
 The Bind panel, or **Options → General → MIDI input**, picks the controller. Any Note On from it can be bound, on any
 channel; other inputs, including the loopMIDI port MIDI Wave sends to, are ignored. It uses Godot's
@@ -174,7 +178,8 @@ scripts/
   core/palette.gd         Glassy greys + primary accents, per-channel colors
   midi/midi_out.gd        Autoload `Midi`: ports, note on/off, CC, panic
   midi/midi_message.gd    Raw MIDI byte helpers
-  midi/midi_in.gd         Controller Note On / Off and Stop (Godot's built-in MIDI input)
+  midi/midi_mappings.gd   MIDI messages that run app actions
+  midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, rest_modifier
   surface/                undo_history, selection, snapping, surface_effects, demo_layout
   tools/                  One script per tool and ring, plus tool_manager and object_drag
