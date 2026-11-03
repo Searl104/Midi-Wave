@@ -103,8 +103,11 @@ func send(bytes: PackedByteArray) -> void:
 	message_sent.emit(bytes)
 
 
+## The channel's volume scales the velocity; at 0 the note doesn't sound.
 func note_on(note: int, velocity: int = 100, channel: int = -1) -> void:
-	send(MidiMessage.note_on(_resolve(channel), note, velocity))
+	var scaled := Settings.channel_velocity(_resolve(channel), velocity)
+	if scaled > 0:
+		send(MidiMessage.note_on(_resolve(channel), note, scaled))
 
 
 func note_off(note: int, channel: int = -1) -> void:
@@ -114,7 +117,7 @@ func note_off(note: int, channel: int = -1) -> void:
 ## Fire-and-forget note with an automatic note-off after `duration` seconds.
 func play_note(note: int, velocity: int = 100, duration: float = 0.25, channel: int = -1) -> void:
 	var ch := _resolve(channel)
-	send(MidiMessage.note_on(ch, note, velocity))
+	note_on(note, velocity, ch)
 	get_tree().create_timer(duration, true, false, true).timeout.connect(
 		func() -> void: send(MidiMessage.note_off(ch, note))
 	)

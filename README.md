@@ -34,7 +34,7 @@ else. Esc closes it too.
 | Bind | MIDI input (also in Options) |
 | Grid | Clear All, snapping and guides |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
-| Channel | Default note length, and a note length per channel, in eighth notes up to 4 beats |
+| Channel | Default note length, and a Volume and a Length knob per channel. Volume scales velocity; Off silences notes, though relays still fire |
 | Zoom | Beat spacing |
 
 ## Rings
@@ -147,7 +147,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 - **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
-The **Channel panel** sets a note length per MIDI channel (Default follows the Default slider).
+The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
 Options (General tab): MIDI output port (remembered and reopened on launch), hover preview, MIDI
 input, tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
@@ -180,6 +180,7 @@ scripts/
   ui/toolbar.gd           The strip of tools and ring choices
   ui/tool_panel.gd        The popup that holds a tool's options
   ui/panel_builder.gd     Sliders, buttons and other controls for the panels
+  ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
 tests/                    Headless checks: baseline (MIDI and layouts), tools, demo; render

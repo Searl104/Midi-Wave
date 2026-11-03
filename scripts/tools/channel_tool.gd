@@ -16,53 +16,60 @@ func has_options() -> bool:
 
 
 func build_options(box: VBoxContainer) -> void:
-	PanelBuilder.section(box, "NOTE LENGTH", Palette.RED)
-	PanelBuilder.slider(box, "Default", "note_beats", Settings.LENGTH_STEP, Settings.LENGTH_MAX, Settings.LENGTH_STEP, PanelBuilder.beats_text)
-	var sliders: Array = []
+	PanelBuilder.slider(box, "Default length", "note_beats", Settings.LENGTH_STEP, Settings.LENGTH_MAX, Settings.LENGTH_STEP, PanelBuilder.beats_text)
+	PanelBuilder.section(box, "CHANNELS", Palette.RED)
+	box.add_child(PanelBuilder.hint("Left knob: volume. Right knob: note length. Drag or scroll to turn; double-click resets."))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 1)
+	box.add_child(grid)
+	var knobs: Array = []
 	for ch in 16:
-		sliders.append(_channel_row(box, ch))
-	box.add_child(PanelBuilder.button("Reset all to Default", func() -> void:
-		for s in sliders:
-			s.value = 0.0, "Returns every channel to the Default note length."))
+		knobs.append_array(_channel_cell(grid, ch))
+	box.add_child(PanelBuilder.button("Reset all", func() -> void:
+		for k in knobs:
+			k.value = k.reset_value, "Returns every channel to full volume and the Default length."))
 
 
-## A channel's own note length; 0 follows Default.
-func _channel_row(box: VBoxContainer, ch: int) -> HSlider:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	row.tooltip_text = "How long notes on channel %d are held, in eighth notes. All the way left uses Default." % (ch + 1)
-	box.add_child(row)
+## A channel's name, volume knob and note length knob.
+func _channel_cell(grid: GridContainer, ch: int) -> Array:
+	var cell := HBoxContainer.new()
+	cell.add_theme_constant_override("separation", 0)
+	grid.add_child(cell)
 	var dot := ColorRect.new()
 	dot.color = Palette.channel_color(ch)
-	dot.custom_minimum_size = Vector2(10, 10)
+	dot.custom_minimum_size = Vector2(6, 22)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(dot)
+	cell.add_child(dot)
 	var name_l := Label.new()
-	name_l.text = "Ch %d" % (ch + 1)
-	name_l.custom_minimum_size.x = 44
-	row.add_child(name_l)
-	var s := HSlider.new()
-	s.tooltip_text = row.tooltip_text
-	s.min_value = 0.0
-	s.max_value = Settings.LENGTH_MAX
-	s.step = Settings.LENGTH_STEP
-	s.value = float(Settings.channel_beats[ch])
-	s.focus_mode = Control.FOCUS_NONE
-	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(s)
-	var val_l := Label.new()
-	val_l.custom_minimum_size.x = 64
-	val_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	val_l.add_theme_color_override("font_color", Palette.TEXT_DIM)
-	row.add_child(val_l)
-	var show_value := func(v: float) -> void:
-		val_l.text = "Default" if v <= 0.0 else PanelBuilder.beats_text(v)
-	show_value.call(s.value)
-	s.value_changed.connect(func(v: float) -> void:
-		show_value.call(v)
-		Settings.set_channel_beats(ch, v))
-	return s
+	name_l.text = str(ch + 1)
+	name_l.custom_minimum_size.x = 24
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cell.add_child(name_l)
+	var volume := Knob.new()
+	volume.min_value = 0.0
+	volume.max_value = 1.0
+	volume.step = 0.05
+	volume.reset_value = 1.0
+	volume.color = Palette.channel_color(ch)
+	volume.fmt = func(v: float) -> String: return "Off" if v <= 0.0 else "%d%%" % roundi(v * 100.0)
+	volume.tooltip_text = "Volume of channel %d: scales the velocity of its notes. Off silences them; relays still fire." % (ch + 1)
+	volume.set_quietly(float(Settings.channel_volumes[ch]))
+	volume.value_changed.connect(func(v: float) -> void: Settings.set_channel_volume(ch, v))
+	cell.add_child(volume)
+	var length := Knob.new()
+	length.min_value = 0.0
+	length.max_value = Settings.LENGTH_MAX
+	length.step = Settings.LENGTH_STEP
+	length.reset_value = 0.0
+	length.color = Palette.channel_color(ch)
+	length.fmt = func(v: float) -> String: return "Def" if v <= 0.0 else PanelBuilder.beats_text(v).get_slice(" ", 0) + "b"
+	length.tooltip_text = "How long notes on channel %d are held, in eighth notes. Fully left uses the Default length." % (ch + 1)
+	length.set_quietly(float(Settings.channel_beats[ch]))
+	length.value_changed.connect(func(v: float) -> void: Settings.set_channel_beats(ch, v))
+	cell.add_child(length)
+	return [volume, length]
 
 
 func build() -> void:

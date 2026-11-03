@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_note_lengths()
+	_channel_volume()
 	_timing()
 	_slow_frame()
 	_wave_end()
@@ -1179,6 +1180,104 @@ func _tool_options() -> void:
 	surface.clear_notes()
 
 
+func _knobs(node: Node) -> Array:
+	var out: Array = []
+	for c in node.get_children():
+		if c is Knob:
+			out.append(c)
+		out.append_array(_knobs(c))
+	return out
+
+
+func _knob_input(k: Knob, e: InputEvent) -> void:
+	k._gui_input(e)
+
+
+func _channel_volume() -> void:
+	var sent: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			sent.append(m)
+	Midi.message_sent.connect(spy)
+	var a := surface.add_object(Vector2.ZERO, 60, 2)
+	var o := surface.get_note(a)
+	var box := VBoxContainer.new()
+	add_child(box)
+	tools.get_tool("channel").build_options(box)
+	var volume: Knob = _knobs(box)[4]                # channel 3's volume
+	_check(volume.value == 1.0 and volume.fmt.call(volume.value) == "100%", "starts at full")
+	# Turning the knob: drag, scroll, double-click.
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	volume._gui_input(press)
+	var move := InputEventMouseMotion.new()
+	move.button_mask = MOUSE_BUTTON_MASK_LEFT
+	move.relative = Vector2(0, 75)
+	volume._gui_input(move)
+	_check(volume.value == 0.5 and Settings.channel_volumes[2] == 0.5, "dragging down turns it down")
+	var free := InputEventMouseMotion.new()
+	free.relative = Vector2(0, 60)
+	volume._gui_input(free)
+	_check(volume.value == 0.5, "only with the button held")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	volume._gui_input(wheel)
+	_check(is_equal_approx(volume.value, 0.55), "scrolling steps it")
+	var twice := InputEventMouseButton.new()
+	twice.button_index = MOUSE_BUTTON_LEFT
+	twice.pressed = true
+	twice.double_click = true
+	volume._gui_input(twice)
+	_check(volume.value == 1.0 and Settings.channel_volumes[2] == 1.0, "double-click resets")
+	# Velocity scales, on this channel only.
+	o.play(surface, 1.0, 0)
+	_check(sent[-1][2] == 127, "full volume")
+	Settings.set_channel_volume(2, 0.5)
+	o.silence()
+	o.play(surface, 1.0, 0)
+	_check(sent[-1][2] == 64, "half volume halves velocity")
+	o.silence()
+	o.channel = 3
+	o.play(surface, 1.0, 0)
+	_check(sent[-1][2] == 127, "other channels are unaffected")
+	o.silence()
+	o.channel = 2
+	Settings.set_channel_volume(2, 0.05)
+	o.play(surface, 0.05, 0)
+	_check(sent[-1][2] == 1, "low volume still sounds")
+	o.silence()
+	# Off: no note, but a relay still fires.
+	Settings.set_channel_volume(2, 0.0)
+	sent.clear()
+	surface.add_modifier(a, "relay")
+	surface.trigger_note(a)
+	_check(sent.is_empty() and surface.waves.size() == 1, "off silences it, and the relay still fires")
+	Midi.play_note(60, 90, 0.25, 2)
+	_check(sent.is_empty(), "previews follow it")
+	Settings.set_channel_volume(2, 1.0)
+	Midi.play_note(60, 90, 0.25, 2)
+	_check(sent.size() == 1 and sent[0][2] == 90, "at full, previews are unchanged")
+	# Reset all, and it persists.
+	Settings.set_channel_volume(5, 0.3)
+	Settings.set_channel_beats(5, 2.0)
+	box.queue_free()
+	var box2 := VBoxContainer.new()
+	add_child(box2)
+	tools.get_tool("channel").build_options(box2)
+	var ks := _knobs(box2)
+	_check(is_equal_approx(ks[10].value, 0.3) and ks[11].value == 2.0, "the panel shows stored values")
+	for b in box2.find_children("*", "Button", true, false):
+		if b.text == "Reset all":
+			b.pressed.emit()
+	_check(Settings.channel_volumes[5] == 1.0 and Settings.channel_beats[5] == 0.0, "Reset all clears both")
+	box2.queue_free()
+	Midi.message_sent.disconnect(spy)
+	surface.stop()
+	surface.clear_notes()
+
+
 func _note_lengths() -> void:
 	_check(Settings.note_beats == 0.5, "the default is an eighth note")
 	var bpm: float = Settings.bpm
@@ -1197,9 +1296,13 @@ func _note_lengths() -> void:
 	add_child(box)
 	tools.get_tool("channel").build_options(box)
 	var sliders := box.find_children("*", "HSlider", true, false)
-	_check(sliders.size() == 17, "Default and 16 channels")
+	_check(sliders.size() == 1, "one Default slider")
 	_check(sliders[0].step == 0.5 and sliders[0].min_value == 0.5 and sliders[0].max_value == 4.0, "Default runs ½ to 4 in ½ steps")
-	_check(sliders[1].step == 0.5 and sliders[1].min_value == 0.0 and sliders[1].max_value == 4.0, "a channel adds Default at the bottom")
+	var knobs := _knobs(box)
+	_check(knobs.size() == 32, "two knobs per channel")
+	_check(knobs[1].step == 0.5 and knobs[1].min_value == 0.0 and knobs[1].max_value == 4.0, "a length knob has Default at the bottom")
+	for k in knobs:
+		_check(k.tooltip_text != "", "knob has a tooltip")
 	box.queue_free()
 	# Old saves.
 	var cfg := ConfigFile.new()

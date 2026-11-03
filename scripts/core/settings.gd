@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
 	"root_note", "scale_name", "midi_port", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "channel_volumes", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
@@ -113,6 +113,26 @@ var snap_centres := true        ## snap onto the centre of a note or emitter the
 var channel_beats: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 
+## Per-channel volume, 0-1 (index 0 = channel 1): scales the velocity of every note on the channel.
+var channel_volumes: Array = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+
+## The velocity a note on `channel` plays at. 0 means it doesn't sound.
+func channel_velocity(channel: int, velocity: int) -> int:
+	if channel < 0 or channel >= channel_volumes.size():
+		return velocity
+	var volume := float(channel_volumes[channel])
+	return 0 if volume <= 0.0 else clampi(roundi(velocity * volume), 1, 127)
+
+
+func set_channel_volume(channel: int, volume: float) -> void:
+	if channel < 0 or channel > 15:
+		return
+	channel_volumes[channel] = clampf(volume, 0.0, 1.0)
+	changed.emit("channel_volumes")
+	queue_save()
+
+
 ## A length as saved: a whole number of eighth notes, up to a 4-beat measure.
 static func snap_length(beats: float) -> float:
 	return clampf(snappedf(beats, LENGTH_STEP), LENGTH_STEP, LENGTH_MAX)
@@ -197,6 +217,9 @@ func load_settings() -> void:
 	if not LOOKS.has(look):
 		look = "Abyssal"
 	_migrate_note_lengths(cfg)
+	if channel_volumes.size() != 16:
+		channel_volumes.resize(16)
+		channel_volumes = channel_volumes.map(func(v: Variant) -> float: return 1.0 if v == null else float(v))
 	if channel_beats.size() != 16:
 		var fixed: Array = []
 		for i in 16:
