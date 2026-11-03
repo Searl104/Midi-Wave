@@ -83,6 +83,8 @@ once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
 - Settings: cooldown in beats (⅛ to 4, or Retrigger: no timer) on the outer ring, strength on the inner, and Sound or Silent in the centre. A new relay has Sound on, so the note still plays; Silent makes it hollow and keeps its pitch.
 - The diamond docks upper right of the note. Dragged out, it stays at that spot and draws under the notes, with a dashed line and a dim handle left on the note. Dropped back on the note, it docks.
 - An emitter on top of another note fires that note instantly.
+- A new wave starts from where the hit really landed, so loops and chains hold their tempo at any frame rate.
+- A hit up to 20 ms early still fires, so a cooldown equal to the time between hits doesn't skip any.
 - The surface holds 64 waves; when it's full, relays skip a beat instead of removing waves.
 
 **Toggle** switches the note off and on each hit, so it plays every other hit. Off silences its

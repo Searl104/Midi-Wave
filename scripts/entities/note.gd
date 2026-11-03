@@ -122,23 +122,23 @@ func _passes_modifiers() -> bool:
 	return passes
 
 
-## A wave reached this object.
-func hit(surface: WaveSurface, amp: float, now: int, spawned: Array) -> void:
+## A wave reached this object, and has since travelled `overshoot` further.
+func hit(surface: WaveSurface, amp: float, now: int, spawned: Array, overshoot: float = 0.0) -> void:
 	if not _passes_modifiers():
 		dim_flash = 1.0              # silenced: no sound, no pulse
 		return
 	if muted:
 		dim_flash = 1.0              # muted: no sound and no pulse (a toggle still advances)
 		return
-	_act(surface, amp, now, spawned)
+	_act(surface, amp, now, spawned, overshoot)
 
 
-func _act(surface: WaveSurface, amp: float, now: int, spawned: Array) -> void:
+func _act(surface: WaveSurface, amp: float, now: int, spawned: Array, overshoot: float = 0.0) -> void:
 	if sounds():
 		play(surface, amp, now)
 	var r := relay()
 	if r:
-		r.emitter.fire(surface, self, now, spawned)
+		r.emitter.fire(surface, self, now, spawned, overshoot)
 
 
 ## Tapped, or fired by its binding: a hit of its own, at click strength with no wave, that overrides mute.

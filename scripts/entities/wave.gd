@@ -40,6 +40,7 @@ func finished() -> bool:
 
 
 ## Hits `o` if this wave has just reached it. A wave that starts on an object hits it at once.
+## Hits land on frames, so the wave is usually a little past `o`: that overshoot goes with the hit.
 func try_hit(surface: WaveSurface, o: Note, now: int, spawned: Array) -> void:
 	if o.id == source or hits.has(o.id):
 		return
@@ -48,7 +49,7 @@ func try_hit(surface: WaveSurface, o: Note, now: int, spawned: Array) -> void:
 		hits[o.id] = true
 		var amp := Wave.amplitude(strength, d, reach())
 		if amp >= WaveSurface.MIN_AMPLITUDE:
-			o.hit(surface, amp, now, spawned)
+			o.hit(surface, amp, now, spawned, maxf(r - d, 0.0))
 
 
 func _level() -> float:

@@ -8,6 +8,7 @@ const HANDLE_RADIUS := 7.0
 const MIN_COOLDOWN := 0.125        ## beats (an eighth of a beat)
 const DEFAULT_STRENGTH := 0.8
 const DEFAULT_COOLDOWN := 1.0      ## beats
+const COOLDOWN_GRACE := 20000      ## microseconds early a hit can land and still fire: about a frame
 
 var attached := true
 var pos := Vector2.ZERO            ## world units; used while detached
@@ -76,14 +77,20 @@ func grid_limit() -> float:
 	return grid.reach if grid and grid.reach > 0.0 else reach()
 
 
-func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array) -> void:
-	if now < ready_at:
+## Fires a wave. `overshoot` is how far the hit's wave had passed when this frame noticed it: the new
+## wave starts that far out and the cooldown counts from the true hit, so links don't add frames
+## and loops keep their tempo. Hits land on frames, so one a little early still fires.
+func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array, overshoot: float = 0.0) -> void:
+	var hit_at := now - int(overshoot / Settings.wave_speed * 1_000_000.0)
+	if hit_at < ready_at - COOLDOWN_GRACE:
 		return
 	if surface.waves.size() + spawned.size() >= WaveSurface.MAX_WAVES:
 		surface.skipped_pulses += 1  # surface full: skip this beat, stay ready
 		return
-	spawned.append(Wave.new(world_pos(owner), strength, owner.id, own_reach))
-	ready_at = now + cooldown_usec()
+	var w := Wave.new(world_pos(owner), strength, owner.id, own_reach)
+	w.r = overshoot
+	spawned.append(w)
+	ready_at = hit_at + cooldown_usec()
 	pulse_flash = 1.0
 
 

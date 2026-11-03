@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_note_lengths()
+	_timing()
 	_tweaks()
 	_saves()
 	_default_ring()
@@ -1212,6 +1213,103 @@ func _note_lengths() -> void:
 	_check(Settings.note_beats == 0.5 and Settings.channel_beats[1] == 2.5 and Settings.channel_beats[0] == 0.0, "old seconds convert and snap")
 	Settings.note_beats = was
 	Settings.channel_beats = was_channels
+
+
+func _run_frames(seconds: float, fps: float, jitter: float, rng: RandomNumberGenerator) -> void:
+	var t := 0.0
+	while t < seconds:
+		var d: float = (1.0 / fps) * (1.0 + rng.randf_range(-jitter, jitter))
+		surface.step(d)
+		t += d
+
+
+func _timing() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var bpm: float = Settings.bpm
+	Settings.bpm = 120.0
+	surface.waves.clear()
+	var fired: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			fired.append([surface.clock_usec, m[1]])
+	Midi.message_sent.connect(spy)
+	# A 2-beat loop keeps its tempo, whatever the frame rate.
+	for setup in [[60.0, 0.0], [60.0, 0.25], [144.0, 0.0], [144.0, 0.25]]:
+		surface.clear_notes()
+		fired.clear()
+		var a := surface.add_object(Vector2(0, 0), 60, 0)
+		var b := surface.add_object(Vector2(200, 0), 62, 0)
+		for id in [a, b]:
+			surface.add_modifier(id, "relay")
+			surface.get_note(id).emitter().cooldown = 0.5
+			surface.get_note(id).emitter().own_reach = 400.0
+		surface.trigger_note(a)
+		_run_frames(60.0, setup[0], setup[1], rng)
+		var times: Array = fired.filter(func(f: Array) -> bool: return f[1] == 60).map(func(f: Array) -> int: return f[0])
+		var period: float = float(times[-1] - times[0]) / (times.size() - 1) / 1000.0
+		_check(absf(period - 1000.0) < 1.0, "%d fps, jitter %.2f: loop period %.2f ms" % [setup[0], setup[1], period])
+		surface.stop()
+	# A chain's eighth link is at most about a frame late.
+	for fps in [60.0, 144.0]:
+		surface.clear_notes()
+		fired.clear()
+		var first := -1
+		for i in 8:
+			var id := surface.add_object(Vector2(200.0 * i, 0), 40 + i, 0)
+			surface.add_modifier(id, "relay")
+			surface.get_note(id).emitter().own_reach = 250.0
+			surface.get_note(id).emitter().cooldown = 4.0
+			if i == 0:
+				first = id
+		var start: int = surface.clock_usec
+		surface.trigger_note(first)
+		_run_frames(3.8, fps, 0.1, rng)
+		var last: Array = fired.filter(func(f: Array) -> bool: return f[1] == 47)
+		var late: float = (last[0][0] - start) / 1000.0 - 3500.0
+		_check(late >= -1.0 and late < 1000.0 / fps + 3.0, "%d fps: eighth link %.1f ms late" % [fps, late])
+		surface.stop()
+	# A cooldown equal to the time between hits skips nothing.
+	for fps in [60.0, 144.0]:
+		surface.clear_notes()
+		var r := surface.add_object(Vector2(100, 0), 60, 0)
+		surface.add_modifier(r, "relay")
+		var e: Emitter = surface.get_note(r).emitter()
+		e.own_reach = 10.0
+		var count := 0
+		var ready: int = e.ready_at
+		var t := 0.0
+		var next := 0.0
+		while t < 30.0:
+			if t >= next:
+				surface.add_wave(Wave.new(Vector2.ZERO, 1.0, -1, 300.0))
+				next += 0.5
+			var d: float = (1.0 / fps) * (1.0 + rng.randf_range(-0.1, 0.1))
+			surface.step(d)
+			t += d
+			if e.ready_at != ready:
+				count += 1
+				ready = e.ready_at
+		_check(count >= 59, "%d fps: fired %d of 60 hits" % [fps, count])
+		surface.stop()
+	# A cooldown still holds off hits that are clearly too soon.
+	surface.clear_notes()
+	var c := surface.add_object(Vector2(0, 0), 60, 0)
+	surface.add_modifier(c, "relay")
+	var ce: Emitter = surface.get_note(c).emitter()
+	surface.trigger_note(c)
+	surface.waves.clear()
+	surface.step(0.2)
+	surface.trigger_note(c)
+	_check(surface.waves.is_empty(), "a cooldown still gates")
+	surface.step(0.3 - 0.01)
+	surface.trigger_note(c)
+	_check(surface.waves.size() == 1, "and a hit 10 ms early fires")
+	_check(ce.cooldown == 1.0, "defaults untouched")
+	Midi.message_sent.disconnect(spy)
+	Settings.bpm = bpm
+	surface.stop()
+	surface.clear_notes()
 
 
 func _tweaks() -> void:
