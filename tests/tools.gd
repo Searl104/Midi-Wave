@@ -1611,6 +1611,23 @@ func _sequence() -> void:
 	s.passes_hit()
 	surface.stop()
 	_check(s.pos == 0, "Stop returns to step 1")
+	# The dots slide without jumps, however fast the hits come.
+	s.passes_hit()
+	_check(s.slide == 1.0, "a hit starts a slide of one step")
+	var last := s.slide
+	var eased := true
+	for i in 8:
+		s.tick(1.0 / 120.0)
+		eased = eased and s.slide < last and s.slide > 0.0
+		last = s.slide
+	_check(eased and s.slide < 1.0, "it eases down")
+	s.passes_hit()
+	_check(is_equal_approx(s.slide, last + 1.0), "a hit during a slide adds to it, so nothing jumps")
+	for i in 240:
+		s.tick(1.0 / 60.0)
+	_check(absf(s.slide) < 0.001, "it settles")
+	surface.stop()
+	_check(s.slide == 0.0, "Stop ends it")
 	# Silences a relay too, and every hit moves on.
 	surface.add_modifier(a, "relay")
 	surface.set_sequence_step(a, 0, false)

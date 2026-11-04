@@ -9,9 +9,12 @@ const DOT_GAP := 7.0               ## px between the dots beside the tab
 const DOT_START := 10.0            ## px from the tab's centre to step zero of the row
 const DOT_HIDDEN := 0.4            ## a dot this close to the icon is behind the tab
 const DOT_FADE := 4.0              ## a dot this many steps out has faded away
+const SLIDE_RATE := 14.0           ## how quickly the dots settle
 
 var steps: Array = [true, false]
 var pos := 0                       ## the step the next hit takes
+var slide := 0.0                   ## steps the dots still have to travel
+var _slide_speed := 0.0
 
 
 func kind() -> String:
@@ -74,12 +77,23 @@ func set_step(index: int, on: bool) -> void:
 func passes_hit() -> bool:
 	var on: bool = steps[pos]
 	pos = (pos + 1) % steps.size()
+	slide += 1.0                       # added, so a hit during a slide keeps the dots moving
 	flip = 1.0
 	return on
 
 
 func reset() -> void:
 	pos = 0
+	slide = 0.0
+	_slide_speed = 0.0
+
+
+## The dots ease toward their places: a critically damped spring has no sudden starts or stops.
+func tick(delta: float) -> void:
+	super.tick(delta)
+	var dt := minf(delta, 0.05)
+	_slide_speed += (-2.0 * SLIDE_RATE * _slide_speed - SLIDE_RATE * SLIDE_RATE * slide) * dt
+	slide += _slide_speed * dt
 
 
 func resting() -> bool:
@@ -109,12 +123,13 @@ func _draw_dots(surface: WaveSurface, p: Vector2) -> void:
 		var ahead := posmod(i - pos, count)
 		if ahead > count / 2:
 			ahead -= count
-		var place := ahead + flip
-		if i == pos or absf(place) < DOT_HIDDEN or absf(place) >= DOT_FADE:
+		var place := ahead + slide
+		var far := absf(place)
+		if far < DOT_HIDDEN or far >= DOT_FADE:
 			continue
-		var at := row + Vector2(signf(place) * (DOT_START + absf(place) * DOT_GAP), 0)
+		var at := row + Vector2(signf(place) * (DOT_START + far * DOT_GAP), 0)
 		var ink: Color = Palette.BLUE if steps[i] else Palette.TEXT_DIM
-		surface.draw_circle(at, 2.2, Color(ink, minf((DOT_FADE - absf(place)) / (DOT_FADE - 1.0), 1.0)))
+		surface.draw_circle(at, 2.2, Color(ink, minf((DOT_FADE - far) / (DOT_FADE - 1.0), (far - DOT_HIDDEN) / DOT_HIDDEN)))
 
 
 ## Ripples spreading out, or still water when the next step is Off.
