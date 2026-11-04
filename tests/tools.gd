@@ -1558,6 +1558,16 @@ func _collections() -> void:
 	_check(not DirAccess.dir_exists_absolute(Collections.DIR + "a"), "and folders above it empty out")
 	tool.delete("three")
 	_check(DirAccess.dir_exists_absolute(Collections.DIR), "the collections folder stays")
+	# The folder button.
+	DirAccess.remove_absolute(Collections.DIR)
+	var folder_path := Collections.folder()
+	_check(DirAccess.dir_exists_absolute(folder_path) and folder_path.is_absolute_path(), "the folder is made, with a real path")
+	var opener := VBoxContainer.new()
+	add_child(opener)
+	tool.build_options(opener)
+	_check(opener.find_children("*", "Button", true, false).any(func(b: Button) -> bool:
+		return b.text == "Open Collections Folder" and b.tooltip_text != ""), "the panel has the button")
+	opener.queue_free()
 	# A bad file.
 	DirAccess.make_dir_recursive_absolute(Collections.DIR)
 	var bad := FileAccess.open(Collections.DIR + "Bad.json", FileAccess.WRITE)

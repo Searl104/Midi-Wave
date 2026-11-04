@@ -17,6 +17,12 @@ static func _path(collection: String) -> String:
 	return DIR + collection + ".json"
 
 
+## The collections folder as a path on this computer, made if needed.
+static func folder() -> String:
+	DirAccess.make_dir_recursive_absolute(DIR)
+	return ProjectSettings.globalize_path(DIR)
+
+
 ## `text` with what can't be typed in a name taken out, and backslashes as folder separators.
 static func cleaned(text: String) -> String:
 	var out := ""

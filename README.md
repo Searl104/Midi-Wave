@@ -71,7 +71,7 @@ undo step. Delete is in each row and asks first; it can't be undone.
 
 Each collection is a JSON file in `user://collections`, which is
 `%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
-shows in the list, as its path is its name.
+shows in the list, as its path is its name. **Open Collections Folder** in the panel goes straight there.
 
 ## Keys
 

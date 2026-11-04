@@ -51,6 +51,8 @@ func build_options(box: VBoxContainer) -> void:
 	box.add_child(_status)
 	PanelBuilder.section(box, "COLLECTIONS", Palette.BLUE)
 	box.add_child(PanelBuilder.hint("Drag one onto the surface, or click one and then click the surface to stamp copies."))
+	box.add_child(PanelBuilder.button("Open Collections Folder", func() -> void: OS.shell_open(Collections.folder()),
+			"Shows the collection files in your file manager."))
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 4)
 	box.add_child(_list)
