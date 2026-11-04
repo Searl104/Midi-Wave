@@ -105,7 +105,7 @@ once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
 silences its sound and pulse. It only decides whether the next activation sounds, as timing still
 comes from the surface. A thin ring shows it, with a tab underneath. The tab's icon shows the
 next step, with a carousel of dots through it: steps just played on the left and steps to come on the
-right, blue for On and grey for Off. Its settings ring
+right, blue for On and grey for Off, fading out so three show each side. Its settings ring
 sets the number of steps on the inner ring and turns steps On or Off on the outer ring, clockwise
 from the top. New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
 the same pattern, turned to start where they started.
