@@ -145,16 +145,8 @@ func _run_action(action: String) -> void:
 	match action:
 		"stop":
 			surface.stop()
-		"save_state":
-			_save_state()
 		"panic":
 			Midi.panic()
-
-
-## The Save state button: rests' current counts become their start counts.
-func _save_state() -> void:
-	surface.save_state()
-	_toast("Start counts saved")
 
 
 var _toast_label: Label
@@ -222,16 +214,9 @@ func _build_hud() -> void:
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(status_label)
 
-	var save := Button.new()
-	save.text = "Save state"
-	save.tooltip_text = "Make every rest's current count its start count (Ctrl+S)"
-	save.focus_mode = Control.FOCUS_NONE
-	save.pressed.connect(_save_state)
-	top.add_child(save)
-
 	var stop := Button.new()
 	stop.text = "Stop"
-	stop.tooltip_text = "Clear every wave and return to the save state (Space, KP Enter)"
+	stop.tooltip_text = "Clear every wave and return sequences to step 1 (Space, KP Enter)"
 	stop.focus_mode = Control.FOCUS_NONE
 	stop.pressed.connect(func() -> void: surface.stop())
 	top.add_child(stop)

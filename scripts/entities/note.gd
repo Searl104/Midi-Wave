@@ -63,7 +63,7 @@ func has_ring() -> bool:
 	return false
 
 
-## Adds a modifier, keeping rests ahead of the relay they gate.
+## Adds a modifier, keeping sequences ahead of the relay they gate.
 func add_modifier(m: Modifier) -> void:
 	modifiers.append(m)
 	modifiers.sort_custom(func(a: Modifier, b: Modifier) -> bool: return a.order() < b.order())
@@ -89,10 +89,10 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 				m.load_dict(md, p)
 				add_modifier(m)
 		return
-	var rest := Modifier.create(str(d.get("mod", "")))
-	if rest:
-		rest.load_dict({"value": d.get("mod_value", 1), "start": d.get("mod_start", true)}, p)
-		add_modifier(rest)
+	var sequence := Modifier.create(str(d.get("mod", "")))
+	if sequence:
+		sequence.load_dict({"steps": d.get("mod_steps"), "start": d.get("mod_start", true)}, p)
+		add_modifier(sequence)
 	var mode := int(d.get("mode", 0))
 	if mode == 1 or mode == 2:
 		var r := RelayModifier.new()
@@ -114,7 +114,7 @@ func to_dict() -> Dictionary:
 
 # --- Hits ----------------------------------------------------------------------------------
 
-## Every modifier gets the hit (a rest counts it), and any can silence it.
+## Every modifier gets the hit (a sequence steps on), and any can silence it.
 func _passes_modifiers() -> bool:
 	var passes := true
 	for m in modifiers:
@@ -128,7 +128,7 @@ func hit(surface: WaveSurface, amp: float, now: int, spawned: Array, overshoot: 
 		dim_flash = 1.0              # silenced: no sound, no pulse
 		return
 	if muted:
-		dim_flash = 1.0              # muted: no sound and no pulse (a rest still counts it)
+		dim_flash = 1.0              # muted: no sound and no pulse (a sequence still steps on)
 		return
 	_act(surface, amp, now, spawned, overshoot)
 

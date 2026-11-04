@@ -95,8 +95,8 @@ func _groups() -> void:
 		channels[surface.get_note(demo.marks["channel%d" % i]).channel] = true
 	_check(channels.size() == 16, "16 channels")
 	_check(_hits("plain") > 8, "plain note plays")
-	_check(absi(_hits("rest_one") * 2 - _hits("plain")) <= 2, "Rest 1 plays every other hit")
-	_check(absi(_hits("rest_three") * 4 - _hits("plain")) <= 4, "Rest 3 plays every fourth hit")
+	_check(absi(_hits("seq_two") * 2 - _hits("plain")) <= 2, "On, Off plays every other hit")
+	_check(absi(_hits("seq_four") * 4 - _hits("plain")) <= 4, "one step in four plays every fourth hit")
 	_check(_hits("rested_target") > 2 and _hits("rested_target") < _hits("plain"), "rested relay passes on fewer")
 	_check(_hits("muted") == 0, "muted note is silent")
 	_check(_hits("unmuted") > 8, "note beside it plays")

@@ -10,7 +10,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 
 | Tool | Left click / drag |
 |---|---|
-| Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so rests apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
+| Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so sequences apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
 | Select and Move | Click a note or diamond to select it (Shift adds or removes); clicking one of a group narrows to it. Drag to move (Alt: free). Drag on empty space for a box (Shift adds). Ctrl-drag from a diamond sets its relay's reach |
 | Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
@@ -53,7 +53,7 @@ the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner), delete (centre). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Channel:** 1-16.
-- **Modifier:** None, Rest and Relay. Picking one adds or removes it, and None clears them all.
+- **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
 scale steps, so a chord keeps its shape; an octave moves them all, and the pitch ring's centre
@@ -77,12 +77,11 @@ shows in the list, as its path is its name. **Open Collections Folder** in the p
 
 | Key | Action |
 |---|---|
-| Space, KP Enter | Stop: clear all waves and return rests to their start count. Cooldowns keep running |
+| Space, KP Enter | Stop: clear all waves and return sequences to step 1. Cooldowns keep running |
 | KP0-9 | Fire that binding |
 | Tab | Tap and the previous tool |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
 | < / > (comma / period) | Nudge the selection, or the hovered note, a scale step; with Shift, an octave. Every tool |
-| Ctrl+S | Save state: rests' current count becomes their start. Every tool |
 | Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y | Undo / redo (50 steps), in editing tools |
 | Esc | Close a ring, cancel Bind, or clear the selection |
 | Delete, Backspace | Remove the selection (Select and Move); clear the armed binding (Bind) |
@@ -102,14 +101,15 @@ once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
 - A hit up to 20 ms early still fires, so a cooldown equal to the time between hits doesn't skip any.
 - The surface holds 64 waves; when it's full, relays skip a beat instead of removing waves.
 
-**Rest** sits out a number of hits after firing, set by its Value (1-8): Rest 1 plays every other
-hit, and Rest 3 every fourth. Resting silences its sound and pulse. A thin ring shows it, with a tab
-underneath: ripples when the next hit will fire, otherwise the hits left. Its settings ring sets
-Value on the outer ring and the hits left at the start on the inner ring, which offsets it against
-other notes. A dot on the tab shows when the count differs from the start. Save state copies current
-counts to start counts, and Stop returns to them. Toggles in old saves load as Rest 1.
+**Sequence** is a list of up to 16 On and Off steps. Each hit takes the next step, and an Off step
+silences its sound and pulse. It only decides whether the next activation sounds, as timing still
+comes from the surface. A thin ring shows it, with a tab underneath, and an arc of dots over the
+note: blue is On, grey is Off, and the arc turns to keep the next step at the top. Its settings ring
+sets the number of steps on the inner ring and turns steps On or Off on the outer ring, clockwise
+from the top. New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
+the same pattern, turned to start where they started.
 
-**Mute** isn't a modifier: a muted note ignores waves, though a rest on it still counts. Tapping
+**Mute** isn't a modifier: a muted note ignores waves, though a sequence on it still steps on. Tapping
 it, or firing its binding, plays it anyway.
 
 ## Bindings
@@ -118,7 +118,7 @@ A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes ca
 at the note's upper left shows it. A binding fires like a tap, in any tool. A press during a cooldown does nothing until it ends, and fires then if still held. A press on a relay in Tap waits the same way, and fires once. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
 
-**Options → Controls** maps MIDI messages to Stop, Save state and Panic. Press Learn, then press a key,
+**Options → Controls** maps MIDI messages to Stop and Panic. Press Learn, then press a key,
 pad or button, or move a knob, on the chosen controller. Notes, control changes and Start, Stop and
 Continue can all be learned, on any channel, and a control change fires each time it rises above 0.
 One message drives one action, so learning it again moves it. If notes are bound to the same MIDI
@@ -195,7 +195,7 @@ scripts/
   midi/midi_message.gd    Raw MIDI byte helpers
   midi/midi_mappings.gd   MIDI messages that run app actions
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
-  entities/               note, emitter, wave, grid, modifier, relay_modifier, rest_modifier
+  entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
   surface/                undo_history, selection, snapping, surface_effects, demo_layout, collections
   tools/                  One script per tool and ring, plus tool_manager and object_drag
   ui/main.gd              Builds the scene and HUD

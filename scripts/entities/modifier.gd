@@ -1,10 +1,10 @@
 class_name Modifier
 extends RefCounted
 ## Something on a note that changes what a hit does. A note can hold several. Each has a tab that
-## opens its settings ring. Subclasses set the rules, ring and tab; Stop returns any state to its start.
+## opens its settings ring. Subclasses set the rules, ring and tab; Stop resets any state.
 
 const RING := 10.0                 ## ring radius beyond the object's
-const KINDS := ["rest", "relay"]
+const KINDS := ["sequence", "relay"]
 
 var flip := 0.0                    ## flash when the state changes
 
@@ -12,8 +12,8 @@ var flip := 0.0                    ## flash when the state changes
 ## A modifier of `kind`, or null for "" or a kind that doesn't exist.
 static func create(kind_name: String) -> Modifier:
 	match kind_name:
-		"rest", "toggle":                # "toggle" is the old name, and is Rest 1
-			return RestModifier.new()
+		"sequence", "rest", "toggle":    # older saves use the other names
+			return SequenceModifier.new()
 		"relay":
 			return RelayModifier.new()
 	return null
@@ -70,24 +70,9 @@ func reset() -> void:
 	pass
 
 
-## Its current state becomes its start state.
-func save_start() -> void:
-	pass
-
-
 ## True if hits are being silenced for now.
 func resting() -> bool:
 	return false
-
-
-## True if it isn't in its start state.
-func off_start() -> bool:
-	return false
-
-
-## True if its start state is ready to fire.
-func starts_ready() -> bool:
-	return true
 
 
 func tick(delta: float) -> void:
@@ -128,14 +113,6 @@ func _draw_ring_and_tab(surface: WaveSurface, p: Vector2, col: Color) -> void:
 	sb.anti_aliasing = true
 	surface.draw_style_box(sb, tab)
 	_draw_icon(surface, c, Palette.TEXT_DIM if resting() else col)
-	if off_start():
-		# Start-state dot: filled = starts ready, hollow = starts resting.
-		var dot := tab.position + Vector2(tab.size.x - 1.0, 1.0)
-		surface.draw_circle(dot, 3.2, Palette.BG)
-		if starts_ready():
-			surface.draw_circle(dot, 2.3, col)
-		else:
-			surface.draw_arc(dot, 2.0, 0.0, TAU, 12, Palette.TEXT_DIM, 1.0, true)
 
 
 func _draw_icon(_surface: WaveSurface, _c: Vector2, _ink: Color) -> void:

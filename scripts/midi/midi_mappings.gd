@@ -7,10 +7,9 @@ extends RefCounted
 signal triggered(action: String)
 signal changed                     ## a mapping or `listening` changed
 
-const ACTIONS := {"stop": "Stop", "save_state": "Save state", "panic": "Panic"}
+const ACTIONS := {"stop": "Stop", "panic": "Panic"}
 const TIPS := {
-	"stop": "Clears every wave and returns rests to their start count.",
-	"save_state": "Makes every rest's current count its start count.",
+	"stop": "Clears every wave and returns sequences to step 1.",
 	"panic": "Stops every sounding note on all channels.",
 }
 const DEFAULTS := {"stop": "rt252"}

@@ -302,7 +302,7 @@ func redo() -> bool:
 	return true
 
 
-## Rebuilds the objects from a layout snapshot, keeping live play state (rests, cooldowns) and
+## Rebuilds the objects from a layout snapshot, keeping live play state (sequences, cooldowns) and
 ## the selection for objects that survive.
 func _apply_snapshot(snap: Array) -> void:
 	var live := {}
@@ -410,7 +410,7 @@ func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
 
 
 ## Adds a modifier if the object doesn't have it. A new relay sounds and is ready to fire; a new
-## rest is ready to fire.
+## sequence is on an On step.
 func add_modifier(id: int, kind: String) -> void:
 	var o := get_note(id)
 	if o == null or o.get_modifier(kind):
@@ -454,29 +454,21 @@ func set_relay_sound(id: int, on: bool) -> void:
 	save_notes()
 
 
-## Sets how many hits a rest sits out after firing.
-func set_rest_value(id: int, value: int) -> void:
+## Sets how many steps a sequence has.
+func set_sequence_count(id: int, count: int) -> void:
 	var o := get_note(id)
-	if o == null or o.get_modifier("rest") == null:
+	if o == null or o.get_modifier("sequence") == null:
 		return
-	o.get_modifier("rest").set_value(value)
+	o.get_modifier("sequence").set_count(count)
 	save_notes()
 
 
-## Sets how many hits a rest has left at the start, which is also its count now.
-func set_rest_start(id: int, count: int) -> void:
+## Turns one step of a sequence On or Off.
+func set_sequence_step(id: int, index: int, on: bool) -> void:
 	var o := get_note(id)
-	if o == null or o.get_modifier("rest") == null:
+	if o == null or o.get_modifier("sequence") == null:
 		return
-	o.get_modifier("rest").set_start_left(count)
-	save_notes()
-
-
-## Save state: every modifier's current state becomes its start state.
-func save_state() -> void:
-	for o in notes:
-		for m in o.modifiers:
-			m.save_start()
+	o.get_modifier("sequence").set_step(index, on)
 	save_notes()
 
 
@@ -667,7 +659,7 @@ func step(delta: float) -> void:
 			held_tap = -1
 			tapped.tap(self)
 
-	# Held bindings: relays refire each time their cooldown runs out (a refire that a rest
+	# Held bindings: relays refire each time their cooldown runs out (a refire that a sequence
 	# silences still waits a full cooldown before the next). Retrigger relays don't refire.
 	if not held_bindings.is_empty():
 		for o in notes.duplicate():
