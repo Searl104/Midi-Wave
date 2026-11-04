@@ -5,8 +5,9 @@ extends Modifier
 ## to the surface. Stop returns it to step 1.
 
 const MAX_STEPS := 16
-const DOT_GAP := 0.3               ## angle between the dots over the note
-const DOT_RADIUS := Note.RADIUS + Modifier.RING + 7.0
+const DOT_GAP := 7.0               ## px between the dots beside the tab
+const DOT_START := 10.0            ## px from the tab's centre to step zero of the row
+const DOT_HIDDEN := 0.4            ## a dot this close to the icon is behind the tab
 
 var steps: Array = [true, false]
 var pos := 0                       ## the step the next hit takes
@@ -97,19 +98,20 @@ func draw(surface: WaveSurface, p: Vector2, col: Color) -> void:
 	_draw_dots(surface, p)
 
 
-## An arc of dots over the note, turned to keep the next step at the top. Steps to come run
-## clockwise from it, and those just played sit behind it.
+## A carousel of dots through the tab: steps just played on the left, steps to come on the right,
+## and the next step at the icon, which shows its state. Dots slide left on each hit.
 func _draw_dots(surface: WaveSurface, p: Vector2) -> void:
 	var count := steps.size()
+	var row := p + Vector2(0, Note.RADIUS + Modifier.RING + 4.0)
 	for i in count:
 		var ahead := posmod(i - pos, count)
 		if ahead > count / 2:
 			ahead -= count
-		var at := p + Vector2.from_angle(-PI / 2.0 + (ahead + flip) * DOT_GAP) * DOT_RADIUS
-		var ink := Palette.BLUE if steps[i] else Palette.TEXT_DIM
-		if i == pos:
-			surface.draw_circle(at, 4.0, Palette.TEXT)
-		surface.draw_circle(at, 3.0 if i == pos else 2.3, ink)
+		var place := ahead + flip
+		if i == pos or absf(place) < DOT_HIDDEN:
+			continue
+		var at := row + Vector2(signf(place) * (DOT_START + absf(place) * DOT_GAP), 0)
+		surface.draw_circle(at, 2.2, Palette.BLUE if steps[i] else Palette.TEXT_DIM)
 
 
 ## Ripples spreading out, or still water when the next step is Off.
