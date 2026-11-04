@@ -63,12 +63,15 @@ selected diamonds.
 ## Collections
 
 Select some notes, right-click Paste Collection, type a name and press Save. Each name can be used
-once, ignoring case. Drag a row onto the surface in any tool, or click it, then click the surface to
+once, ignoring case. A slash puts it in a folder, so `patterns/shaker01` saves `shaker01.json` in
+`patterns`. Folders are made as needed, and go when their last collection is deleted. The name field
+only takes characters a Windows file name can use. Drag a row onto the surface in any tool, or click it, then click the surface to
 stamp copies. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
 undo step. Delete is in each row and asks first; it can't be undone.
 
 Each collection is a JSON file in `user://collections`, which is
-`%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows.
+`%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
+shows in the list, as its path is its name.
 
 ## Keys
 
@@ -202,6 +205,7 @@ scripts/
   ui/tool_panel.gd        The popup that holds a tool's options
   ui/panel_builder.gd     Sliders, buttons and other controls for the panels
   ui/collection_row.gd    A row in Paste Collection's list
+  ui/collection_folder.gd A folder in that list
   ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme

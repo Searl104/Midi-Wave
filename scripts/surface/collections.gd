@@ -1,26 +1,74 @@
 class_name Collections
 extends RefCounted
-## Saved groups of notes, one JSON file each in user://collections. Positions are relative to the
-## group's centre, so a collection can go anywhere. Snap memory is kept only within the group.
+## Saved groups of notes, one JSON file each in user://collections. A collection's name is its path
+## there, without the extension, so "patterns/shaker01" is shaker01.json in a patterns folder.
+## Names follow the Windows rules, so a collection can move between systems. Positions are relative
+## to the group's centre, so a collection can go anywhere. Snap memory is kept only within the group.
 
 const DIR := "user://collections/"
 const VERSION := 1
+const NAME_MAX := 100
+const FORBIDDEN := ":*?\"<>|"
+const RESERVED := ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+		"COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
 
 
 static func _path(collection: String) -> String:
-	return DIR + collection.uri_encode() + ".json"
+	return DIR + collection + ".json"
 
 
-## The saved names, sorted.
+## `text` with what can't be typed in a name taken out, and backslashes as folder separators.
+static func cleaned(text: String) -> String:
+	var out := ""
+	for ch in text.replace("\\", "/"):
+		if ch not in FORBIDDEN and ch.unicode_at(0) >= 32:
+			out += ch
+	return out
+
+
+## `text` as a name: spaces at the ends of each part go, and so do repeated slashes. A trailing
+## slash stays, since it means the name is unfinished.
+static func normalised(text: String) -> String:
+	var parts: Array = []
+	for part in cleaned(text).split("/", false):
+		if part.strip_edges() != "":
+			parts.append(part.strip_edges())
+	var name := "/".join(parts)
+	return name + "/" if name != "" and cleaned(text).strip_edges().ends_with("/") else name
+
+
+## What's wrong with a normalised name, or "".
+static func problem(collection: String) -> String:
+	if collection == "":
+		return "Give it a name first."
+	if collection.ends_with("/"):
+		return "Add a name after the folder."
+	if collection.length() > NAME_MAX:
+		return "That name is too long."
+	for part in collection.split("/"):
+		if part.ends_with("."):
+			return "A name or folder can't end in a dot."
+		if part.get_slice(".", 0).to_upper() in RESERVED:
+			return "Windows reserves the name %s." % part.get_slice(".", 0)
+	return ""
+
+
+## The saved names, sorted, with their folders.
 static func list() -> PackedStringArray:
 	var names: Array = []
-	if not DirAccess.dir_exists_absolute(DIR):
-		return PackedStringArray()
-	for file in DirAccess.get_files_at(DIR):
-		if file.ends_with(".json"):
-			names.append(file.trim_suffix(".json").uri_decode())
+	_collect("", names)
 	names.sort_custom(func(a: String, b: String) -> bool: return a.naturalnocasecmp_to(b) < 0)
 	return PackedStringArray(names)
+
+
+static func _collect(folder: String, names: Array) -> void:
+	if not DirAccess.dir_exists_absolute(DIR + folder):
+		return
+	for file in DirAccess.get_files_at(DIR + folder):
+		if file.ends_with(".json"):
+			names.append(folder + file.trim_suffix(".json"))
+	for sub in DirAccess.get_directories_at(DIR + folder):
+		_collect(folder + sub + "/", names)
 
 
 ## Ignores case, since Windows file names do.
@@ -29,13 +77,13 @@ static func exists(collection: String) -> bool:
 	return Array(list()).any(func(n: String) -> bool: return n.to_lower() == lower)
 
 
-## Writes `notes` as a new collection. Returns false if the file can't be written.
+## Writes `notes` as a new collection, making its folders. Returns false if it can't be written.
 static func save(collection: String, notes: Array) -> bool:
-	DirAccess.make_dir_recursive_absolute(DIR)
+	DirAccess.make_dir_recursive_absolute(_path(collection).get_base_dir())
 	var file := FileAccess.open(_path(collection), FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify({"name": collection, "version": VERSION, "items": pack(notes)}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "items": pack(notes)}, "\t"))
 	return true
 
 
@@ -51,8 +99,16 @@ static func read(collection: String) -> Array:
 		return d is Dictionary and d.has("x") and d.has("y") and d.has("note") and d.has("channel"))
 
 
+## Deletes a collection, and any folders that leaves empty.
 static func remove(collection: String) -> void:
 	DirAccess.remove_absolute(_path(collection))
+	var folder := collection.get_base_dir()
+	while folder != "":
+		var path := DIR + folder
+		if not DirAccess.get_files_at(path).is_empty() or not DirAccess.get_directories_at(path).is_empty():
+			return
+		DirAccess.remove_absolute(path)
+		folder = folder.get_base_dir()
 
 
 ## Saved-format entries around the notes' centre.

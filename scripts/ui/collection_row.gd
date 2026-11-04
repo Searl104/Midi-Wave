@@ -30,7 +30,7 @@ func _init(collection_name: String, chosen: bool) -> void:
 	collection = collection_name
 	handle = Handle.new()
 	handle.collection = collection
-	handle.text = collection
+	handle.text = collection.get_file()
 	handle.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	handle.clip_text = true
 	handle.size_flags_horizontal = Control.SIZE_EXPAND_FILL

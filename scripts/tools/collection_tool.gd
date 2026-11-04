@@ -4,8 +4,6 @@ extends Tool
 ## a row to pick it, then click the surface to stamp copies (Alt places freely), or drag a row
 ## onto the surface. Pasted notes become the selection.
 
-const NAME_MAX := 40
-
 var picked := ""                   ## the collection left-clicks stamp
 var _items: Array = []             # the picked collection
 var _ghosts: Array = []            # [note, offset] to draw it
@@ -15,6 +13,7 @@ var _drop_name := ""
 var _name: LineEdit
 var _status: Label
 var _list: VBoxContainer
+var _open := {}                    # folders showing their contents
 
 
 func section() -> int:
@@ -38,10 +37,11 @@ func build_options(box: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	_name = LineEdit.new()
-	_name.placeholder_text = "Name"
-	_name.max_length = NAME_MAX
+	_name.placeholder_text = "folder/name"
+	_name.max_length = Collections.NAME_MAX
 	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name.tooltip_text = "A name for the selected notes. Each name can be used once."
+	_name.tooltip_text = "A name for the selected notes, used once. A slash puts it in a folder."
+	_name.text_changed.connect(_name_typed)
 	_name.text_submitted.connect(func(_t: String) -> void: _save_pressed())
 	row.add_child(_name)
 	row.add_child(PanelBuilder.button("Save", _save_pressed, "Saves the selected notes as a new collection."))
@@ -57,6 +57,15 @@ func build_options(box: VBoxContainer) -> void:
 	_rebuild_list()
 
 
+## Keeps the field to characters a file name can use.
+func _name_typed(text: String) -> void:
+	var clean := Collections.cleaned(text)
+	if clean != text:
+		var caret := _name.caret_column - (text.length() - clean.length())
+		_name.text = clean
+		_name.caret_column = caret
+
+
 func _save_pressed() -> void:
 	var problem := save_selection(_name.text)
 	_status.text = problem
@@ -68,16 +77,20 @@ func _save_pressed() -> void:
 
 ## Saves the selected notes. Returns what stopped it, or "".
 func save_selection(collection: String) -> String:
-	collection = collection.strip_edges()
+	collection = Collections.normalised(collection)
 	var notes: Array = surface.notes.filter(func(o: Note) -> bool: return surface.selection.notes.has(o.id))
-	if collection == "":
-		return "Give it a name first."
+	if Collections.problem(collection) != "":
+		return Collections.problem(collection)
 	if notes.is_empty():
 		return "Select some notes first."
 	if Collections.exists(collection):
 		return "That name is already used."
 	if not Collections.save(collection, notes):
 		return "Couldn't save the file."
+	var folder := collection.get_base_dir()
+	while folder != "":                # show where it went
+		_open[folder] = true
+		folder = folder.get_base_dir()
 	surface.tools.notice.emit("Saved %s" % collection)
 	return ""
 
@@ -89,11 +102,43 @@ func _rebuild_list() -> void:
 	var names := Collections.list()
 	if names.is_empty():
 		_list.add_child(PanelBuilder.hint("Nothing saved yet."))
+	_add_level(_list, "", Array(names))
+
+
+## Adds what's directly in `folder`: its folders, then its collections.
+func _add_level(box: VBoxContainer, folder: String, names: Array) -> void:
+	var inside := {}
+	var here: Array = []
 	for n in names:
+		var rest: String = n.trim_prefix(folder)
+		if "/" in rest:
+			inside[rest.get_slice("/", 0)] = true
+		else:
+			here.append(n)
+	for sub in inside:
+		var path: String = folder + sub + "/"
+		var open: bool = _open.get(path.trim_suffix("/"), false)
+		var row := CollectionFolder.new(sub, open)
+		row.pressed.connect(toggle_folder.bind(path.trim_suffix("/")))
+		box.add_child(row)
+		if open:
+			var indent := MarginContainer.new()
+			indent.add_theme_constant_override("margin_left", 14)
+			box.add_child(indent)
+			var level := VBoxContainer.new()
+			level.add_theme_constant_override("separation", 4)
+			indent.add_child(level)
+			_add_level(level, path, names.filter(func(n: String) -> bool: return n.begins_with(path)))
+	for n in here:
 		var row := CollectionRow.new(n, n == picked)
 		row.picked.connect(pick)
 		row.delete_confirmed.connect(delete)
-		_list.add_child(row)
+		box.add_child(row)
+
+
+func toggle_folder(folder: String) -> void:
+	_open[folder] = not _open.get(folder, false)
+	_rebuild_list()
 
 
 ## Makes `collection` what clicks stamp, in this tool.
