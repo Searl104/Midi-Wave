@@ -1,19 +1,18 @@
 class_name MidiInput
 extends Node
-## MIDI-input triggering (R7): pads on a controller fire the keypad slots.
+## MIDI input: Note On, Note Off, Control Change and transport from the chosen controller.
 ##
 ## Uses Godot's own MIDI input (no native extension). Godot can only open every MIDI input at
 ## once, so inputs stay closed until a controller is chosen in Options; events from any other
-## input (including the loopMIDI port this app sends to) are ignored. Notes base..base+8 fire
-## slots 1-9: note-on presses the slot, note-off (or note-on at velocity 0) releases it, so
-## holding a pad refires its pulsers like holding the key. "Learn" sets base to the next pad hit.
+## input (including the loopMIDI port this app sends to) are ignored. A Note On at velocity 0
+## counts as a Note Off. Any channel matches.
 
-signal slot_pressed(slot: int)
-signal slot_released(slot: int)
-signal learned(base: int)
+signal note_pressed(pitch: int)
+signal note_released(pitch: int)
+signal message_received(key: String)    ## a press to map: see MidiMappings for the keys
 
-var learning := false
 var _names: PackedStringArray = []      ## names of the open inputs; event.device indexes this
+var _cc_up := {}                        ## controllers above 0, so a knob counts as one press
 
 
 func _ready() -> void:
@@ -47,37 +46,34 @@ func is_listening() -> bool:
 	return Settings.midi_in_port != "" and _names.has(Settings.midi_in_port)
 
 
-## The slot (1-9) a note fires, or 0.
-static func slot_for(pitch: int) -> int:
-	var s := pitch - Settings.midi_in_base + 1
-	return s if s >= 1 and s <= 9 else 0
-
-
 func _input(event: InputEvent) -> void:
 	var ev := event as InputEventMIDI
 	if ev and handle(ev):
 		get_viewport().set_input_as_handled()
 
 
-## Returns true if the event came from the chosen controller and was a note.
+## Returns true if the event came from the chosen controller and was something it uses. A note's
+## signal comes before message_received, so listeners can tell if the note is about to be learned.
 func handle(ev: InputEventMIDI) -> bool:
 	if Settings.midi_in_port == "" or ev.device < 0 or ev.device >= _names.size() \
 			or _names[ev.device] != Settings.midi_in_port:
 		return false
+	if ev.message == MIDI_MESSAGE_START or ev.message == MIDI_MESSAGE_CONTINUE or ev.message == MIDI_MESSAGE_STOP:
+		message_received.emit("rt%d" % ev.message)
+		return true
+	if ev.message == MIDI_MESSAGE_CONTROL_CHANGE:
+		var was_up: bool = _cc_up.get(ev.controller_number, false)
+		_cc_up[ev.controller_number] = ev.controller_value > 0
+		if ev.controller_value > 0 and not was_up:
+			message_received.emit("cc%d" % ev.controller_number)
+		return true
 	var on := ev.message == MIDI_MESSAGE_NOTE_ON and ev.velocity > 0
 	var off := ev.message == MIDI_MESSAGE_NOTE_OFF or (ev.message == MIDI_MESSAGE_NOTE_ON and ev.velocity == 0)
 	if not on and not off:
 		return false
-	if learning and on:
-		learning = false
-		Settings.set_value("midi_in_base", clampi(ev.pitch, 0, 119))
-		learned.emit(Settings.midi_in_base)
-		return true
-	var slot := slot_for(ev.pitch)
-	if slot == 0:
-		return true
 	if on:
-		slot_pressed.emit(slot)
+		note_pressed.emit(ev.pitch)
+		message_received.emit("note%d" % ev.pitch)
 	else:
-		slot_released.emit(slot)
+		note_released.emit(ev.pitch)
 	return true

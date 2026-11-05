@@ -1,79 +1,158 @@
 # MIDI Wave (Godot 4)
 
-A liquid surface you play with waves. With the Wave tool, click anywhere to send a ripple; every
-note it reaches fires a MIDI note, with velocity set by how strong the wave still is when it arrives.
+A liquid surface you play with waves. With the Tap tool, click empty space to send a ripple; every
+note it reaches fires a MIDI note, with velocity set by how strong the wave still is when it
+arrives. Click a note to play it alone.
 
-## Tools
+## Toolbar
 
-A strip on the left edge holds seven tools. Number keys pick them: tap a key to switch, or hold it
-to use that tool only until you let go. Right-click opens a ring in every tool except Wave.
+A strip on the left edge holds the tools. Left-click picks one. The layout is locked in Tap.
 
-| Key | Tool | Left click / drag |
-|---|---|---|
-| 1 | Wave | Send a wave from empty space; click a plain note for a wave from it, or a relay to trigger it. The layout is locked (the old Play mode) |
-| 2 | Select | Click a note or ◆ to select it (Shift adds or removes); drag on empty space for a box select; drag a note or a selection to move it; click empty space to clear |
-| 3 | Draw | Click to place a note with the last pitch and channel on the nearest grid point; drag to place one per division along the stroke (one undo step). Press 3 again to switch between placing Notes and Relays (the button shows which) |
-| 4 | Pitch | Press on a note for its pitch ring, or on empty space to place one; hold, aim, release to pick, or click to leave the ring open |
-| 5 | Channel | Press on a note for its channel ring |
-| 6 | Pulse | Press on a note for its pulse ring |
-| 7 | Modifier | Press on a note for its modifier ring |
-
-Tab flips between Wave and the last editing tool. The tool in use is remembered.
-
-## Controls
-
-| Action | What it does |
+| Tool | Left click / drag |
 |---|---|
-| Hold right-click, hover, release | Quick place: pick a pitch and release to place a note there. On a note, retunes it; releasing on the centre deletes it. On any ring, releasing over an inner-ring item or the centre picks it and closes |
-| Right-click tap | Opens the same pitch ring and keeps it open for clicking |
-| Right-click a relay | Opens its pulse ring instead (it has no pitch to play); hold, flick and release works the same |
-| Hovering the pitch ring | Plays each note as the pointer moves onto it, on the ring's channel (Options → General → Play notes while hovering the pitch ring turns it off) |
-| Left-click while a ring is open | Pick an item and keep the ring open for more picks (a new note is placed on the first pitch, then retuned by the next). A left click off the ring closes it. Left clicks never reach the surface while a ring is open |
-| While the pitch ring is open | A / D, mouse wheel or the inner ring: octave (an edited note keeps its letter, e.g. C#, and moves to that octave) · type 1-16: channel (1 then 2 = 12; the title shows "ch 1…" while a second digit can follow) · Esc: cancel |
-| Alt-click a note | Channel ring (1-16); notes are colored by channel |
-| Ctrl-click a note | Switch between the two types: **Note** (plays its pitch) and **Relay** (silent, hollow, no label; sends a pulse from its emitter). Older saves' note + pulse hybrids load as a Note and a Relay stacked on the same spot |
-| Ctrl + left-drag from a pulser or its emitter | Set that emitter's own wave reach: the drag distance, snapped to the timing divisions (Shift: free). Drag back onto the note to return to the global Reach. Applies to every selected pulser |
-| Ctrl-right-click a note | Pulse ring: cooldown in beats, ⅛ to 4, or Retrigger (outer), emit strength (inner), mode (centre). Retrigger has no timer: the pulser fires on every wave that reaches it |
-| Drag a pulser's diamond | Place where its wave starts (drop it back on the note to re-attach) |
-| Delete | Remove the hovered note (or the selection, if any) |
-| < / > (comma / period) | Nudge the selected notes, or the hovered note, one scale step down / up; with Shift, an octave. Each moved note plays its new pitch; one undo step |
-| M | Mute / unmute the selected notes, or the hovered note. A muted note makes no sound and sends no pulse (a toggle on it still advances); its mode is kept for when it's unmuted. A muted note shows a slash; hollow relays also show a bright centre dot when unmuted, a faint one when muted |
-| Ctrl + right-drag on empty space (any tool) | Box select notes, and any detached emitter diamonds inside the box on their own (Shift adds to the selection); Esc or a click on empty space clears it |
-| Drag a selected diamond | Moves every selected diamond, plus any selected notes (with their emitters), keeping their shape. A selected note's drag carries selected diamonds the same way |
-| With a selection | Drag a selected note to move the whole group; channel, pulse, mode, modifier and keypad edits on a selected note apply to all of them; Ctrl+C / Ctrl+V copy and paste the group at the cursor |
-| Middle-drag or arrow keys | Pan the view (the canvas is unbounded) · Home centres on the notes |
-| Ctrl + mouse wheel | Zoom (beat spacing) about the pointer |
-| G over a note or emitter | Turn a grid on or off under it: its timing rings and spokes, drawn faintly and saved with the layout. Any number can be on · Ctrl+G clears every grid |
-| While dragging a note or emitter | It shows its own timing rings and snaps to the nearest grid point (a ring, a spoke, or where they cross). Drag onto any note or emitter to snap to its centre. Shift places freely |
-| Placing new notes | Quick place, Draw and paste put the new note on the nearest grid point under the mouse (when any grid is on) |
-| Shift-right-click a note | Modifier ring: None / Toggle (outer), On / Off start state (inner) |
-| Ctrl+S or Save state | Make every toggle's current state its start state (a toast confirms it) |
-| Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) | Undo / redo layout edits (50 steps); edits made in one frame, like a group edit, are one step |
-| Space, KP0 or Stop | Clear all waves, return every toggle to its start state. Cooldowns keep running, so a pulser that just fired still waits out its cooldown |
-| KP1–KP9 | Trigger every note assigned to that key on key down (a pulser fires directly; a plain note sends a wave from where it sits). Hold the key and its pulsers refire every time their cooldown runs out. Muted notes are skipped |
-| Pads on a MIDI controller | Fire keypad keys 1–9 like the numpad, including hold-to-refire (see MIDI input below) |
-| Ctrl + KP1–KP9 over a note | Assign it to that key (again to unassign). A key can hold several notes; a badge shows the key |
-| Tab | Flip between the Wave tool (layout locked: waves, triggers, the keypad, Space and panning work; nothing can be moved, placed, retuned, muted, deleted or undone) and the last editing tool |
-| O | Options · Esc closes menus |
-| ? or F1 | All controls, grouped by task. The bar at the bottom of the window always shows the actions for whatever is under the mouse (empty space, a note, a pulser, a ◆, the selection, a drag) |
+| Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so sequences apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
+| Select and Move | Click a note or diamond to select it (Shift adds or removes); clicking one of a group narrows to it. Drag to move (Alt: free). Drag on empty space for a box (Shift adds). Ctrl-drag from a diamond sets its relay's reach |
+| Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Shift-click a note deletes it. Ctrl-drag from a diamond sets reach |
+| Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
+| Grid | Click a note or remote diamond to add or remove a grid origin. Drag from it to set the grid's reach (Alt: unsnapped); back onto it returns to automatic |
+| Velocity | Click a note to apply the value in its panel, then drag up or down to adjust it. The selection follows |
+| Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
+| Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
-### Pulsers
+Pitch, Sound and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which ring
+a right-click on a note opens; a yellow bar marks the choice.
 
-A pulsing note sends out its own wave when a wave hits it, at its own fixed strength,
-at most once per cooldown. Cooldowns are in beats (⅛ beat to 4 beats), so they follow the tempo, or Retrigger: no timer, fire on every wave that reaches it (an ⅛-beat floor still guards against runaway loops). It is never triggered by its own wave, so two
-pulsers can keep a loop going until you stop it (Space). A pulser starts ready to fire.
-Its emitter starts on the note; drag the diamond to start its waves somewhere else, and it
-stays put when you move the note. An emitter on top of another note fires that note instantly.
-The surface holds 64 waves; when it is full, pulsers skip a beat instead of removing waves.
+Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
+Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
 
-### Modifier ring: toggle
+**Tool panels:** hovering a toolbar item that has options shows a faint right-click icon beside it.
+Right-click to open its panel, just right of the toolbar and centred on the item. Hover any setting
+for a tooltip on what it does. Click the item again, or anywhere outside, to close it; a click outside does nothing
+else. Esc closes it too.
 
-A note can carry one modifier. The toggle switches the note off and on each time it is
-triggered, so it plays every other hit; off silences both its sound and its pulse. A thin ring
-in the channel colour shows it, with a tab underneath: ripples spreading out = on, still water
-= off. A dot on the tab shows the start state when it differs. Any state you set by hand is the
-note's start state; Save state copies all current states to their start states, and Stop returns
-everything to them. Hover a note for its pitch, channel and toggle state.
+| Item | Panel |
+|---|---|
+| Tap | Wave strength, reach and falloff curve |
+| Bind | MIDI input (also in Options) |
+| Grid | Clear All, snapping, divisions per beat and guides |
+| Velocity | The value a click applies |
+| Paste Collection | Save the selection under a name, and the list of collections |
+| Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
+| Sound | Default note length, and a Volume and a Length knob per sound. Volume scales velocity; Off silences notes, though relays still fire |
+| Zoom | Beat spacing |
+
+## Rings
+
+| Right-click, in any tool but Tap | Opens |
+|---|---|
+| A modifier's tab | That modifier's settings |
+| A note | The ring chosen on the bar |
+| Empty space, in Draw | The chosen ring, set on the brush |
+
+**Quick pick:** hold right-click, aim, and release to pick and close. Releasing off the rings cancels.
+Right-click without moving to leave the ring open. Left-click picks and keeps it open; a click off
+the rings closes it. Esc closes a ring.
+
+- **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
+- **Sound:** 1-16.
+- **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
+
+Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
+scale steps, so a chord keeps its shape; an octave moves them all. A note that would leave the MIDI range stays put. Relay settings also reach
+selected diamonds.
+
+## Collections
+
+Select some notes, right-click Paste Collection, type a name and press Save. Each name can be used
+once, ignoring case. A slash puts it in a folder, so `patterns/shaker01` saves `shaker01.json` in
+`patterns`. Folders are made as needed, and go when their last collection is deleted. The name field
+only takes characters a Windows file name can use. Drag a row onto the surface in any tool, or click it, then click the surface to place
+it. Shift-click keeps it loaded to place more. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
+undo step. Each row has an X, which asks for Delete or Cancel; deleting can't be undone.
+
+Each collection is a JSON file in `user://collections`, which is
+`%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
+shows in the list, as its path is its name. **Open Collections Folder** in the panel goes straight there.
+
+## Velocity
+
+Each note has a velocity from 1 to 100%, default 100%. It's a share of the strength a hit arrives
+with, so distance still fades a note, and the sound's volume applies on top. A subtle tint rises from
+the bottom of the note to show it, and the tooltip gives the value when it's below 100%.
+
+## MIDI output
+
+A **Sound** is one of 16 numbered colours with a MIDI output, and every note is assigned to one.
+**Options → MIDI → MIDI Output** picks each sound's port from a dropdown, and its notes go out on
+channel 1 of that port, so one port carries one sound. Sounds can share a port, and None silences
+one. Picks are saved by port name. A port that isn't there stays picked and is listed as not found,
+and Refresh opens it once it exists. Changing a sound's port sends a Panic first, so nothing is left
+held. Each sound has its own volume and note length.
+
+## Layouts
+
+**Options → Layout** saves the whole surface: notes, tempo, divisions, each sound's volume and length,
+ports and view. Names work as for collections, so a slash makes a folder. Saving with a used name
+asks to overwrite. Load and X in each row ask first, and neither can be undone. After a load the
+name field holds the layout's name, ready to save over. Files are in `user://layouts`, and **Open
+Layouts Folder** goes there. Clear all, Default layout and Test layout are on this tab too.
+
+## Keys
+
+| Key | Action |
+|---|---|
+| Space, KP Enter | Stop: clear all waves and return sequences to step 1. Cooldowns keep running |
+| KP0-9 | Fire that binding |
+| Tab | Tap and the previous tool |
+| M | Mute or unmute the selection, or the hovered note. Every tool |
+| < / > (comma / period) | Nudge the selection, or the hovered note, a scale step; with Shift, an octave. Every tool |
+| Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y | Undo / redo (50 steps), in editing tools |
+| Esc | Close a ring, cancel Bind, or clear the selection |
+| Delete, Backspace | Remove the selection (Select and Move); clear the armed binding (Bind) |
+| Ctrl+C, Ctrl+V | Copy and paste the selection at the pointer (Select and Move) |
+
+## Modifiers
+
+A note can hold several modifiers. Each has a tab, and right-clicking a tab opens its settings.
+Removing a modifier discards its settings.
+
+**Relay** makes a note send out its own wave when a wave hits it, at a fixed strength and at most
+once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
+- Settings: cooldown in beats (⅛ to 4, or Retrigger: no timer) on the outer ring, strength on the inner, and Sound or Silent in the centre. A new relay has Sound on, so the note still plays; Silent makes it hollow and keeps its pitch.
+- The diamond docks upper right of the note. Dragged out, it stays at that spot and draws under the notes, with a dashed line and a dim handle left on the note. Dropped back on the note, it docks.
+- An emitter on top of another note fires that note instantly.
+- A new wave starts from where the hit really landed, so loops and chains hold their tempo at any frame rate.
+- A hit up to 20 ms early still fires, so a cooldown equal to the time between hits doesn't skip any.
+- The surface holds 64 waves; when it's full, relays skip a beat instead of removing waves.
+
+**Sequence** is a list of up to 16 On and Off steps. Each hit takes the next step, and an Off step
+silences its sound and pulse. It only decides whether the next activation sounds, as timing still
+comes from the surface. A thin ring shows it, with a tab underneath. The tab's icon shows the
+next step, with a carousel of dots through it: steps just played on the left and steps to come on the
+right, blue for On and grey for Off, fading out so three show each side. Its settings ring
+sets the number of steps on the inner ring and turns steps On or Off on the outer ring, clockwise
+from the top. New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
+the same pattern, turned to start where they started.
+
+**Mute** isn't a modifier: a muted note ignores waves, though a sequence on it still steps on. Tapping
+it, or firing its binding, plays it anyway.
+
+## Bindings
+
+A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes can share one. A badge
+at the note's upper left shows it. A binding fires like a tap, in any tool. A press during a cooldown does nothing until it ends, and fires then if still held. A press on a relay in Tap waits the same way, and fires once. While it's held, relays
+refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
+
+**Options → Controls** maps MIDI messages to Stop and Panic. Press Learn, then press a key,
+pad or button, or move a knob, on the chosen controller. Notes, control changes and Start, Stop and
+Continue can all be learned, on any channel, and a control change fires each time it rises above 0.
+One message drives one action, so learning it again moves it. If notes are bound to the same MIDI
+note, both fire, and the row says so. MIDI Stop runs Stop until you change it.
+
+The Bind panel, or **Options → MIDI → MIDI input**, picks the controller. Any Note On from it can be bound, on any
+channel; other inputs, including the loopMIDI port MIDI Wave sends to, are ignored. It uses Godot's
+own MIDI input, which opens every input at once, so inputs stay closed while this is Off. Windows
+lets only one app open a controller, so turn it off in your DAW's MIDI inputs first.
 
 ### Timing rings, tempo and zoom
 
@@ -85,35 +164,26 @@ size, and timing doesn't change. The look's background (Abyssal's depths, Tidal'
 only panning moves it. Reach is shown in beats. While you drag a note or emitter it shows
 its own rings (bars brightest, beats bright, divisions faded).
 
-**Grids.** Press G over a note or emitter to put a grid under it: its timing rings plus 8 spokes
-(every 45°, or 4, 6, 12 or 16). Grids that are on are drawn faintly (with their division rings, if Division rings is on) and saved with the layout, any
-number can be on at once, and Ctrl+G clears them all. While dragging, every grid lights up and the
-dragged item snaps (within 12 screen px) to the nearest grid point: where a ring crosses a spoke,
-else a spoke, else a ring. New notes from quick place, Shift-click or paste land on the nearest grid
-point under the mouse. The rings run out to the edges of the window, a little dimmer past the
-wave's reach. Centre snapping puts the item exactly on top of any note or emitter whose centre is
-within the snap distance, for stacking an emitter on a note or two emitters on one spot; it takes
-priority over grid points. Shift places freely. Grid toggles are undoable like any edit.
+**Grids.** The Grid tool puts a grid on a note or remote diamond: its timing rings plus 8 spokes
+(every 45°, or 4, 6, 12 or 16). Grids are drawn faintly, with their division rings if Division rings
+is on, and saved with the layout. Any number can be on, and Clear All in the Grid panel removes them.
+A grid's reach is automatic until you drag it: a beat past the wave Reach, or a relay's own reach
+for a remote diamond or a note with a docked relay. Nothing draws or snaps past it.
 
-**Options → Snap** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
+While dragging, the dragged item shows its own rings and snaps (within 12 screen px) to the nearest
+grid point: where a ring crosses a spoke, else a spoke, else a ring. The Draw ghost and pasted notes
+land on the nearest grid point. Centre snapping puts the item exactly on top of any note or emitter
+whose centre is within the snap distance, ahead of grid points. Alt places freely.
+
+The **Grid panel** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
 
 Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
-A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → General → Wave → Cursor glow** sets its strength (0% hides it, up to 200%).
+A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → Look → Cursor glow** sets its strength (0% hides it, up to 200%).
 
-### MIDI input: pads fire the keypad
-
-**Options → General → MIDI input (pads)** picks a controller (Refresh lists them). Its notes
-C1–G#1 (36–44) fire keypad keys 1–9 the same way the numpad does: note-on presses the key and
-note-off releases it, so holding a pad refires that key's pulsers. **Learn** sets key 1 to the next
-pad you hit; the next eight notes are keys 2–9. Events from any other input, including the loopMIDI
-port MIDI Wave sends to, are ignored. It uses Godot's own MIDI input, which opens every input at
-once, so inputs stay closed while this is Off. Windows lets only one app open a controller, so
-turn it off in FL Studio's MIDI inputs first.
-
-Hover a note to see its pitch and channel number. **Options → General → Colour-blind palette** swaps the 16 channel colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
+Hover a note to see its pitch and sound number. **Options → General → Colour-blind palette** swaps the 16 sound colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
 
 Hover and selection are drawn as white corner brackets (thin for hover, bright for selected), so rings only ever mean state: pulse cooldown, modifier, snap guides. M, Delete and Ctrl+KP act on the bracketed note, and its brackets flash when the key lands.
 
@@ -125,16 +195,17 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 - **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
-**Options → Channels** sets a note length per MIDI channel (Default follows the global Note length).
+The **Sound panel** sets a volume and a note length per sound: drag a knob, or scroll it in 5% steps for volume, and double-click to reset. Volume is continuous. Lengths run in eighth notes up to 4 beats.
 
-Options (General tab): MIDI output port (remembered and reopened on launch), tempo, beat spacing (zoom), divisions per beat,
-wave strength, reach (distance where it fades to 0), falloff curve, note length, root and scale.
-Changing the scale snaps every note to it. Settings and the note layout save automatically to
+Options, MIDI tab: sound outputs and MIDI input. Layout tab: saved layouts and layout buttons. General tab: hover preview,
+tempo, and colour-blind palette. Settings that belong to a tool
+are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
+but changing it doesn't touch existing notes. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
 
 ## Routing on Windows
 
-Run loopMIDI, create a port, pick it in Options → MIDI Output, and enable the same port as an
+Run loopMIDI, create a port, pick it for a sound in Options → MIDI, and enable the same port as an
 input on an armed instrument track in your DAW.
 
 ## Project layout
@@ -147,14 +218,25 @@ scripts/
   core/palette.gd         Glassy greys + primary accents, per-channel colors
   midi/midi_out.gd        Autoload `Midi`: ports, note on/off, CC, panic
   midi/midi_message.gd    Raw MIDI byte helpers
-  ui/main.gd              Builds the scene, wires radial menus to note edits
-  ui/wave_surface.gd      Waves, hit detection, MIDI triggering, drawing
-  ui/radial_menu.gd       Ring picker used for pitch and channel
-  ui/cheat_sheet.gd       The ? / F1 overlay listing every control
-  ui/toolbar.gd           The tool strip (Wave, Select, Draw, Pitch, Channel, Pulse, Modifier)
-  midi/midi_in.gd         Controller pads -> keypad slots (Godot's built-in MIDI input)
+  midi/midi_mappings.gd   MIDI messages that run app actions
+  midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
+  entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
+  surface/                undo_history, selection, snapping, surface_effects, demo_layout, named_files, collections, layouts
+  tools/                  One script per tool and ring, plus tool_manager and object_drag
+  ui/main.gd              Builds the scene and HUD
+  ui/wave_surface.gd      Holds the view and entities, runs the simulation, draws in order
+  ui/radial_menu.gd       The ring picker, with quick pick
+  ui/toolbar.gd           The strip of tools and ring choices
+  ui/tool_panel.gd        The popup that holds a tool's options
+  ui/panel_builder.gd     Sliders, buttons and other controls for the panels
+  ui/collection_row.gd    A row in Paste Collection's list
+  ui/file_tree.gd         Saved names with collapsible folders
+  ui/folder_row.gd        A folder in that list
+  ui/layout_panel.gd      Saving and loading layouts, with ui/layout_row.gd
+  ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
+tests/                    Headless checks: baseline (MIDI and layouts), tools, demo; render
 shaders/waves.gdshaderinc Ripple maths shared by the surface shaders
 shaders/abyssal.gdshader  Abyssal surface: endless depth under the water
 shaders/tidal.gdshader    Tidal surface: black glossy sand below the water
@@ -183,6 +265,6 @@ Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extensio
 
 ## How the wave works
 
-A wave's radius grows at *speed* = 200 world units × BPM / 60 (one beat of space per beat; pulser waves too). Distances below are in world units. Its amplitude at distance *d* is
+A wave's radius grows at *speed* = 200 world units × BPM / 60 (one beat of space per beat; relay waves too). Distances below are in world units. Its amplitude at distance *d* is
 `strength × (1 − d / reach) ^ curve`, reaching 0 at *reach*. When the ring passes a note, the note plays
-once per wave at velocity `amplitude × 127`, and turns off after *note length*.
+once per wave at velocity `amplitude × 127` (at least 1), right out to the reach, and turns off after its note length, set in beats so it follows the tempo.

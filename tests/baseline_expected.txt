@@ -1,0 +1,182 @@
+midi 16666 903c7f
+waves 1 [(300.0, 200.0, 6.666667, 0.164696), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 283322 803c00
+waves 1 [(300.0, 200.0, 206.6667, 0.658748), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 999960 924332
+waves 1 [(300.0, 200.0, 406.6667, 0.382153), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 1266616 824300
+waves 1 [(300.0, 200.0, 606.6667, 0.166338), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 1999920 92437f
+waves 1 [(300.0, 200.0, 806.6667, 0.026624), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 2266576 824300
+waves 0 [(0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+text C4 · sound 1 | G4 · sound 3
+layout plain [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":9,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":200.0},{"binding":"","channel":2,"grid":false,"grid_reach":0.0,"id":10,"mods":[],"muted":false,"note":67,"snap_note":"","velocity":100,"x":700.0,"y":200.0}]
+drag {"centre":"false","centres":"[(450.0, 500.0)]","limits":"[inf]","loop":"","pos":"(450.0, 500.0)","readout":"≈ 1.03 beats · 515 ms","ref_point":"(400.0, 300.0)","snap_key":"","snapped":"false"}
+waves 1 [(200.0, 300.0, 6.666667, 0.131757), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 3516526 934844
+waves 1 [(200.0, 300.0, 206.6667, 0.526998), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 3783182 834800
+waves 2 [(200.0, 300.0, 406.6667, 0.305722), (450.0, 500.0, 6.666667, 0.131757), (0.0, 0.0, 0.0, 0.0)]
+midi 4516486 934843
+waves 2 [(200.0, 300.0, 606.6667, 0.13307), (450.0, 500.0, 206.6667, 0.526998), (0.0, 0.0, 0.0, 0.0)]
+midi 4783142 834800
+waves 3 [(200.0, 300.0, 806.6667, 0.021299), (450.0, 500.0, 406.6667, 0.305722), (200.0, 300.0, 86.51044, 0.680558)]
+midi 5316454 934844
+waves 2 [(450.0, 500.0, 606.6667, 0.13307), (200.0, 300.0, 286.5104, 0.433305), (0.0, 0.0, 0.0, 0.0)]
+midi 5583110 834800
+waves 3 [(450.0, 500.0, 806.6667, 0.021299), (200.0, 300.0, 486.5104, 0.230486), (450.0, 500.0, 86.51044, 0.680558)]
+midi 6316414 934843
+waves 2 [(200.0, 300.0, 686.5104, 0.08004), (450.0, 500.0, 286.5104, 0.433305), (0.0, 0.0, 0.0, 0.0)]
+midi 6583070 834800
+text relay · sound 2 · retrigger
+waves 3 [(200.0, 300.0, 886.5104, 0.000964), (450.0, 500.0, 486.5104, 0.230486), (200.0, 300.0, 166.3542, 0.576873)]
+midi 7116382 934844
+midi 7383038 834800
+waves 2 [(450.0, 500.0, 686.5104, 0.08004), (200.0, 300.0, 366.3542, 0.346663), (0.0, 0.0, 0.0, 0.0)]
+waves 3 [(450.0, 500.0, 886.5104, 0.000964), (200.0, 300.0, 566.3542, 0.163516), (450.0, 500.0, 166.3542, 0.576873)]
+midi 8116342 934843
+midi 8382998 834800
+waves 3 [(200.0, 300.0, 766.3542, 0.037829), (450.0, 500.0, 366.3542, 0.346663), (200.0, 300.0, 46.19801, 0.551486)]
+midi 8916310 934833
+skipped 0
+waves 0 [(0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 9182966 834800
+drag {"centre":"false","centres":"[(600.0, 300.0)]","limits":"[inf]","loop":"","pos":"(600.0, 300.0)","readout":"1 beat · 500 ms","ref_point":"(400.0, 300.0)","snap_key":"","snapped":"false"}
+layout relays [{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":11,"mods":[{"attached":true,"cooldown_beats":0.0,"ex":200.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.6,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":60,"snap_note":"","velocity":100,"x":200.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":12,"mods":[{"attached":true,"cooldown_beats":0.5,"ex":600.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":63,"snap_note":"","velocity":100,"x":600.0,"y":300.0},{"binding":"","channel":3,"grid":false,"grid_reach":0.0,"id":13,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":400.0,"y":300.0}]
+drag {"centre":"false","centres":"[(500.0, 100.0)]","limits":"[inf]","loop":"loop 2 beats","pos":"(500.0, 100.0)","readout":"0 beat · 0 ms","ref_point":"(500.0, 100.0)","snap_key":"","snapped":"false"}
+drag {"centre":"false","centres":"[(800.0, 100.0)]","limits":"[inf]","loop":"","pos":"(800.0, 100.0)","readout":"0 beat · 0 ms","ref_point":"(800.0, 100.0)","snap_key":"","snapped":"false"}
+midi 9516286 903f66
+waves 2 [(500.0, 100.0, 6.666667, 0.131757), (800.0, 100.0, 6.666667, 0.131757), (0.0, 0.0, 0.0, 0.0)]
+midi 9782942 803f00
+waves 2 [(500.0, 100.0, 206.6667, 0.526998), (800.0, 100.0, 206.6667, 0.526998), (0.0, 0.0, 0.0, 0.0)]
+midi 10249590 903f35
+chain D#4 · sound 1
+midi 10499580 803f00
+text C4 · sound 1 · sequence, step 1 of 2 | relay · sound 2 · sequence, step 1 of 2
+mute 1
+midi 10499580 903c7f
+waves 0 [(0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+midi 10766236 803c00
+waves 1 [(500.0, 300.0, 100.0, 0.662592), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+waves 2 [(500.0, 300.0, 300.0, 0.418161), (500.0, 300.0, 86.66666, 0.680349), (0.0, 0.0, 0.0, 0.0)]
+midi 11816194 903c44
+midi 11999520 903f7f
+waves 3 [(500.0, 300.0, 500.0, 0.218574), (500.0, 300.0, 286.6667, 0.433128), (500.0, 300.0, 73.33334, 0.698282)]
+midi 12082850 803c00
+midi 12266176 803f00
+waves 3 [(500.0, 300.0, 700.0, 0.072102), (500.0, 300.0, 486.6667, 0.230347), (500.0, 300.0, 273.3333, 0.448292)]
+text C4 · sound 1 · sequence, step 1 of 2 · KP1
+layout toggles [{"binding":"kp1","channel":0,"grid":false,"grid_reach":0.0,"id":17,"mods":[{"kind":"sequence","steps":[true,false]}],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"kp2","channel":0,"grid":false,"grid_reach":0.0,"id":18,"mods":[],"muted":true,"note":63,"snap_note":"","velocity":100,"x":350.0,"y":300.0},{"binding":"kp1","channel":1,"grid":false,"grid_reach":0.0,"id":19,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":0.5,"ex":500.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","velocity":100,"x":500.0,"y":300.0}]
+layout toggle_removed [{"binding":"kp1","channel":0,"grid":false,"grid_reach":0.0,"id":17,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"kp2","channel":0,"grid":false,"grid_reach":0.0,"id":18,"mods":[],"muted":true,"note":63,"snap_note":"","velocity":100,"x":350.0,"y":300.0},{"binding":"kp1","channel":1,"grid":false,"grid_reach":0.0,"id":19,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":0.5,"ex":500.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","velocity":100,"x":500.0,"y":300.0}]
+waves 1 [(200.0, 300.0, 6.666667, 0.164696), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
+waves 3 [(200.0, 300.0, 166.6667, 0.7206), (300.0, 300.0, 66.66666, 0.707314), (200.0, 300.0, 6.666667, 0.164696)]
+midi 13549458 903f51
+midi 13566124 803f00
+midi 13566124 903f51
+waves 4 [(200.0, 300.0, 326.6667, 0.48603), (300.0, 300.0, 226.6667, 0.502887), (200.0, 300.0, 166.6667, 0.7206)]
+midi 13832780 803f00
+midi 13966108 903f51
+waves 5 [(200.0, 300.0, 486.6667, 0.287934), (300.0, 300.0, 386.6667, 0.325793), (200.0, 300.0, 326.6667, 0.48603)]
+midi 14232764 803f00
+midi 14366092 903f51
+waves 7 [(200.0, 300.0, 646.6667, 0.131559), (300.0, 300.0, 546.6667, 0.179224), (200.0, 300.0, 486.6667, 0.287934)]
+midi 14632748 803f00
+midi 14749410 903f51
+midi 14766076 803f00
+midi 14766076 903f51
+waves 8 [(200.0, 300.0, 806.6667, 0.026624), (300.0, 300.0, 706.6667, 0.068296), (200.0, 300.0, 646.6667, 0.131559)]
+midi 15032732 803f00
+midi 15166060 903f51
+waves 8 [(300.0, 300.0, 866.6667, 0.004101), (200.0, 300.0, 806.6667, 0.026624), (200.0, 300.0, 646.6667, 0.131559)]
+midi 15432716 803f00
+midi 15566044 903f51
+midi 15632708 904654
+midi 15832700 803f00
+midi 15882698 804600
+midi 15882698 904654
+waves 8 [(200.0, 300.0, 846.6667, 0.010875), (200.0, 300.0, 686.6667, 0.099932), (300.0, 300.0, 586.6667, 0.147881)]
+midi 16149354 804600
+midi 16149354 904654
+midi 16416010 804600
+midi 16416010 904654
+waves 8 [(200.0, 300.0, 886.6667, 0.001183), (300.0, 300.0, 786.6667, 0.029059), (200.0, 300.0, 726.6667, 0.071684)]
+midi 16682666 804600
+midi 16682666 904654
+waves 7 [(200.0, 300.0, 766.6667, 0.04711), (900.0, 900.0, 618.1385, 0.124842), (900.0, 900.0, 513.3333, 0.207034)]
+midi 16949322 804600
+midi 16949322 904654
+midi 17215978 804600
+midi 17215978 904654
+midi 17299308 903f05
+waves 8 [(900.0, 900.0, 818.1385, 0.017267), (900.0, 900.0, 713.3333, 0.064567), (900.0, 900.0, 606.6667, 0.13307)]
+midi 17482634 804600
+midi 17482634 904654
+midi 17565964 803f00
+midi 17565964 903f05
+midi 17749290 804600
+midi 17799288 803f00
+midi 17799288 903f51
+midi 17832620 803f00
+midi 17832620 903f05
+waves 7 [(900.0, 900.0, 806.6667, 0.021299), (900.0, 900.0, 700.0, 0.072102), (900.0, 900.0, 593.3333, 0.142879)]
+midi 18099276 803f00
+midi 18099276 903f05
+midi 18365932 803f00
+midi 18365932 903f05
+cool relay · sound 2 A#4 · sound 1
+heard D#4 · sound 1
+midi 18399264 803f00
+drag {"centre":"false","centres":"[(900.0, 500.0), (400.0, 400.0)]","limits":"[inf, 1100.0]","loop":"","pos":"(900.0, 500.0)","readout":"≈ 2.55 beats · 1275 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
+snap (600.0, 400.0) {"centre":"false","centres":"[(600.0, 400.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(600.0, 400.0)","readout":"1 beat · 500 ms","ref_point":"(400.0, 400.0)","snap_key":"n24","snapped":"true"}
+free {"centre":"false","centres":"[(610.0, 395.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(610.0, 395.0)","readout":"≈ 1.05 beats · 525 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
+snap (400.0, 600.0) {"centre":"false","centres":"[(412.6339, 611.6881), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(412.6339, 611.6881)","readout":"2 ½ beats · 1250 ms","ref_point":"(900.0, 500.0)","snap_key":"e26","snapped":"true"}
+free {"centre":"false","centres":"[(420.0, 610.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(420.0, 610.0)","readout":"≈ 1.05 beats · 527 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
+snap (541.4214, 541.4214) {"centre":"false","centres":"[(530.0, 530.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(530.0, 530.0)","readout":"≈ 0.92 beats · 460 ms","ref_point":"(400.0, 400.0)","snap_key":"n24","snapped":"true"}
+free {"centre":"false","centres":"[(530.0, 530.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(530.0, 530.0)","readout":"≈ 0.92 beats · 460 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
+snap (409.3358, 403.8298) {"centre":"true","centres":"[(400.0, 400.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(400.0, 400.0)","readout":"centre","ref_point":"(400.0, 400.0)","snap_key":"n24","snapped":"true"}
+free {"centre":"false","centres":"[(400.0, 402.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(400.0, 402.0)","readout":"0 beat · 5 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
+snap (889.7569, 500.6885) {"centre":"true","centres":"[(900.0, 500.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(900.0, 500.0)","readout":"centre","ref_point":"(900.0, 500.0)","snap_key":"e26","snapped":"true"}
+free {"centre":"false","centres":"[(901.0, 503.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(901.0, 503.0)","readout":"≈ 0.02 beats · 8 ms","ref_point":"(900.0, 500.0)","snap_key":"","snapped":"false"}
+snap (2000.0, 2000.0) {"centre":"false","centres":"[(2000.0, 2000.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(2000.0, 2000.0)","readout":"","ref_point":"<null>","snap_key":"","snapped":"false"}
+free {"centre":"false","centres":"[(2000.0, 2000.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(2000.0, 2000.0)","readout":"free","ref_point":"<null>","snap_key":"","snapped":"false"}
+drag {"centre":"false","centres":"[(615.9922, 403.3585), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(615.9922, 403.3585)","readout":"1 ½ beats · 750 ms","ref_point":"(900.0, 500.0)","snap_key":"e26","snapped":"true"}
+placed (541.4214, 541.4214)
+selected 5
+drag {"centre":"false","centres":"[(700.0, 480.0)]","limits":"[inf]","loop":"","pos":"(700.0, 480.0)","readout":"free","ref_point":"<null>","snap_key":"","snapped":"false"}
+group [24, 25, 26, 27]
+selected 1
+range {"centres":"[]","loop":"","pos":"(984.0078, 576.6415)","range_edit":"true","readout":"reach ¼ beat","ref_point":"<null>","snap_key":"","snapped":"true"}
+text relay · sound 2 · reach ¼ beat
+layout grids [{"binding":"","channel":0,"grid":true,"grid_reach":0.0,"id":24,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":484.007751464844,"y":476.641540527344},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":25,"mods":[],"muted":false,"note":63,"snap_note":"","velocity":100,"x":700.0,"y":480.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":26,"mods":[{"attached":false,"cooldown_beats":1.0,"ex":984.007751464844,"ey":576.641540527344,"grid_emit":true,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":50.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","velocity":100,"x":884.007751464844,"y":476.641540527344},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":27,"mods":[],"muted":false,"note":63,"snap_note":"","velocity":100,"x":625.429138183594,"y":618.062927246094}]
+cleared 2
+drag {"centre":"false","centres":"[(600.0, 450.0)]","limits":"[inf]","loop":"","pos":"(600.0, 450.0)","readout":"≈ 1.68 beats · 839 ms","ref_point":"(300.0, 300.0)","snap_key":"","snapped":"false"}
+copied 2
+pasted 2
+layout pasted [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+layout sounding [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":true}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+layout silent [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+undo true 16
+layout undo0 [{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+undo true 15
+layout undo1 [{"binding":"","channel":9,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+undo true 14
+layout undo2 [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+undo true 13
+layout undo3 [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+redo true 3
+layout redo0 [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+redo true 2
+layout redo1 [{"binding":"","channel":9,"grid":false,"grid_reach":0.0,"id":28,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":29,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":600.0,"ey":450.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":500.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":30,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":540.0,"y":500.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":31,"mods":[{"kind":"sequence","steps":[true,false]},{"attached":false,"cooldown_beats":2.0,"ex":840.0,"ey":650.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":67,"snap_note":"","velocity":100,"x":740.0,"y":500.0}]
+layout rescale [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":55,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":56,"mods":[],"muted":false,"note":65,"snap_note":"","velocity":100,"x":400.0,"y":300.0}]
+midi 18399264 903e5a
+midi 18399264 90435a
+nudge 2
+midi 18399264 90325a
+midi 18399264 90375a
+nudge 2
+layout nudged [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":55,"mods":[],"muted":false,"note":50,"snap_note":"","velocity":100,"x":300.0,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":56,"mods":[],"muted":false,"note":55,"snap_note":"","velocity":100,"x":400.0,"y":300.0}]
+layout legacy [{"binding":"kp3","channel":1,"grid":false,"grid_reach":0.0,"id":7,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":2.0,"ex":100.0,"ey":100.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":true}],"muted":false,"note":60,"snap_note":"","velocity":100,"x":100.0,"y":100.0},{"binding":"","channel":2,"grid":false,"grid_reach":0.0,"id":58,"mods":[{"attached":false,"cooldown_beats":0.125,"ex":400.0,"ey":500.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":62,"snap_note":"","velocity":100,"x":200.0,"y":100.0},{"binding":"","channel":3,"grid":true,"grid_reach":0.0,"id":59,"mods":[],"muted":true,"note":64,"snap_note":"","velocity":100,"x":300.0,"y":100.0}]
+view (-390.0, -100.0)
+layout seeded [{"binding":"kp3","channel":1,"grid":false,"grid_reach":0.0,"id":7,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":2.0,"ex":100.0,"ey":100.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.5,"range":0.0,"snap_emit":"","sound":true}],"muted":false,"note":60,"snap_note":"","velocity":100,"x":100.0,"y":100.0},{"binding":"","channel":2,"grid":false,"grid_reach":0.0,"id":58,"mods":[{"attached":false,"cooldown_beats":0.125,"ex":400.0,"ey":500.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":62,"snap_note":"","velocity":100,"x":200.0,"y":100.0},{"binding":"","channel":3,"grid":true,"grid_reach":0.0,"id":59,"mods":[],"muted":true,"note":64,"snap_note":"","velocity":100,"x":300.0,"y":100.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":60,"mods":[],"muted":false,"note":60,"snap_note":"","velocity":100,"x":250.0,"y":44.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":61,"mods":[],"muted":false,"note":63,"snap_note":"","velocity":100,"x":485.325134277344,"y":118.980667114258},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":62,"mods":[],"muted":false,"note":65,"snap_note":"","velocity":100,"x":582.799987792969,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":63,"mods":[],"muted":false,"note":67,"snap_note":"","velocity":100,"x":485.325134277344,"y":481.019348144531},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":64,"mods":[],"muted":false,"note":70,"snap_note":"","velocity":100,"x":250.0,"y":556.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":65,"mods":[],"muted":false,"note":72,"snap_note":"","velocity":100,"x":14.6748657226562,"y":481.019348144531},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":66,"mods":[],"muted":false,"note":75,"snap_note":"","velocity":100,"x":-82.7999877929688,"y":300.0},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":67,"mods":[],"muted":false,"note":77,"snap_note":"","velocity":100,"x":14.6748657226562,"y":118.980667114258}]
+beats 1 ¾ beats ½ beat ≈ 1.37 beats

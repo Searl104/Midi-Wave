@@ -1,23 +1,22 @@
 class_name RadialMenu
 extends Control
-## Ring-shaped picker (marking menu). Outer ring choices close the menu; inner ring
-## choices (e.g. octaves) and the mouse wheel just emit so the caller can rebuild.
+## Ring-shaped picker. It draws the rings and reports what is under a point. Left clicks pick and
+## keep it open, and any click off the rings closes it.
 ##
-## Two ways to use it:
-## - Click mode: it stays open; click an item.
-## - Hold mode (quick place): opened on a right-button press; hover an item and release.
-##   Releasing over any item (outer, inner or centre) picks it and closes. A quick release
-##   without moving drops into click mode. Releasing in the dead zone cancels.
-## While open: A / D emit `wheel(-1 / +1)`, number keys emit `digit(n)`, Esc closes.
+## Quick pick: opened with `hold` on a right-button press, it follows the pointer while the button
+## stays down. Releasing over any item picks it and closes; releasing off the rings cancels. A
+## release without moving leaves it open for clicking.
+##
+## Dial mode replaces the rings with one large knob, for fine control over a single value. Moving
+## around it sets the value, by dragging or during a hold, and releasing a hold keeps it.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 
 signal outer_chosen(id: Variant)
 signal inner_chosen(id: Variant)
 signal center_chosen(id: Variant)
-signal wheel(direction: int)
-signal digit(value: int)
 signal closed
+signal dial_changed(value: float)   ## 0-1
 signal hover_changed(ring: String, id: Variant)   ## pointer moved onto an item while open
 
 const CENTER_R := 30.0
@@ -26,17 +25,21 @@ const INNER_R1 := 72.0
 const OUTER_R0 := 78.0
 const OUTER_R1 := 148.0
 const SOLO_R0 := 44.0
-const TAP_SLOP := 6.0
-const TAP_MS := 250          ## a release sooner than this without moving is a tap (menu stays open)
+const MOVE_SLOP := 6.0             ## px the pointer must move for a release to pick
+const DIAL_START := 0.75 * PI      ## the dial runs clockwise from lower left to lower right
+const DIAL_SWEEP := 1.5 * PI
 
 var title := ""
 var subtitle := ""
 var outer_items: Array = []
 var inner_items: Array = []
 var center_item: Dictionary = {}
+var holding := false               ## the opening right-button press is still down
+var dial := false                  ## shows a dial instead of rings
+var dial_value := 0.0              ## 0-1
+var dial_text := ""
+var dial_color := Palette.BLUE
 
-var holding := false        ## true while the opening button press is still held
-var hold_button := MOUSE_BUTTON_RIGHT   ## the button that opened it held (left for a ring tool)
 
 var _center := Vector2.ZERO
 var _press_pos := Vector2.ZERO
@@ -44,8 +47,7 @@ var _moved := false
 var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
-var _opened_msec := 0
-var _swallow_left_up := false   # a left click closed the menu: keep its release off the surface
+var _dial_held := false
 
 
 func _ready() -> void:
@@ -54,20 +56,19 @@ func _ready() -> void:
 	hide()
 
 
-func open(at: Vector2, hold: bool = false, button: int = MOUSE_BUTTON_RIGHT) -> void:
-	hold_button = button
+func open(at: Vector2, hold: bool = false) -> void:
+	holding = hold
+	_press_pos = at
+	_moved = false
 	var m := OUTER_R1 + 12.0
 	var top := OUTER_R1 + 34.0   # room for the title
 	_center = Vector2(clampf(at.x, m, maxf(m, size.x - m)), clampf(at.y, top, maxf(top, size.y - m)))
-	_press_pos = at
-	_moved = false
-	holding = hold
-	_opened_msec = Time.get_ticks_msec()
 	_open_t = 0.0
 	_set_hover(_ring_at(at))
 	show()
 	var tw := create_tween()
 	tw.tween_property(self, "_open_t", 1.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.finished.connect(queue_redraw)
 	queue_redraw()
 
 
@@ -110,6 +111,22 @@ func _segment(pos: Vector2, count: int) -> int:
 	return int(fposmod(a, TAU) / seg) % count
 
 
+## Turns the dial to the pointer. The centre does nothing, and the gap at the bottom counts as the
+## nearer end, so it can't jump across.
+func _turn_dial(pos: Vector2) -> void:
+	if pos.distance_to(_center) < CENTER_R:
+		return
+	var a := fposmod((pos - _center).angle() - DIAL_START, TAU)
+	if a > DIAL_SWEEP:
+		a = DIAL_SWEEP if a - DIAL_SWEEP < (TAU - DIAL_SWEEP) / 2.0 else 0.0
+	dial_changed.emit(a / DIAL_SWEEP)
+
+
+## Moves the highlight to whatever is at `pos`.
+func hover_at(pos: Vector2) -> void:
+	_set_hover(_ring_at(pos))
+
+
 func _set_hover(r: Array) -> void:
 	if r[0] != _hover_ring or r[1] != _hover_index:
 		_hover_ring = r[0]
@@ -121,9 +138,9 @@ func _set_hover(r: Array) -> void:
 				hover_changed.emit(_hover_ring, items[_hover_index].get("id"))
 
 
-## Activates whatever is at `pos`. Returns false if nothing was there. With `keep_open` (a left
-## click) the menu stays open so several items can be picked; the caller refreshes the items.
-func _activate(pos: Vector2, keep_open: bool = false) -> bool:
+## Activates whatever is at `pos`. Returns false if nothing was there. With `keep_open` the menu
+## stays open so several items can be picked; the caller refreshes the items.
+func activate(pos: Vector2, keep_open: bool = false) -> bool:
 	var r := _ring_at(pos)
 	match r[0]:
 		"outer":
@@ -143,103 +160,65 @@ func _activate(pos: Vector2, keep_open: bool = false) -> bool:
 	return true
 
 
-# --- Input -------------------------------------------------------------------------------
-
-## Hold mode: the press started on another control, so motion and the release are
-## routed there. Watch them here first. They are deliberately not consumed: the
-## control that took the press must also see its release, or the GUI keeps sending
-## it the mouse afterwards.
+## While held, the press belongs to the control under it, so motion and the release go there.
+## Watch them here. They aren't consumed: that control must also see its release.
 func _input(event: InputEvent) -> void:
-	var lb := event as InputEventMouseButton
-	if lb and lb.button_index == MOUSE_BUTTON_LEFT and not lb.pressed and _swallow_left_up:
-		_swallow_left_up = false
-		get_viewport().set_input_as_handled()
-		return
-	if not visible:
-		return
-	# Opened held with the left button (a ring tool): its release works like a right release.
-	if lb and lb.button_index == MOUSE_BUTTON_LEFT and not lb.pressed and holding and hold_button == MOUSE_BUTTON_LEFT:
-		get_viewport().set_input_as_handled()
-		_release_hold(lb.position)
-		return
-	# Left clicks belong to the menu while it's open, held or not: an item is picked and the
-	# menu stays open for more picks; a click off the ring closes it. None reach the surface.
-	if lb and lb.button_index == MOUSE_BUTTON_LEFT:
-		get_viewport().set_input_as_handled()
-		if lb.pressed:
-			_set_hover(_ring_at(lb.position))
-			if not _activate(lb.position, true):
-				close()
-				_swallow_left_up = true
-			elif not visible:
-				_swallow_left_up = true
-		return
-	var key := event as InputEventKey
-	if key and key.pressed and not key.echo:
-		if _handle_key(key):
-			get_viewport().set_input_as_handled()
-		return
-	if not holding:
+	if not visible or not holding:
 		return
 	var mm := event as InputEventMouseMotion
 	if mm:
-		if mm.position.distance_to(_press_pos) > TAP_SLOP:
-			_moved = true
-		_set_hover(_ring_at(mm.position))
+		_moved = _moved or mm.position.distance_to(_press_pos) > MOVE_SLOP
+		if dial and _moved:
+			_turn_dial(mm.position)
+		elif not dial:
+			hover_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
-	if mb and mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed and hold_button == MOUSE_BUTTON_RIGHT:
-		_release_hold(mb.position)
-
-
-## The held button came up: a quick tap leaves the menu open in click mode; otherwise pick
-## whatever is under the pointer (outer, inner or centre) and close, or cancel in the dead zone.
-func _release_hold(pos: Vector2) -> void:
-	holding = false
-	if not _moved and Time.get_ticks_msec() - _opened_msec < TAP_MS:
+	if mb == null:
 		return
-	_activate(pos)
-	if visible:
-		close()
-
-
-func _handle_key(key: InputEventKey) -> bool:
-	match key.keycode:
-		KEY_ESCAPE:
+	if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
+		holding = false
+		if _moved:
+			if not dial:
+				activate(mb.position)
 			close()
-			return true
-		KEY_A, KEY_LEFT:
-			wheel.emit(-1)
-			return true
-		KEY_D, KEY_RIGHT:
-			wheel.emit(1)
-			return true
-	if key.keycode >= KEY_0 and key.keycode <= KEY_9:
-		digit.emit(key.keycode - KEY_0)
-		return true
-	if key.keycode >= KEY_KP_0 and key.keycode <= KEY_KP_9:
-		digit.emit(key.keycode - KEY_KP_0)
-		return true
-	return false
+	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		get_viewport().set_input_as_handled()
+		if dial:
+			_turn_dial(mb.position)
+		elif not activate(mb.position, true):
+			close()
 
 
 func _gui_input(event: InputEvent) -> void:
+	accept_event()
+	if dial:
+		_dial_input(event)
+		return
 	var mm := event as InputEventMouseMotion
 	if mm:
-		_set_hover(_ring_at(mm.position))
-		accept_event()
+		hover_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
-	if mb and mb.pressed:
-		accept_event()
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-			wheel.emit(1)
-			return
-		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			wheel.emit(-1)
-			return
-		if not _activate(mb.position):
-			close()
+	if mb and mb.pressed and not activate(mb.position, true):
+		close()
+
+
+func _dial_input(event: InputEvent) -> void:
+	var mm := event as InputEventMouseMotion
+	if mm and _dial_held:
+		_turn_dial(mm.position)
+		return
+	var mb := event as InputEventMouseButton
+	if mb == null:
+		return
+	if not mb.pressed:
+		_dial_held = false
+	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.position.distance_to(_center) <= OUTER_R1 + 6.0:
+		_dial_held = true
+		_turn_dial(mb.position)
+	else:
+		close()
 
 
 # --- Drawing -------------------------------------------------------------------------------
@@ -249,6 +228,8 @@ func _draw() -> void:
 	var font := get_theme_default_font()
 	draw_circle(_center, OUTER_R1 * k + 10.0, Color(0, 0, 0, 0.25 * k))   # soft shadow
 
+	if dial:
+		_draw_dial(k, font)
 	_draw_ring(outer_items, _outer_r0() * k, OUTER_R1 * k, "outer", 15, font)
 	if not inner_items.is_empty():
 		_draw_ring(inner_items, INNER_R0 * k, INNER_R1 * k, "inner", 12, font)
@@ -267,6 +248,17 @@ func _draw() -> void:
 	if subtitle != "":
 		draw_string(font, _center + Vector2(-OUTER_R1 - 40.0, OUTER_R1 * k + 24.0), subtitle,
 				HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0 + 80.0, 12, Palette.TEXT_DIM)
+
+
+func _draw_dial(k: float, font: Font) -> void:
+	var r := (OUTER_R1 - 22.0) * k
+	draw_circle(_center, OUTER_R1 * k, Color(Palette.GLASS, 0.94))
+	draw_arc(_center, r, DIAL_START, DIAL_START + DIAL_SWEEP, 80, Color(1, 1, 1, 0.14), 20.0, true)
+	var end := DIAL_START + DIAL_SWEEP * dial_value
+	draw_arc(_center, r, DIAL_START, end, 80, dial_color, 20.0, true)
+	var tick := Vector2.from_angle(end)
+	draw_line(_center + tick * (r - 16.0), _center + tick * (r + 13.0), Palette.TEXT, 3.0, true)
+	draw_string(font, _center + Vector2(-OUTER_R1, 11), dial_text, HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0, 32, Palette.TEXT)
 
 
 func _draw_ring(items: Array, r0: float, r1: float, ring: String, font_size: int, font: Font) -> void:
