@@ -1,6 +1,6 @@
 class_name LayoutRow
 extends HBoxContainer
-## A saved layout: Load and Delete each ask first, with Confirm and Keep.
+## A saved layout: Load and Delete each ask first.
 
 signal load_confirmed(layout: String)
 signal delete_confirmed(layout: String)
@@ -26,17 +26,16 @@ func _init(layout_name: String) -> void:
 	add_child(load_button)
 	delete_button = PanelBuilder.button("Delete", _ask.bind("delete"), "Deletes this layout, after asking.")
 	add_child(delete_button)
-	confirm_button = PanelBuilder.button("Confirm", _confirm, "Goes ahead. This can't be undone.")
+	confirm_button = PanelBuilder.button("Are you sure?", _confirm, "Goes ahead. This can't be undone.")
 	add_child(confirm_button)
-	keep_button = PanelBuilder.button("Keep", _answer, "Changes nothing.")
+	keep_button = PanelBuilder.button("Cancel", _answer, "Changes nothing.")
 	add_child(keep_button)
 	_answer()
 
 
 func _ask(action: String) -> void:
 	_asking = action
-	confirm_button.text = "Clear all and load?" if action == "load" else "Confirm"
-	keep_button.text = "Cancel" if action == "load" else "Keep"
+	confirm_button.text = "Clear all and load?" if action == "load" else "Are you sure?"
 	load_button.hide()
 	delete_button.hide()
 	confirm_button.show()

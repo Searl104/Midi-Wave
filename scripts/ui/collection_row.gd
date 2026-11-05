@@ -42,10 +42,10 @@ func _init(collection_name: String, chosen: bool) -> void:
 	add_child(handle)
 	delete_button = PanelBuilder.button("Delete", _ask, "Deletes this collection, after asking.")
 	add_child(delete_button)
-	confirm_button = PanelBuilder.button("Confirm", func() -> void: delete_confirmed.emit(collection),
+	confirm_button = PanelBuilder.button("Are you sure?", func() -> void: delete_confirmed.emit(collection),
 			"Deletes this collection. This can't be undone.")
 	add_child(confirm_button)
-	cancel_button = PanelBuilder.button("Keep", _answer, "Keeps this collection.")
+	cancel_button = PanelBuilder.button("Cancel", _answer, "Keeps this collection.")
 	add_child(cancel_button)
 	_answer()
 
