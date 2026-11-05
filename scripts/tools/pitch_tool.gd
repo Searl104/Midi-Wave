@@ -1,10 +1,9 @@
 class_name PitchTool
 extends RingTool
-## Outer ring = the scale's notes, inner ring = octave, centre = delete. With no object it places
+## Outer ring = the scale's notes, inner ring = octave. With no object it places
 ## a new one, and later picks retune it. Hovering a pitch can preview it. On a selected note, a pick
 ## moves the rest of the selection by the same scale steps, so a chord keeps its shape; an octave
-## moves everything by the same octaves, and the centre deletes the selection. A note that would
-## leave the MIDI range stays put.
+## moves everything by the same octaves. A note that would leave the MIDI range stays put.
 
 var _pos := Vector2.ZERO
 var _octave := 4
@@ -45,7 +44,7 @@ func _prepare(at: Vector2) -> void:
 		_channel = o.channel
 		_pitch = o.note
 	_octave = clampi(Scales.octave_of(current, Settings.root_note), 1, 7)
-	radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED} if note_id >= 0 else {}
+	radial.center_item = {}
 
 
 func build() -> void:
@@ -76,7 +75,6 @@ func pick_outer(id: Variant) -> void:
 	if note_id == -1:
 		# Placed. Further picks retune this object.
 		note_id = surface.add_note_at(_pos, pitch, _channel)
-		radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED}
 	else:
 		_shift_others(_scale_steps(_pitch, pitch))
 		surface.set_note_pitch(note_id, pitch)
@@ -90,15 +88,6 @@ func pick_outer(id: Variant) -> void:
 
 func pick_inner(id: Variant) -> void:
 	set_octave(id)
-
-
-func pick_center(id: Variant) -> void:
-	if note_id != -1 and id == "delete":
-		if _others().is_empty():
-			surface.remove_note(note_id)
-		else:
-			surface.delete_selection()
-		radial.close()                   # nothing left to edit
 
 
 ## The note keeps its letter (A, C#, ...) and moves to the new octave.

@@ -51,13 +51,12 @@ else. Esc closes it too.
 Right-click without moving to leave the ring open. Left-click picks and keeps it open; a click off
 the rings closes it. Esc closes a ring.
 
-- **Pitch:** scale notes (outer), octave (inner), delete (centre). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
+- **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Channel:** 1-16.
 - **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
-scale steps, so a chord keeps its shape; an octave moves them all, and the pitch ring's centre
-deletes the selection. A note that would leave the MIDI range stays put. Relay settings also reach
+scale steps, so a chord keeps its shape; an octave moves them all. A note that would leave the MIDI range stays put. Relay settings also reach
 selected diamonds.
 
 ## Collections

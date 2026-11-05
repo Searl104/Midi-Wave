@@ -540,7 +540,6 @@ func _draw_tool() -> void:
 	_check(brush.channel == 5 and ao.channel != 5, "and sets it")
 	tools.pick("pitch")
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(700, 500))
-	_check(radial.center_item.is_empty(), "no delete on the brush")
 	var pitch: int = radial.outer_items[2].id
 	radial.outer_chosen.emit(pitch)
 	radial.close()
@@ -631,7 +630,6 @@ func _pitch() -> void:
 	surface.history.end_group()
 	tools.open_ring_for("pitch", -1, Vector2(500, 400))
 	_check(radial.visible and radial.outer_items.size() > 0 and radial.inner_items.size() == 7, "pitch ring opens")
-	_check(radial.center_item.is_empty(), "no delete with nothing to delete")
 	var ring: PitchTool = tools.get_tool("pitch")
 	var pitch: int = radial.outer_items[1].id
 	radial.outer_chosen.emit(pitch)
@@ -642,8 +640,9 @@ func _pitch() -> void:
 	var was: int = surface.notes[0].note
 	radial.inner_chosen.emit(ring._octave + 1)
 	_check(surface.notes[0].note == was + 12, "octave keeps the letter")
-	radial.center_chosen.emit("delete")
-	_check(surface.get_note(id) == null and not radial.visible, "centre deletes and closes")
+	_check(radial.center_item.is_empty(), "the ring has no Delete")
+	radial.close()
+	surface.remove_note(id)
 
 
 func _channel() -> void:
@@ -2094,19 +2093,6 @@ func _group_rings() -> void:
 	radial.close()
 	_check(surface.get_note(g4).emitter().cooldown == 3.0 and surface.get_note(e4).emitter().cooldown == 2.0, "selected diamonds spread")
 	sel.clear()
-	# Delete.
-	sel.notes = {c4: true, e4: true, g4: true}
-	tools.pick("pitch")
-	open_on.call(c4)
-	radial.center_chosen.emit("delete")
-	_check(surface.notes.size() == 1 and not radial.visible and surface.get_note(lone) != null, "the centre deletes the selection")
-	surface.history.end_group()
-	surface.undo()
-	_check(surface.notes.size() == 4, "undo brings them back")
-	sel.clear()
-	open_on.call(lone)
-	radial.center_chosen.emit("delete")
-	_check(surface.notes.size() == 3, "a lone note deletes alone")
 	Settings.set_value("scale_name", scale_before)
 	surface.clear_notes()
 
