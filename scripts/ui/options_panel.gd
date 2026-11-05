@@ -1,6 +1,6 @@
 class_name OptionsPanel
 extends PanelContainer
-## Slide-in options for the whole app, in three tabs: General, Controls and Look. Settings that belong to a
+## Slide-in options for the whole app, in four tabs: General, MIDI, Controls and Look. Settings that belong to a
 ## tool are in its tool panel instead.
 
 signal clear_notes_requested
@@ -67,30 +67,16 @@ func _build() -> void:
 	tabs = TabContainer.new()
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tabs.focus_mode = Control.FOCUS_NONE
+	tabs.use_hidden_tabs_for_min_size = true    # keeps the panel one width across tabs
 	outer.add_child(tabs)
 	tabs.tab_changed.connect(func(_i: int) -> void: mappings.cancel())
 	var box := _tab("General")
+	_build_midi(_tab("MIDI"))
 	_build_controls(_tab("Controls"))
 	_build_look(_tab("Look"))
 
-	PanelBuilder.section(box, "MIDI OUTPUT", Palette.BLUE)
-	box.add_child(PanelBuilder.hint("Each of the 16 note colours sends to its own port, always on channel 1. Slots can share a port."))
-	for slot in Midi.SLOTS:
-		_slots.append(_slot_row(box, slot))
-	var port_row := HBoxContainer.new()
-	box.add_child(port_row)
-	_port_status = Label.new()
-	_port_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_port_status.add_theme_color_override("font_color", Palette.TEXT_DIM)
-	_port_status.add_theme_font_size_override("font_size", 12)
-	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	port_row.add_child(_port_status)
-	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports, and opens any that slots are waiting for."))
-	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all ports."))
+	PanelBuilder.section(box, "PREVIEW", Palette.BLUE)
 	PanelBuilder.check(box, "Play notes while hovering the pitch ring", "hover_preview")
-
-	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
-	box.add_child(MidiInputControls.new())
 
 	PanelBuilder.section(box, "TIMING", Palette.ACCENT)
 	PanelBuilder.slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
@@ -111,6 +97,27 @@ func _build() -> void:
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
+## MIDI tab: where notes go, and the controller that plays them.
+func _build_midi(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "MIDI OUTPUT", Palette.BLUE)
+	box.add_child(PanelBuilder.hint("Each of the 16 note colours sends to its own port, always on channel 1. Slots can share a port."))
+	for slot in Midi.SLOTS:
+		_slots.append(_slot_row(box, slot))
+	var port_row := HBoxContainer.new()
+	box.add_child(port_row)
+	_port_status = Label.new()
+	_port_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_port_status.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_port_status.add_theme_font_size_override("font_size", 12)
+	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	port_row.add_child(_port_status)
+	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports, and opens any that slots are waiting for."))
+	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all ports."))
+
+	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
+	box.add_child(MidiInputControls.new())
+
+
 ## Controls tab: a row per action, each learning the next MIDI message from the controller.
 var _control_rows := {}
 var _controller_hint: Label
@@ -119,7 +126,7 @@ var _controller_hint: Label
 func _build_controls(box: VBoxContainer) -> void:
 	PanelBuilder.section(box, "MIDI MAPPINGS", Palette.BLUE)
 	box.add_child(PanelBuilder.hint("Press Learn, then press a key, pad or button, or move a knob. A control change fires each time it rises above 0."))
-	_controller_hint = PanelBuilder.hint("Pick a controller under MIDI input on the General tab first.")
+	_controller_hint = PanelBuilder.hint("Pick a controller under MIDI input on the MIDI tab first.")
 	_controller_hint.add_theme_color_override("font_color", Palette.YELLOW)
 	box.add_child(_controller_hint)
 	for action in MidiMappings.ACTIONS:

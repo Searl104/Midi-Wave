@@ -75,7 +75,7 @@ shows in the list, as its path is its name. **Open Collections Folder** in the p
 
 ## MIDI output
 
-**Options → General → MIDI Output** has 16 slots, one per note colour. Each has a dropdown of the
+**Options → MIDI → MIDI Output** has 16 slots, one per note colour. Each has a dropdown of the
 system's ports, and every note goes out on channel 1 of its slot's port, so one port carries one
 voice. Slots can share a port, and None silences a slot. Picks are saved by port name. A port that
 isn't there stays picked and is listed as not found, and Refresh opens it once it exists. Changing a
@@ -133,7 +133,7 @@ Continue can all be learned, on any channel, and a control change fires each tim
 One message drives one action, so learning it again moves it. If notes are bound to the same MIDI
 note, both fire, and the row says so. MIDI Stop runs Stop until you change it.
 
-The Bind panel, or **Options → General → MIDI input**, picks the controller. Any Note On from it can be bound, on any
+The Bind panel, or **Options → MIDI → MIDI input**, picks the controller. Any Note On from it can be bound, on any
 channel; other inputs, including the loopMIDI port MIDI Wave sends to, are ignored. It uses Godot's
 own MIDI input, which opens every input at once, so inputs stay closed while this is Off. Windows
 lets only one app open a controller, so turn it off in your DAW's MIDI inputs first.
@@ -181,7 +181,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 
 The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
-Options (General tab): MIDI output slots, hover preview, MIDI
+Options, MIDI tab: output slots and MIDI input. General tab: hover preview,
 input, tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
@@ -189,7 +189,7 @@ but changing it doesn't touch existing notes. Settings and the note layout save 
 
 ## Routing on Windows
 
-Run loopMIDI, create a port, pick it for a slot in Options → MIDI Output, and enable the same port as an
+Run loopMIDI, create a port, pick it for a slot in Options → MIDI, and enable the same port as an
 input on an armed instrument track in your DAW.
 
 ## Project layout
