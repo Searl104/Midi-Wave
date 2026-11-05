@@ -84,7 +84,7 @@ func _build() -> void:
 
 	PanelBuilder.section(box, "DISPLAY", Palette.YELLOW)
 	PanelBuilder.check(box, "Colour-blind palette", "colorblind")
-	box.add_child(PanelBuilder.hint("Eight colour-blind safe channel colours; channels 9-16 reuse them with a double outline. Hover a note for its channel number."))
+	box.add_child(PanelBuilder.hint("Eight colour-blind safe sound colours; sounds 9-16 reuse them with a double outline. Hover a note for its sound number."))
 
 	PanelBuilder.section(box, "NOTES", Palette.TEXT_DIM)
 	var notes_row := HBoxContainer.new()
@@ -98,7 +98,7 @@ func _build() -> void:
 ## MIDI tab: where notes go, and the controller that plays them.
 func _build_midi(box: VBoxContainer) -> void:
 	PanelBuilder.section(box, "MIDI OUTPUT", Palette.BLUE)
-	box.add_child(PanelBuilder.hint("Each of the 16 note colours sends to its own port, always on channel 1. Slots can share a port."))
+	box.add_child(PanelBuilder.hint("A sound is one of the 16 note colours, sent to the port picked here, always on channel 1. Sounds can share a port."))
 	for slot in Midi.SLOTS:
 		_slots.append(_slot_row(box, slot))
 	var port_row := HBoxContainer.new()
@@ -109,7 +109,7 @@ func _build_midi(box: VBoxContainer) -> void:
 	_port_status.add_theme_font_size_override("font_size", 12)
 	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	port_row.add_child(_port_status)
-	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports, and opens any that slots are waiting for."))
+	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports, and opens any that sounds are waiting for."))
 	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all ports."))
 
 	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
@@ -269,7 +269,7 @@ func _slot_row(box: VBoxContainer, slot: int) -> OptionButton:
 	picker.fit_to_longest_item = false
 	picker.focus_mode = Control.FOCUS_NONE
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	picker.tooltip_text = "The port notes of this colour send to, on channel 1."
+	picker.tooltip_text = "The port this sound sends to, on channel 1."
 	picker.item_selected.connect(func(i: int) -> void: Midi.set_slot(slot, picker.get_item_metadata(i)))
 	row.add_child(picker)
 	return picker
@@ -310,7 +310,7 @@ func _update_port_status() -> void:
 	elif Midi.is_open():
 		_port_status.text = "Sending to " + ", ".join(Midi.open_ports())
 	else:
-		_port_status.text = "Pick a port for each colour you use (e.g. your loopMIDI ports)."
+		_port_status.text = "Pick a port for each sound you use (e.g. your loopMIDI ports)."
 
 
 # --- Builders -----------------------------------------------------------------------

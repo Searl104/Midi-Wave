@@ -14,7 +14,7 @@ const TIPS := {
 	"root_note": "The scale's starting note, for the pitch ring. Existing notes keep their pitch.",
 	"scale_name": "The notes the pitch ring offers and nudges land on. Existing notes keep their pitch.",
 	"hover_preview": "Plays each pitch as the pointer moves onto it in the pitch ring.",
-	"colorblind": "Uses eight colour-blind safe channel colours; channels 9-16 add a double outline.",
+	"colorblind": "Uses eight colour-blind safe sound colours; sounds 9-16 add a double outline.",
 	"cursor_glow": "How bright the glow is that shows a wave's reach under the pointer. 0 hides it.",
 	"look": "The surface drawn under the notes.",
 	"snap_enabled": "Dragged items and new notes land on grid points. Hold Alt to place freely.",

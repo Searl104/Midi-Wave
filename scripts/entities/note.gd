@@ -194,7 +194,7 @@ func shows_pitch() -> bool:
 
 ## Tooltip text: pitch, channel and state.
 func hover_text() -> String:
-	var text := "%s · ch %d" % [MidiMessage.note_name(note), channel + 1] if sounds() else "relay · ch %d" % (channel + 1)
+	var text := "%s · sound %d" % [MidiMessage.note_name(note), channel + 1] if sounds() else "relay · sound %d" % (channel + 1)
 	var r := relay()
 	if r and r.emitter.is_retrigger():
 		text += " · retrigger"

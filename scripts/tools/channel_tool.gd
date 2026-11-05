@@ -8,7 +8,7 @@ func tool_id() -> String:
 
 
 func title() -> String:
-	return "Channel"
+	return "Sound"
 
 
 func has_options() -> bool:
@@ -17,7 +17,7 @@ func has_options() -> bool:
 
 func build_options(box: VBoxContainer) -> void:
 	PanelBuilder.slider(box, "Default length", "note_beats", Settings.LENGTH_STEP, Settings.LENGTH_MAX, Settings.LENGTH_STEP, PanelBuilder.beats_text)
-	PanelBuilder.section(box, "CHANNELS", Palette.RED)
+	PanelBuilder.section(box, "SOUNDS", Palette.RED)
 	box.add_child(PanelBuilder.hint("Left knob: volume. Right knob: note length. Drag or scroll to turn; double-click resets."))
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -29,7 +29,7 @@ func build_options(box: VBoxContainer) -> void:
 		knobs.append_array(_channel_cell(grid, ch))
 	box.add_child(PanelBuilder.button("Reset all", func() -> void:
 		for k in knobs:
-			k.value = k.reset_value, "Returns every channel to full volume and the Default length."))
+			k.value = k.reset_value, "Returns every sound to full volume and the Default length."))
 
 
 ## A channel's name, volume knob and note length knob.
@@ -54,7 +54,7 @@ func _channel_cell(grid: GridContainer, ch: int) -> Array:
 	volume.reset_value = 1.0
 	volume.color = Palette.channel_color(ch)
 	volume.fmt = func(v: float) -> String: return "Off" if v <= 0.0 else "%d%%" % roundi(v * 100.0)
-	volume.tooltip_text = "Volume of channel %d: scales the velocity of its notes. Off silences them; relays still fire." % (ch + 1)
+	volume.tooltip_text = "Volume of sound %d: scales the velocity of its notes. Off silences them; relays still fire." % (ch + 1)
 	volume.set_quietly(float(Settings.channel_volumes[ch]))
 	volume.value_changed.connect(func(v: float) -> void: Settings.set_channel_volume(ch, v))
 	cell.add_child(volume)
@@ -65,7 +65,7 @@ func _channel_cell(grid: GridContainer, ch: int) -> Array:
 	length.reset_value = 0.0
 	length.color = Palette.channel_color(ch)
 	length.fmt = func(v: float) -> String: return "Def" if v <= 0.0 else PanelBuilder.beats_text(v).get_slice(" ", 0) + "b"
-	length.tooltip_text = "How long notes on channel %d are held, in eighth notes. Fully left uses the Default length." % (ch + 1)
+	length.tooltip_text = "How long notes of sound %d are held, in eighth notes. Fully left uses the Default length." % (ch + 1)
 	length.set_quietly(float(Settings.channel_beats[ch]))
 	length.value_changed.connect(func(v: float) -> void: Settings.set_channel_beats(ch, v))
 	cell.add_child(length)
@@ -80,7 +80,7 @@ func build() -> void:
 	radial.outer_items = []
 	for ch in 16:
 		radial.outer_items.append({"id": ch, "label": str(ch + 1), "color": Palette.channel_color(ch), "selected": ch == current})
-	radial.title = "MIDI channel"
+	radial.title = "Sound"
 	radial.subtitle = ""
 	radial.refresh()
 

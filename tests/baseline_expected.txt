@@ -10,7 +10,7 @@ midi 1999920 92437f
 waves 1 [(300.0, 200.0, 806.6667, 0.026624), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
 midi 2266576 824300
 waves 0 [(0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
-text C4 · ch 1 | G4 · ch 3
+text C4 · sound 1 | G4 · sound 3
 layout plain [{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":9,"mods":[],"muted":false,"note":60,"snap_note":"","x":300.0,"y":200.0},{"binding":"","channel":2,"grid":false,"grid_reach":0.0,"id":10,"mods":[],"muted":false,"note":67,"snap_note":"","x":700.0,"y":200.0}]
 drag {"centre":"false","centres":"[(450.0, 500.0)]","limits":"[inf]","loop":"","pos":"(450.0, 500.0)","readout":"≈ 1.03 beats · 515 ms","ref_point":"(400.0, 300.0)","snap_key":"","snapped":"false"}
 waves 1 [(200.0, 300.0, 6.666667, 0.131757), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
@@ -29,7 +29,7 @@ waves 3 [(450.0, 500.0, 806.6667, 0.021299), (200.0, 300.0, 486.5104, 0.230486),
 midi 6316414 934843
 waves 2 [(200.0, 300.0, 686.5104, 0.08004), (450.0, 500.0, 286.5104, 0.433305), (0.0, 0.0, 0.0, 0.0)]
 midi 6583070 834800
-text relay · ch 2 · retrigger
+text relay · sound 2 · retrigger
 waves 3 [(200.0, 300.0, 886.5104, 0.000964), (450.0, 500.0, 486.5104, 0.230486), (200.0, 300.0, 166.3542, 0.576873)]
 midi 7116382 934844
 midi 7383038 834800
@@ -51,9 +51,9 @@ waves 2 [(500.0, 100.0, 6.666667, 0.131757), (800.0, 100.0, 6.666667, 0.131757),
 midi 9782942 803f00
 waves 2 [(500.0, 100.0, 206.6667, 0.526998), (800.0, 100.0, 206.6667, 0.526998), (0.0, 0.0, 0.0, 0.0)]
 midi 10249590 903f35
-chain D#4 · ch 1
+chain D#4 · sound 1
 midi 10499580 803f00
-text C4 · ch 1 · sequence, step 1 of 2 | relay · ch 2 · sequence, step 1 of 2
+text C4 · sound 1 · sequence, step 1 of 2 | relay · sound 2 · sequence, step 1 of 2
 mute 1
 midi 10499580 903c7f
 waves 0 [(0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
@@ -66,7 +66,7 @@ waves 3 [(500.0, 300.0, 500.0, 0.218574), (500.0, 300.0, 286.6667, 0.433128), (5
 midi 12082850 803c00
 midi 12266176 803f00
 waves 3 [(500.0, 300.0, 700.0, 0.072102), (500.0, 300.0, 486.6667, 0.230347), (500.0, 300.0, 273.3333, 0.448292)]
-text C4 · ch 1 · sequence, step 1 of 2 · KP1
+text C4 · sound 1 · sequence, step 1 of 2 · KP1
 layout toggles [{"binding":"kp1","channel":0,"grid":false,"grid_reach":0.0,"id":17,"mods":[{"kind":"sequence","steps":[true,false]}],"muted":false,"note":60,"snap_note":"","x":300.0,"y":300.0},{"binding":"kp2","channel":0,"grid":false,"grid_reach":0.0,"id":18,"mods":[],"muted":true,"note":63,"snap_note":"","x":350.0,"y":300.0},{"binding":"kp1","channel":1,"grid":false,"grid_reach":0.0,"id":19,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":0.5,"ex":500.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","x":500.0,"y":300.0}]
 layout toggle_removed [{"binding":"kp1","channel":0,"grid":false,"grid_reach":0.0,"id":17,"mods":[],"muted":false,"note":60,"snap_note":"","x":300.0,"y":300.0},{"binding":"kp2","channel":0,"grid":false,"grid_reach":0.0,"id":18,"mods":[],"muted":true,"note":63,"snap_note":"","x":350.0,"y":300.0},{"binding":"kp1","channel":1,"grid":false,"grid_reach":0.0,"id":19,"mods":[{"kind":"sequence","steps":[false,true]},{"attached":true,"cooldown_beats":0.5,"ex":500.0,"ey":300.0,"grid_emit":false,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":0.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","x":500.0,"y":300.0}]
 waves 1 [(200.0, 300.0, 6.666667, 0.164696), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)]
@@ -124,8 +124,8 @@ midi 18099276 803f00
 midi 18099276 903f05
 midi 18365932 803f00
 midi 18365932 903f05
-cool relay · ch 2 A#4 · ch 1
-heard D#4 · ch 1
+cool relay · sound 2 A#4 · sound 1
+heard D#4 · sound 1
 midi 18399264 803f00
 drag {"centre":"false","centres":"[(900.0, 500.0), (400.0, 400.0)]","limits":"[inf, 1100.0]","loop":"","pos":"(900.0, 500.0)","readout":"≈ 2.55 beats · 1275 ms","ref_point":"(400.0, 400.0)","snap_key":"","snapped":"false"}
 snap (600.0, 400.0) {"centre":"false","centres":"[(600.0, 400.0), (400.0, 400.0), (900.0, 500.0)]","limits":"[inf, 1100.0, 900.0]","loop":"","pos":"(600.0, 400.0)","readout":"1 beat · 500 ms","ref_point":"(400.0, 400.0)","snap_key":"n24","snapped":"true"}
@@ -147,7 +147,7 @@ drag {"centre":"false","centres":"[(700.0, 480.0)]","limits":"[inf]","loop":"","
 group [24, 25, 26, 27]
 selected 1
 range {"centres":"[]","loop":"","pos":"(984.0078, 576.6415)","range_edit":"true","readout":"reach ¼ beat","ref_point":"<null>","snap_key":"","snapped":"true"}
-text relay · ch 2 · reach ¼ beat
+text relay · sound 2 · reach ¼ beat
 layout grids [{"binding":"","channel":0,"grid":true,"grid_reach":0.0,"id":24,"mods":[],"muted":false,"note":60,"snap_note":"","x":484.007751464844,"y":476.641540527344},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":25,"mods":[],"muted":false,"note":63,"snap_note":"","x":700.0,"y":480.0},{"binding":"","channel":1,"grid":false,"grid_reach":0.0,"id":26,"mods":[{"attached":false,"cooldown_beats":1.0,"ex":984.007751464844,"ey":576.641540527344,"grid_emit":true,"grid_emit_reach":0.0,"kind":"relay","pulse_strength":0.8,"range":50.0,"snap_emit":"","sound":false}],"muted":false,"note":65,"snap_note":"","x":884.007751464844,"y":476.641540527344},{"binding":"","channel":0,"grid":false,"grid_reach":0.0,"id":27,"mods":[],"muted":false,"note":63,"snap_note":"","x":625.429138183594,"y":618.062927246094}]
 cleared 2
 drag {"centre":"false","centres":"[(600.0, 450.0)]","limits":"[inf]","loop":"","pos":"(600.0, 450.0)","readout":"≈ 1.68 beats · 839 ms","ref_point":"(300.0, 300.0)","snap_key":"","snapped":"false"}

@@ -7,8 +7,8 @@ extends Node
 ## is printed to the Output panel instead, so the rest of the app still works.
 
 ##
-## Notes are numbered 0-15 by slot, which is what their colour shows. Each slot picks a port in
-## Options, and every message goes out on channel 1 of its slot's port. Slots can share a port.
+## A note's `channel` value is its Sound: one of 16 numbered colours, called a slot here. Each picks
+## a port in Options, and every message goes out on channel 1 of that port. Sounds can share a port.
 
 signal port_changed(port_name: String)
 signal message_sent(bytes: PackedByteArray)     ## as addressed to a slot, before routing

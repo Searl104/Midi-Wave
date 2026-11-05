@@ -18,7 +18,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
-Pitch, Channel and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which
+Pitch, Sound and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which
 ring a right-click on a note opens; a yellow bar marks the choice.
 
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
@@ -36,7 +36,7 @@ else. Esc closes it too.
 | Grid | Clear All, snapping, divisions per beat and guides |
 | Paste Collection | Save the selection under a name, and the list of collections |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
-| Channel | Default note length, and a Volume and a Length knob per channel. Volume scales velocity; Off silences notes, though relays still fire |
+| Sound | Default note length, and a Volume and a Length knob per sound. Volume scales velocity; Off silences notes, though relays still fire |
 | Zoom | Beat spacing |
 
 ## Rings
@@ -52,7 +52,7 @@ Right-click without moving to leave the ring open. Left-click picks and keeps it
 the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
-- **Channel:** 1-16.
+- **Sound:** 1-16.
 - **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
@@ -74,11 +74,12 @@ shows in the list, as its path is its name. **Open Collections Folder** in the p
 
 ## MIDI output
 
-**Options → MIDI → MIDI Output** has 16 slots, one per note colour. Each has a dropdown of the
-system's ports, and every note goes out on channel 1 of its slot's port, so one port carries one
-voice. Slots can share a port, and None silences a slot. Picks are saved by port name. A port that
-isn't there stays picked and is listed as not found, and Refresh opens it once it exists. Changing a
-slot sends a Panic first, so nothing is left held. Volume and note length still go by colour.
+A **Sound** is one of 16 numbered colours with a MIDI output, and every note is assigned to one.
+**Options → MIDI → MIDI Output** picks each sound's port from a dropdown, and its notes go out on
+channel 1 of that port, so one port carries one sound. Sounds can share a port, and None silences
+one. Picks are saved by port name. A port that isn't there stays picked and is listed as not found,
+and Refresh opens it once it exists. Changing a sound's port sends a Panic first, so nothing is left
+held. Each sound has its own volume and note length.
 
 ## Keys
 
@@ -166,7 +167,7 @@ Notes off screen keep playing; a marker on the window edge shows them firing.
 
 A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → Look → Cursor glow** sets its strength (0% hides it, up to 200%).
 
-Hover a note to see its pitch and channel number. **Options → General → Colour-blind palette** swaps the 16 channel colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
+Hover a note to see its pitch and sound number. **Options → General → Colour-blind palette** swaps the 16 sound colours for eight colour-blind safe ones (Okabe-Ito); channels 9-16 reuse them with a second, inner outline.
 
 Hover and selection are drawn as white corner brackets (thin for hover, bright for selected), so rings only ever mean state: pulse cooldown, modifier, snap guides. M, Delete and Ctrl+KP act on the bracketed note, and its brackets flash when the key lands.
 
@@ -178,9 +179,9 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 - **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
-The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
+The **Sound panel** sets a volume and a note length per sound: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
-Options, MIDI tab: output slots and MIDI input. General tab: hover preview,
+Options, MIDI tab: sound outputs and MIDI input. General tab: hover preview,
 tempo, colour-blind palette, and layouts. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
@@ -188,7 +189,7 @@ but changing it doesn't touch existing notes. Settings and the note layout save 
 
 ## Routing on Windows
 
-Run loopMIDI, create a port, pick it for a slot in Options → MIDI, and enable the same port as an
+Run loopMIDI, create a port, pick it for a sound in Options → MIDI, and enable the same port as an
 input on an armed instrument track in your DAW.
 
 ## Project layout

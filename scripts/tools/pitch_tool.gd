@@ -55,7 +55,7 @@ func build() -> void:
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _octave})
-	radial.title = "%s %s · octave %d · ch %d" % [
+	radial.title = "%s %s · octave %d · sound %d" % [
 		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _octave, _channel + 1]
 	radial.subtitle = ""
 	radial.refresh()
