@@ -38,6 +38,7 @@ func _ready() -> void:
 	_tool_options()
 	_sequence()
 	_draw_delete()
+	_layouts()
 	_velocity()
 	_port_slots()
 	_collections()
@@ -1148,6 +1149,7 @@ func _tool_options() -> void:
 		tools.get_tool(id).build_options(box)
 		holders.append(box)
 	var options := OptionsPanel.new()
+	options.surface = surface
 	options.mappings = MidiMappings.new(surface)
 	add_child(options)
 	holders.append(options)
@@ -1396,6 +1398,7 @@ func _port_slots() -> void:
 	_check(keys.sent.size() == 32 and not keys.is_port_open() and Array(Midi.open_ports()) == ["Bass"], "the last slot closes it, after a Panic")
 	# The panel.
 	var options := OptionsPanel.new()
+	options.surface = surface
 	options.mappings = MidiMappings.new(surface)
 	add_child(options)
 	options.refresh_ports()
@@ -1492,6 +1495,7 @@ func _midi_controls() -> void:
 	# The tab. With no controller chosen, since the panel lists the inputs, and there are none here.
 	Settings.midi_in_port = ""
 	var options := OptionsPanel.new()
+	options.surface = surface
 	options.mappings = map
 	add_child(options)
 	options._control_rows["panic"].learn.pressed.emit()
@@ -1645,13 +1649,13 @@ func _collections() -> void:
 	_check(Collections.list().is_empty() and tool.picked == "", "Confirm deletes it, and unpicks it")
 	box.queue_free()
 	# Names.
-	_check(Collections.cleaned('a:b*c?d"e<f>g|h\\i') == "abcdefgh/i", "typing keeps to file name characters")
-	_check(Collections.normalised("  a//b / c ") == "a/b/c", "extra slashes and spaces go")
-	_check(Collections.problem("") != "" and Collections.problem("a/") != "", "a name needs a last part")
-	_check(Collections.problem("a./b") != "" and Collections.problem("..") != "" and Collections.problem("a/..") != "", "no dots at the end, or climbing out")
-	_check(Collections.problem("con") != "" and Collections.problem("a/NUL.x") != "" and Collections.problem("com1/a") != "", "no reserved names")
-	_check(Collections.problem("console") == "" and Collections.problem("a.b/c-d_e f") == "", "ordinary names pass")
-	_check(Collections.problem("a".repeat(101)) != "", "not too long")
+	_check(NamedFiles.cleaned('a:b*c?d"e<f>g|h\\i') == "abcdefgh/i", "typing keeps to file name characters")
+	_check(NamedFiles.normalised("  a//b / c ") == "a/b/c", "extra slashes and spaces go")
+	_check(NamedFiles.problem("") != "" and NamedFiles.problem("a/") != "", "a name needs a last part")
+	_check(NamedFiles.problem("a./b") != "" and NamedFiles.problem("..") != "" and NamedFiles.problem("a/..") != "", "no dots at the end, or climbing out")
+	_check(NamedFiles.problem("con") != "" and NamedFiles.problem("a/NUL.x") != "" and NamedFiles.problem("com1/a") != "", "no reserved names")
+	_check(NamedFiles.problem("console") == "" and NamedFiles.problem("a.b/c-d_e f") == "", "ordinary names pass")
+	_check(NamedFiles.problem("a".repeat(101)) != "", "not too long")
 	_check(tool.save_selection("../out") != "" and Collections.list().is_empty(), "nothing saves outside the folder")
 	# Folders.
 	var sel_note := surface.add_object(Vector2(50, 50), 60, 0)
@@ -1664,12 +1668,12 @@ func _collections() -> void:
 	var tree := VBoxContainer.new()
 	add_child(tree)
 	tool.build_options(tree)
-	_check(tree.find_children("*", "CollectionFolder", true, false).size() == 1, "one folder at the top")
+	_check(tree.find_children("*", "FolderRow", true, false).size() == 1, "one folder at the top")
 	_check(tree.find_children("*", "CollectionRow", true, false).size() == 1, "closed, with the loose collection")
 	tool.toggle_folder("a")
 	tool.toggle_folder("a/b")
 	var rows := tree.find_children("*", "CollectionRow", true, false)
-	_check(rows.size() == 3 and tree.find_children("*", "CollectionFolder", true, false).size() == 2, "opening folders shows them")
+	_check(rows.size() == 3 and tree.find_children("*", "FolderRow", true, false).size() == 2, "opening folders shows them")
 	_check(rows[0].handle.text == "one" and rows[0].collection == "a/b/one", "rows show the last part")
 	tool.toggle_folder("a")
 	_check(tree.find_children("*", "CollectionRow", true, false).size() == 1, "closing hides them")
@@ -1826,6 +1830,107 @@ func _velocity() -> void:
 	Midi.message_sent.disconnect(spy)
 	tools.set_tool("select")
 	surface.clear_notes()
+
+
+func _layouts() -> void:
+	for n in Layouts.list():
+		Layouts.remove(n)
+	surface.clear_notes()
+	var saved_bpm: float = Settings.bpm
+	var saved_slots: Array = Settings.midi_slots
+	var saved_volumes: Array = Settings.channel_volumes
+	Settings.midi_slots = saved_slots.duplicate()
+	Settings.channel_volumes = saved_volumes.duplicate()
+	var a := surface.add_object(Vector2(100, 100), 60, 2)
+	surface.add_modifier(a, "sequence")
+	surface.set_note_velocity(a, 40)
+	surface.set_binding(a, "kp2")
+	Settings.set_value("bpm", 90.0)
+	Settings.set_value("divisions", 3)
+	Settings.set_channel_volume(2, 0.25)
+	Settings.set_channel_beats(2, 1.5)
+	Settings.midi_slots[2] = "Bass"
+	Settings.set_value("beat_spacing", 120.0)
+	surface.view_offset = Vector2(33, 44)
+	var options := OptionsPanel.new()
+	options.surface = surface
+	options.mappings = MidiMappings.new(surface)
+	add_child(options)
+	var panel: LayoutPanel = options.layouts
+	# Saving.
+	panel.name_field.text = "sets/opener"
+	panel.save_pressed()
+	_check(Array(Layouts.list()) == ["sets/opener"] and FileAccess.file_exists("user://layouts/sets/opener.json"), "saves into a folder")
+	panel.name_field.text = "bad/"
+	panel.save_pressed()
+	_check(panel.status.visible and Layouts.list().size() == 1, "names follow the same rules")
+	# Overwriting asks.
+	Settings.set_value("bpm", 100.0)
+	panel.name_field.text = "SETS/opener"
+	panel.save_pressed()
+	_check(panel.overwrite_row.visible and "sets/opener" in panel.status.text, "a used name asks, in any case")
+	_check(int(Layouts.read("sets/opener").bpm) == 90, "and hasn't saved yet")
+	panel._cancel_overwrite()
+	_check(not panel.overwrite_row.visible and int(Layouts.read("sets/opener").bpm) == 90, "Keep keeps it")
+	panel.save_pressed()
+	panel._overwrite()
+	_check(int(Layouts.read("sets/opener").bpm) == 100 and Layouts.list().size() == 1, "Overwrite replaces it, under its own name")
+	# Changes, then load through the row.
+	surface.clear_notes()
+	surface.add_object(Vector2(500, 500), 70, 0)
+	surface.add_object(Vector2(600, 500), 71, 0)
+	surface.save_notes()
+	Settings.set_value("bpm", 150.0)
+	Settings.set_value("divisions", 4)
+	Settings.set_channel_volume(2, 1.0)
+	Settings.set_channel_beats(2, 0.0)
+	Settings.midi_slots[2] = ""
+	Settings.set_value("beat_spacing", 200.0)
+	surface.view_offset = Vector2.ZERO
+	surface.spawn_wave(Vector2(200, 200))
+	panel.tree.reveal("sets/opener")
+	panel.refresh()
+	var row: LayoutRow = panel.tree.find_children("*", "LayoutRow", true, false)[0]
+	row.load_button.pressed.emit()
+	_check(row.confirm_button.visible and not row.load_button.visible and surface.notes.size() == 2, "Load asks first")
+	row.keep_button.pressed.emit()
+	_check(row.load_button.visible and surface.notes.size() == 2, "Keep leaves it alone")
+	row.load_button.pressed.emit()
+	row.confirm_button.pressed.emit()
+	_check(surface.notes.size() == 1 and surface.waves.is_empty(), "confirming replaces the notes and stops")
+	var o := surface.get_note(a)
+	_check(o != null and o.velocity == 40 and o.binding == "kp2" and o.get_modifier("sequence") != null, "notes come back whole")
+	_check(int(Settings.bpm) == 100 and Settings.divisions == 3, "tempo and divisions")
+	_check(Settings.channel_volumes[2] == 0.25 and Settings.channel_beats[2] == 1.5, "sound settings")
+	_check(Settings.midi_slots[2] == "Bass", "ports")
+	_check(Settings.beat_spacing == 120.0 and surface.view_offset == Vector2(33, 44), "and the view")
+	_check(not surface.history.can_undo(), "loading clears the undo history")
+	_check(panel.name_field.text == "sets/opener", "the name is ready for saving over")
+	# Delete asks, and folders tidy up.
+	row = panel.tree.find_children("*", "LayoutRow", true, false)[0]
+	row.delete_button.pressed.emit()
+	_check(Layouts.list().size() == 1, "Delete asks first")
+	row.confirm_button.pressed.emit()
+	_check(Layouts.list().is_empty() and not DirAccess.dir_exists_absolute(Layouts.DIR + "sets"), "and removes it and its folder")
+	# Bad and partial files.
+	DirAccess.make_dir_recursive_absolute(Layouts.DIR)
+	var bad := FileAccess.open(Layouts.DIR + "bad.json", FileAccess.WRITE)
+	bad.store_string("{nope")
+	bad.close()
+	var notes_before := surface.notes.size()
+	panel.load_layout("bad")
+	_check(panel.status.visible and surface.notes.size() == notes_before, "a broken file loads nothing")
+	Layouts.remove("bad")
+	Layouts.apply({"notes": []}, surface)
+	_check(surface.notes.is_empty() and int(Settings.bpm) == 100, "a partial file keeps what it lacks")
+	options.queue_free()
+	Settings.set_value("bpm", saved_bpm)
+	Settings.set_value("divisions", 4)
+	Settings.set_value("beat_spacing", 100.0)
+	Settings.midi_slots = saved_slots
+	Settings.channel_volumes = saved_volumes
+	Settings.channel_beats.fill(0.0)
+	surface.view_offset = Vector2.ZERO
 
 
 func _draw_delete() -> void:

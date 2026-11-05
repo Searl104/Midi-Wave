@@ -240,6 +240,20 @@ func load_layout(layout: Array) -> void:
 	frame_notes()
 
 
+## Replaces everything with a saved layout, leaving the view alone and clearing the undo history.
+func replace_layout(layout: Array) -> void:
+	stop()
+	for o in notes:
+		o.silence()
+	selection.clear()
+	_hover_id = -1
+	_hover_handle = -1
+	history.begin_load()
+	_build(layout)
+	save_notes()
+	history.end_load(Settings.notes)
+
+
 func _brush() -> Note:
 	return tools.get_tool("draw").brush
 

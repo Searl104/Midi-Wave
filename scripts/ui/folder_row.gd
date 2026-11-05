@@ -1,6 +1,6 @@
-class_name CollectionFolder
+class_name FolderRow
 extends Button
-## A folder in Paste Collection's list. Click to open or close it.
+## A folder in a FileTree. Click to open or close it.
 
 var opened := false
 

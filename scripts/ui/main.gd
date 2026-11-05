@@ -56,6 +56,7 @@ func _ready() -> void:
 	mappings.triggered.connect(_run_action)
 	options = OptionsPanel.new()
 	options.mappings = mappings
+	options.surface = surface
 	add_child(options)
 	options.clear_notes_requested.connect(surface.clear_notes)
 	options.reset_layout_requested.connect(func() -> void:

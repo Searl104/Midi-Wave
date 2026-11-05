@@ -12,7 +12,7 @@ var _drop_at := Vector2.ZERO
 var _drop_name := ""
 var _name: LineEdit
 var _status: Label
-var _list: VBoxContainer
+var _list: FileTree
 var _open := {}                    # folders showing their contents
 
 
@@ -38,7 +38,7 @@ func build_options(box: VBoxContainer) -> void:
 	box.add_child(row)
 	_name = LineEdit.new()
 	_name.placeholder_text = "folder/name"
-	_name.max_length = Collections.NAME_MAX
+	_name.max_length = NamedFiles.NAME_MAX
 	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name.tooltip_text = "A name for the selected notes, used once. A slash puts it in a folder."
 	_name.text_changed.connect(_name_typed)
@@ -51,17 +51,18 @@ func build_options(box: VBoxContainer) -> void:
 	box.add_child(_status)
 	PanelBuilder.section(box, "COLLECTIONS", Palette.BLUE)
 	box.add_child(PanelBuilder.hint("Drag one onto the surface, or click one and then click the surface. Shift-click to place more."))
-	box.add_child(PanelBuilder.button("Open Collections Folder", func() -> void: OS.shell_open(Collections.folder()),
+	box.add_child(PanelBuilder.button("Open Collections Folder", func() -> void: OS.shell_open(NamedFiles.folder(Collections.DIR)),
 			"Shows the collection files in your file manager."))
-	_list = VBoxContainer.new()
-	_list.add_theme_constant_override("separation", 4)
+	_list = FileTree.new()
+	_list.open = _open
+	_list.make_row = _make_row
 	box.add_child(_list)
 	_rebuild_list()
 
 
 ## Keeps the field to characters a file name can use.
 func _name_typed(text: String) -> void:
-	var clean := Collections.cleaned(text)
+	var clean := NamedFiles.cleaned(text)
 	if clean != text:
 		var caret := _name.caret_column - (text.length() - clean.length())
 		_name.text = clean
@@ -79,10 +80,10 @@ func _save_pressed() -> void:
 
 ## Saves the selected notes. Returns what stopped it, or "".
 func save_selection(collection: String) -> String:
-	collection = Collections.normalised(collection)
+	collection = NamedFiles.normalised(collection)
 	var notes: Array = surface.notes.filter(func(o: Note) -> bool: return surface.selection.notes.has(o.id))
-	if Collections.problem(collection) != "":
-		return Collections.problem(collection)
+	if NamedFiles.problem(collection) != "":
+		return NamedFiles.problem(collection)
 	if notes.is_empty():
 		return "Select some notes first."
 	if Collections.exists(collection):
@@ -98,49 +99,18 @@ func save_selection(collection: String) -> String:
 
 
 func _rebuild_list() -> void:
-	for old in _list.get_children():
-		_list.remove_child(old)
-		old.queue_free()
-	var names := Collections.list()
-	if names.is_empty():
-		_list.add_child(PanelBuilder.hint("Nothing saved yet."))
-	_add_level(_list, "", Array(names))
+	_list.show_names(Collections.list())
 
 
-## Adds what's directly in `folder`: its folders, then its collections.
-func _add_level(box: VBoxContainer, folder: String, names: Array) -> void:
-	var inside := {}
-	var here: Array = []
-	for n in names:
-		var rest: String = n.trim_prefix(folder)
-		if "/" in rest:
-			inside[rest.get_slice("/", 0)] = true
-		else:
-			here.append(n)
-	for sub in inside:
-		var path: String = folder + sub + "/"
-		var open: bool = _open.get(path.trim_suffix("/"), false)
-		var row := CollectionFolder.new(sub, open)
-		row.pressed.connect(toggle_folder.bind(path.trim_suffix("/")))
-		box.add_child(row)
-		if open:
-			var indent := MarginContainer.new()
-			indent.add_theme_constant_override("margin_left", 14)
-			box.add_child(indent)
-			var level := VBoxContainer.new()
-			level.add_theme_constant_override("separation", 4)
-			indent.add_child(level)
-			_add_level(level, path, names.filter(func(n: String) -> bool: return n.begins_with(path)))
-	for n in here:
-		var row := CollectionRow.new(n, n == picked)
-		row.picked.connect(pick)
-		row.delete_confirmed.connect(delete)
-		box.add_child(row)
+func _make_row(collection: String) -> Control:
+	var row := CollectionRow.new(collection, collection == picked)
+	row.picked.connect(pick)
+	row.delete_confirmed.connect(delete)
+	return row
 
 
 func toggle_folder(folder: String) -> void:
-	_open[folder] = not _open.get(folder, false)
-	_rebuild_list()
+	_list.toggle(folder)
 
 
 ## Loads `collection` for placing, in this tool.

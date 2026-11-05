@@ -1,6 +1,6 @@
 class_name OptionsPanel
 extends PanelContainer
-## Slide-in options for the whole app, in four tabs: General, MIDI, Controls and Look. Settings that belong to a
+## Slide-in options for the whole app, in five tabs: General, MIDI, Controls, Layout and Look. Settings that belong to a
 ## tool are in its tool panel instead.
 
 signal clear_notes_requested
@@ -10,6 +10,8 @@ signal test_layout_requested
 const WIDTH := 330.0
 
 var mappings: MidiMappings
+var surface: WaveSurface
+var layouts: LayoutPanel
 
 var _slots: Array = []         ## a port picker per slot
 var _port_status: Label
@@ -44,6 +46,7 @@ func toggle() -> void:
 	else:
 		refresh_ports()
 		_refresh_controls()
+		layouts.refresh()
 		show()
 
 
@@ -73,26 +76,24 @@ func _build() -> void:
 	var box := _tab("General")
 	_build_midi(_tab("MIDI"))
 	_build_controls(_tab("Controls"))
+	_build_layout(_tab("Layout"))
 	_build_look(_tab("Look"))
 
 	PanelBuilder.section(box, "PREVIEW", Palette.BLUE)
 	PanelBuilder.check(box, "Play notes while hovering the pitch ring", "hover_preview")
 
 	PanelBuilder.section(box, "TIMING", Palette.ACCENT)
-	PanelBuilder.slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
+	var tempo := PanelBuilder.slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "bpm":                 # a layout can change it
+			tempo.value = Settings.bpm
+		elif key == "midi_slots":
+			refresh_ports())
 	box.add_child(PanelBuilder.hint("Waves cross one beat of space per beat, so the layout stays in time at any tempo."))
 
 	PanelBuilder.section(box, "DISPLAY", Palette.YELLOW)
 	PanelBuilder.check(box, "Colour-blind palette", "colorblind")
 	box.add_child(PanelBuilder.hint("Eight colour-blind safe sound colours; sounds 9-16 reuse them with a double outline. Hover a note for its sound number."))
-
-	PanelBuilder.section(box, "NOTES", Palette.TEXT_DIM)
-	var notes_row := HBoxContainer.new()
-	box.add_child(notes_row)
-	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface."))
-	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
-	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
-	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
 ## MIDI tab: where notes go, and the controller that plays them.
@@ -114,6 +115,22 @@ func _build_midi(box: VBoxContainer) -> void:
 
 	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
 	box.add_child(MidiInputControls.new())
+
+
+## Layout tab: saved layouts, and what replaces the surface.
+func _build_layout(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "SAVED LAYOUTS", Palette.YELLOW)
+	box.add_child(PanelBuilder.hint("A layout keeps the notes, tempo, divisions, sound volumes and lengths, ports and view. Loading it replaces all of those, and can't be undone."))
+	layouts = LayoutPanel.new()
+	layouts.surface = surface
+	box.add_child(layouts)
+	PanelBuilder.section(box, "NOTES", Palette.TEXT_DIM)
+	var notes_row := HBoxContainer.new()
+	box.add_child(notes_row)
+	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface."))
+	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
+	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
+	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
 ## Controls tab: a row per action, each learning the next MIDI message from the controller.

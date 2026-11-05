@@ -89,6 +89,14 @@ one. Picks are saved by port name. A port that isn't there stays picked and is l
 and Refresh opens it once it exists. Changing a sound's port sends a Panic first, so nothing is left
 held. Each sound has its own volume and note length.
 
+## Layouts
+
+**Options → Layout** saves the whole surface: notes, tempo, divisions, each sound's volume and length,
+ports and view. Names work as for collections, so a slash makes a folder. Saving with a used name
+asks to overwrite. Load and Delete in each row ask first, and neither can be undone. After a load the
+name field holds the layout's name, ready to save over. Files are in `user://layouts`, and **Open
+Layouts Folder** goes there. Clear all, Default layout and Test layout are on this tab too.
+
 ## Keys
 
 | Key | Action |
@@ -189,8 +197,8 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 
 The **Sound panel** sets a volume and a note length per sound: drag a knob, or scroll it in 5% steps for volume, and double-click to reset. Volume is continuous. Lengths run in eighth notes up to 4 beats.
 
-Options, MIDI tab: sound outputs and MIDI input. General tab: hover preview,
-tempo, colour-blind palette, and layouts. Settings that belong to a tool
+Options, MIDI tab: sound outputs and MIDI input. Layout tab: saved layouts and layout buttons. General tab: hover preview,
+tempo, and colour-blind palette. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
@@ -213,7 +221,7 @@ scripts/
   midi/midi_mappings.gd   MIDI messages that run app actions
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
-  surface/                undo_history, selection, snapping, surface_effects, demo_layout, collections
+  surface/                undo_history, selection, snapping, surface_effects, demo_layout, named_files, collections, layouts
   tools/                  One script per tool and ring, plus tool_manager and object_drag
   ui/main.gd              Builds the scene and HUD
   ui/wave_surface.gd      Holds the view and entities, runs the simulation, draws in order
@@ -222,7 +230,9 @@ scripts/
   ui/tool_panel.gd        The popup that holds a tool's options
   ui/panel_builder.gd     Sliders, buttons and other controls for the panels
   ui/collection_row.gd    A row in Paste Collection's list
-  ui/collection_folder.gd A folder in that list
+  ui/file_tree.gd         Saved names with collapsible folders
+  ui/folder_row.gd        A folder in that list
+  ui/layout_panel.gd      Saving and loading layouts, with ui/layout_row.gd
   ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
