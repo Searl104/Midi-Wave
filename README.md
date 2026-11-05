@@ -182,7 +182,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
 Options, MIDI tab: output slots and MIDI input. General tab: hover preview,
-input, tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
+tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.
