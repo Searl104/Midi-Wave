@@ -38,6 +38,7 @@ func _ready() -> void:
 	_tool_options()
 	_sequence()
 	_draw_delete()
+	_velocity()
 	_port_slots()
 	_collections()
 	_held_during_cooldown()
@@ -66,7 +67,7 @@ func _switching() -> void:
 	tools.tool_changed.connect(func(id: String) -> void: seen.append(id))
 	var modes: Array = []
 	tools.mode_changed.connect(func(editing: bool) -> void: modes.append(editing))
-	_check(tools.tools.size() == 11, "eleven tools")
+	_check(tools.tools.size() == 12, "twelve tools")
 	_check(tools.get_tool("pulse") == null, "no Pulse tool")
 	_check(tools.current_id() == "select", "starts on select")
 	tools.set_tool("nothing")
@@ -1132,7 +1133,7 @@ func _tool_options() -> void:
 		if item.has_options():
 			has.append(item.tool_id())
 	has.sort()
-	_check(has == ["bind", "channel", "collection", "grid", "pitch", "tap", "zoom"], "these tools have panels")
+	_check(has == ["bind", "channel", "collection", "grid", "pitch", "tap", "velocity", "zoom"], "these tools have panels")
 	for id in has:
 		var box := VBoxContainer.new()
 		add_child(box)
@@ -1695,6 +1696,136 @@ func _collections() -> void:
 	Collections.remove("Bad")
 	tools.set_tool("select")
 	surface.selection.clear()
+	surface.clear_notes()
+
+
+func _velocity() -> void:
+	var sent: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		if (m[0] & 0xF0) == 0x90:
+			sent.append(m)
+	Midi.message_sent.connect(spy)
+	var tool: VelocityTool = tools.get_tool("velocity")
+	var a := surface.add_object(Vector2(300, 300), 60, 0)
+	var b := surface.add_object(Vector2(500, 300), 62, 0)
+	surface.save_notes()
+	surface.history.end_group()
+	var oa := surface.get_note(a)
+	_check(oa.velocity == 100, "notes start at 100%")
+	# Scaling.
+	surface.set_note_velocity(a, 50)
+	oa.play(surface, 1.0, 0)
+	_check(sent[-1][2] == 64, "velocity scales a full hit")
+	oa.silence()
+	oa.play(surface, 0.5, 0)
+	_check(sent[-1][2] == 32, "and follows the wave")
+	oa.silence()
+	surface.set_note_velocity(a, 1)
+	oa.play(surface, 0.1, 0)
+	_check(sent[-1][2] == 1, "a low note still sounds")
+	oa.silence()
+	Settings.set_channel_volume(0, 0.5)
+	surface.set_note_velocity(a, 50)
+	oa.play(surface, 1.0, 0)
+	_check(sent[-1][2] == 32, "sound volume applies on top")
+	oa.silence()
+	Settings.set_channel_volume(0, 1.0)
+	surface.set_note_velocity(a, 0)
+	_check(oa.velocity == 1, "stops at 1")
+	surface.set_note_velocity(a, 300)
+	_check(oa.velocity == 100, "and 100")
+	# Saved, and shown.
+	surface.set_note_velocity(a, 40)
+	_check(oa.to_dict().velocity == 40 and "40%" in oa.hover_text(), "saved, and in the tooltip")
+	var copy := Note.new()
+	copy.load_dict(oa.to_dict(), Vector2.ZERO)
+	_check(copy.velocity == 40, "loads")
+	copy.load_dict({}, Vector2.ZERO)
+	_check(copy.velocity == 100, "older saves are 100%")
+	_check("%" not in surface.get_note(b).hover_text(), "100% isn't mentioned")
+	# Picking it: a tool and the ring option.
+	tools.set_tool("select")
+	tools.pick("velocity")
+	_check(tools.current == tool and tools.ring_option == tool, "it's both tool and ring option")
+	tools.pick("pitch")
+	_check(tools.current == tool and tools.ring_option.tool_id() == "pitch", "a plain ring option leaves the tool")
+	tools.pick("velocity")
+	# Stamp and drag.
+	Settings.velocity_stamp = 70.0
+	var at := surface.to_screen(oa.pos)
+	surface.history.end_group()
+	_press(MOUSE_BUTTON_LEFT, true, at)
+	_check(oa.velocity == 70, "a click stamps the panel's value")
+	var move := InputEventMouseMotion.new()
+	move.position = at + Vector2(0, -20)
+	tools.handle_input(move)
+	_check(oa.velocity == 80, "dragging up raises it")
+	move.position = at + Vector2(0, 40)
+	tools.handle_input(move)
+	_check(oa.velocity == 50, "dragging down lowers it")
+	_press(MOUSE_BUTTON_LEFT, false, at)
+	surface.undo()
+	_check(oa != null and surface.get_note(a).velocity == 40, "one undo")
+	oa = surface.get_note(a)
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(900, 700))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(900, 700))
+	_check(surface.notes.size() == 2, "empty space does nothing")
+	# A group.
+	surface.selection.notes = {a: true, b: true}
+	surface.set_note_velocity(a, 30)
+	surface.set_note_velocity(b, 60)
+	Settings.velocity_stamp = 50.0
+	_press(MOUSE_BUTTON_LEFT, true, at)
+	move.position = at + Vector2(0, -20)
+	tools.handle_input(move)
+	_press(MOUSE_BUTTON_LEFT, false, at)
+	_check(surface.get_note(a).velocity == 60 and surface.get_note(b).velocity == 60, "the selection follows")
+	surface.selection.clear()
+	Settings.velocity_stamp = 100.0
+	# The dial, in any tool.
+	tools.set_tool("select")
+	surface.history.end_group()
+	var ring_at := surface.to_screen(Vector2(300, 300))
+	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
+	_check(radial.visible and radial.dial and radial.outer_items.is_empty(), "right-click opens the dial")
+	_check(radial.dial_text == "60%", "showing the value")
+	var c: Vector2 = radial._center
+	_radial_move(c + Vector2(0, -100))               # the top is halfway
+	_check(surface.get_note(a).velocity == 50, "moving around it sets the value")
+	_radial_move(c + Vector2(100, 0))
+	_check(surface.get_note(a).velocity == 83, "clockwise is up")
+	_radial_move(c + Vector2(-5, 5))
+	_check(surface.get_note(a).velocity == 83, "the centre does nothing")
+	_radial_move(c + Vector2(-2, 100))
+	_check(surface.get_note(a).velocity == 1, "the gap goes to the nearer end")
+	_radial_move(c + Vector2(100, 0))
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(100, 0))
+	_check(not radial.visible and surface.get_note(a).velocity == 83, "release keeps it")
+	surface.undo()
+	_check(surface.get_note(a).velocity == 60, "the whole turn is one undo")
+	# Clicking without moving leaves it open.
+	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, ring_at)
+	_check(radial.visible and radial.dial, "a plain right-click stays open")
+	c = radial._center
+	var gui := InputEventMouseButton.new()
+	gui.button_index = MOUSE_BUTTON_LEFT
+	gui.pressed = true
+	gui.position = c + Vector2(0, -100)
+	radial._gui_input(gui)
+	_check(surface.get_note(a).velocity == 50, "a left click sets it")
+	gui.pressed = false
+	radial._gui_input(gui)
+	gui.pressed = true
+	gui.position = c + Vector2(400, 0)
+	radial._gui_input(gui)
+	_check(not radial.visible, "clicking off it closes")
+	tools.pick("pitch")
+	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
+	_check(not radial.dial and not radial.outer_items.is_empty(), "other rings are rings")
+	radial.close()
+	Midi.message_sent.disconnect(spy)
+	tools.set_tool("select")
 	surface.clear_notes()
 
 

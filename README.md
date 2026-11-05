@@ -15,11 +15,13 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Shift-click a note deletes it. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
 | Grid | Click a note or remote diamond to add or remove a grid origin. Drag from it to set the grid's reach (Alt: unsnapped); back onto it returns to automatic |
+| Velocity | Click a note to apply the value in its panel, then drag up or down to adjust it. The selection follows |
 | Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
-Pitch, Sound and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which
-ring a right-click on a note opens; a yellow bar marks the choice.
+Pitch, Sound, Velocity and Modifier sit on the bar too. Clicking one chooses which ring a right-click
+on a note opens, and a yellow bar marks the choice. Only Velocity is also a tool, so clicking it does
+both.
 
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
@@ -34,6 +36,7 @@ else. Esc closes it too.
 | Tap | Wave strength, reach and falloff curve |
 | Bind | MIDI input (also in Options) |
 | Grid | Clear All, snapping, divisions per beat and guides |
+| Velocity | The value a click applies |
 | Paste Collection | Save the selection under a name, and the list of collections |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
 | Sound | Default note length, and a Volume and a Length knob per sound. Volume scales velocity; Off silences notes, though relays still fire |
@@ -53,6 +56,7 @@ the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Sound:** 1-16.
+- **Velocity:** a dial. Move around it to set the value, and release to keep it.
 - **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
@@ -71,6 +75,12 @@ undo step. Delete is in each row and asks first; it can't be undone.
 Each collection is a JSON file in `user://collections`, which is
 `%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
 shows in the list, as its path is its name. **Open Collections Folder** in the panel goes straight there.
+
+## Velocity
+
+Each note has a velocity from 1 to 100%, default 100%. It's a share of the strength a hit arrives
+with, so distance still fades a note, and the sound's volume applies on top. A subtle tint rises from
+the bottom of the note to show it, and the tooltip gives the value when it's below 100%.
 
 ## MIDI output
 

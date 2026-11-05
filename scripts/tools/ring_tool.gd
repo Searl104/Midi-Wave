@@ -14,6 +14,7 @@ func section() -> int:
 
 func open(menu: RadialMenu, id: int, at: Vector2, hold: bool = false) -> void:
 	radial = menu
+	menu.dial = false
 	note_id = id
 	_prepare(at)
 	build()
@@ -27,6 +28,20 @@ func _prepare(_at: Vector2) -> void:
 
 ## Fills the radial menu's rings for the current state.
 func build() -> void:
+	pass
+
+
+## True if it's also a tool, picked like one as well as being the ring option.
+func acts_as_tool() -> bool:
+	return false
+
+
+## The ring's dial turned, 0-1.
+func pick_dial(_value: float) -> void:
+	pass
+
+
+func ring_closed() -> void:
 	pass
 
 

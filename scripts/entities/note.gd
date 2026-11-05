@@ -9,6 +9,7 @@ var id := 0
 var pos := Vector2.ZERO            ## world units
 var note := 60                     ## MIDI pitch
 var channel := 0
+var velocity := 100                ## 1-100: the share of a hit's strength it plays at
 var muted := false                 ## no sound and no pulse from waves
 var binding := ""                  ## what fires it: "kp0"-"kp9", "midi<note>", or "" for none
 var snap_note := ""                ## target last snapped to when dropped
@@ -77,6 +78,7 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	if old_slot > 0:
 		binding = "kp%d" % old_slot
 	muted = bool(d.get("muted", false))
+	velocity = clampi(int(d.get("velocity", 100)), 1, 100)
 	grid = Grid.new() if bool(d.get("grid", false)) else null
 	if grid:
 		grid.reach = maxf(float(d.get("grid_reach", 0.0)), 0.0)
@@ -108,7 +110,7 @@ func to_dict() -> Dictionary:
 		mods.append(m.to_dict())
 	return {
 		"x": pos.x, "y": pos.y, "note": note, "channel": channel, "mods": mods,
-		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "grid": grid != null, "grid_reach": grid.reach if grid else 0.0,
+		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "velocity": velocity, "grid": grid != null, "grid_reach": grid.reach if grid else 0.0,
 	}
 
 
@@ -152,10 +154,10 @@ func tap(surface: WaveSurface) -> void:
 
 
 func play(surface: WaveSurface, amp: float, now: int) -> void:
-	var velocity := clampi(roundi(amp * 127.0), 1, 127)
+	var midi_velocity := clampi(roundi(amp * velocity / 100.0 * 127.0), 1, 127)
 	if playing:
 		Midi.note_off(note, channel)
-	Midi.note_on(note, velocity, channel)
+	Midi.note_on(note, midi_velocity, channel)
 	playing = true
 	off_at = now + int(Settings.note_length_for(channel) * 1_000_000.0)
 	flash = maxf(flash, 0.35 + amp * 0.65)
@@ -200,6 +202,8 @@ func hover_text() -> String:
 		text += " · retrigger"
 	if muted:
 		text += " · muted"
+	if velocity < 100:
+		text += " · velocity %d%%" % velocity
 	for m in modifiers:
 		text += m.describe()
 	if r and r.emitter.own_reach > 0.0:
@@ -223,6 +227,16 @@ func _hollow() -> bool:
 	return muted or not sounds()
 
 
+## A subtle tint rising from the bottom of the note, as high as its velocity.
+func _draw_velocity_fill(surface: WaveSurface, p: Vector2, col: Color) -> void:
+	var r := RADIUS - 1.0
+	var top := asin(clampf(1.0 - 2.0 * velocity / 100.0, -1.0, 1.0))
+	var points := PackedVector2Array()
+	for i in 25:
+		points.append(p + Vector2.from_angle(lerpf(top, PI - top, i / 24.0)) * r)
+	surface.draw_colored_polygon(points, Color(col, 0.2))
+
+
 func draw(surface: WaveSurface, font: Font, now: int) -> void:
 	var p := surface.to_screen(pos)
 	var col := Palette.channel_color(channel)
@@ -239,6 +253,7 @@ func draw(surface: WaveSurface, font: Font, now: int) -> void:
 		surface.draw_circle(p, RADIUS * 0.35, Color(col, 0.18 if muted else 0.9))
 	else:
 		surface.draw_circle(p, RADIUS, Palette.GLASS.lerp(col, 0.12 + f * 0.35))                  # body
+		_draw_velocity_fill(surface, p, col)
 		surface.draw_arc(p, RADIUS - 6.0, PI * 1.05, PI * 1.6, 18, Color(1, 1, 1, 0.22), 2.0, true)  # highlight
 	surface.draw_arc(p, RADIUS, 0.0, TAU, 48, Color(col.lerp(Color.WHITE, f * 0.5), 0.45 if hollow else 1.0), 2.5, true)
 	if Palette.channel_marked(channel):

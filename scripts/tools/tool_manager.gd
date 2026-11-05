@@ -28,7 +28,7 @@ var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id();
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
 	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), CollectionTool.new(surface), PitchTool.new(surface),
-			ChannelTool.new(surface), ModifierTool.new(surface),
+			ChannelTool.new(surface), VelocityTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "sequence_settings": SequenceSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
@@ -54,10 +54,12 @@ func is_editing() -> bool:
 
 ## Picks a tool. Picking the active one lets it respond (Draw switches what it places).
 func pick(id: String) -> void:
-	if get_tool(id) is RingTool:
+	var ring := get_tool(id) as RingTool
+	if ring:
 		set_ring_option(id)
-		tool_changed.emit(current_id())
-		return
+		if not ring.acts_as_tool():
+			tool_changed.emit(current_id())
+			return
 	_spring_from = null
 	if id == current_id():
 		current.repick()
@@ -75,7 +77,7 @@ func set_ring_option(id: String) -> void:
 
 func set_tool(id: String) -> void:
 	var t := get_tool(id)
-	if t == null or t == current or t is RingTool:
+	if t == null or t == current or (t is RingTool and not t.acts_as_tool()):
 		return
 	surface.drag.end()
 	current.deactivate()
@@ -242,6 +244,12 @@ func attach_radial(menu: RadialMenu) -> void:
 	radial.center_chosen.connect(func(id: Variant) -> void:
 		if open_ring:
 			open_ring.pick_center(id))
+	radial.dial_changed.connect(func(value: float) -> void:
+		if open_ring:
+			open_ring.pick_dial(value))
+	radial.closed.connect(func() -> void:
+		if open_ring:
+			open_ring.ring_closed())
 	radial.hover_changed.connect(func(ring: String, id: Variant) -> void:
 		if open_ring:
 			open_ring.hovered(ring, id))

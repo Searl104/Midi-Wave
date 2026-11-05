@@ -454,6 +454,15 @@ func set_relay_sound(id: int, on: bool) -> void:
 	save_notes()
 
 
+## Sets a note's share of a hit's strength, 1-100.
+func set_note_velocity(id: int, value: int) -> void:
+	var o := get_note(id)
+	if o == null:
+		return
+	o.velocity = clampi(value, 1, 100)
+	save_notes()
+
+
 ## Sets how many steps a sequence has.
 func set_sequence_count(id: int, count: int) -> void:
 	var o := get_note(id)

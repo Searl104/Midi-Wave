@@ -7,12 +7,16 @@ extends Control
 ## stays down. Releasing over any item picks it and closes; releasing off the rings cancels. A
 ## release without moving leaves it open for clicking.
 ##
+## Dial mode replaces the rings with one large knob, for fine control over a single value. Moving
+## around it sets the value, by dragging or during a hold, and releasing a hold keeps it.
+##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 
 signal outer_chosen(id: Variant)
 signal inner_chosen(id: Variant)
 signal center_chosen(id: Variant)
 signal closed
+signal dial_changed(value: float)   ## 0-1
 signal hover_changed(ring: String, id: Variant)   ## pointer moved onto an item while open
 
 const CENTER_R := 30.0
@@ -22,6 +26,8 @@ const OUTER_R0 := 78.0
 const OUTER_R1 := 148.0
 const SOLO_R0 := 44.0
 const MOVE_SLOP := 6.0             ## px the pointer must move for a release to pick
+const DIAL_START := 0.75 * PI      ## the dial runs clockwise from lower left to lower right
+const DIAL_SWEEP := 1.5 * PI
 
 var title := ""
 var subtitle := ""
@@ -29,6 +35,10 @@ var outer_items: Array = []
 var inner_items: Array = []
 var center_item: Dictionary = {}
 var holding := false               ## the opening right-button press is still down
+var dial := false                  ## shows a dial instead of rings
+var dial_value := 0.0              ## 0-1
+var dial_text := ""
+var dial_color := Palette.BLUE
 
 
 var _center := Vector2.ZERO
@@ -37,6 +47,7 @@ var _moved := false
 var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
 var _open_t := 0.0
+var _dial_held := false
 
 
 func _ready() -> void:
@@ -100,6 +111,17 @@ func _segment(pos: Vector2, count: int) -> int:
 	return int(fposmod(a, TAU) / seg) % count
 
 
+## Turns the dial to the pointer. The centre does nothing, and the gap at the bottom counts as the
+## nearer end, so it can't jump across.
+func _turn_dial(pos: Vector2) -> void:
+	if pos.distance_to(_center) < CENTER_R:
+		return
+	var a := fposmod((pos - _center).angle() - DIAL_START, TAU)
+	if a > DIAL_SWEEP:
+		a = DIAL_SWEEP if a - DIAL_SWEEP < (TAU - DIAL_SWEEP) / 2.0 else 0.0
+	dial_changed.emit(a / DIAL_SWEEP)
+
+
 ## Moves the highlight to whatever is at `pos`.
 func hover_at(pos: Vector2) -> void:
 	_set_hover(_ring_at(pos))
@@ -146,7 +168,10 @@ func _input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion
 	if mm:
 		_moved = _moved or mm.position.distance_to(_press_pos) > MOVE_SLOP
-		hover_at(mm.position)
+		if dial and _moved:
+			_turn_dial(mm.position)
+		elif not dial:
+			hover_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
 	if mb == null:
@@ -154,22 +179,45 @@ func _input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
 		holding = false
 		if _moved:
-			activate(mb.position)
+			if not dial:
+				activate(mb.position)
 			close()
 	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 		get_viewport().set_input_as_handled()
-		if not activate(mb.position, true):
+		if dial:
+			_turn_dial(mb.position)
+		elif not activate(mb.position, true):
 			close()
 
 
 func _gui_input(event: InputEvent) -> void:
 	accept_event()
+	if dial:
+		_dial_input(event)
+		return
 	var mm := event as InputEventMouseMotion
 	if mm:
 		hover_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
 	if mb and mb.pressed and not activate(mb.position, true):
+		close()
+
+
+func _dial_input(event: InputEvent) -> void:
+	var mm := event as InputEventMouseMotion
+	if mm and _dial_held:
+		_turn_dial(mm.position)
+		return
+	var mb := event as InputEventMouseButton
+	if mb == null:
+		return
+	if not mb.pressed:
+		_dial_held = false
+	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.position.distance_to(_center) <= OUTER_R1 + 6.0:
+		_dial_held = true
+		_turn_dial(mb.position)
+	else:
 		close()
 
 
@@ -180,6 +228,8 @@ func _draw() -> void:
 	var font := get_theme_default_font()
 	draw_circle(_center, OUTER_R1 * k + 10.0, Color(0, 0, 0, 0.25 * k))   # soft shadow
 
+	if dial:
+		_draw_dial(k, font)
 	_draw_ring(outer_items, _outer_r0() * k, OUTER_R1 * k, "outer", 15, font)
 	if not inner_items.is_empty():
 		_draw_ring(inner_items, INNER_R0 * k, INNER_R1 * k, "inner", 12, font)
@@ -198,6 +248,17 @@ func _draw() -> void:
 	if subtitle != "":
 		draw_string(font, _center + Vector2(-OUTER_R1 - 40.0, OUTER_R1 * k + 24.0), subtitle,
 				HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0 + 80.0, 12, Palette.TEXT_DIM)
+
+
+func _draw_dial(k: float, font: Font) -> void:
+	var r := (OUTER_R1 - 22.0) * k
+	draw_circle(_center, OUTER_R1 * k, Color(Palette.GLASS, 0.94))
+	draw_arc(_center, r, DIAL_START, DIAL_START + DIAL_SWEEP, 80, Color(1, 1, 1, 0.14), 20.0, true)
+	var end := DIAL_START + DIAL_SWEEP * dial_value
+	draw_arc(_center, r, DIAL_START, end, 80, dial_color, 20.0, true)
+	var tick := Vector2.from_angle(end)
+	draw_line(_center + tick * (r - 16.0), _center + tick * (r + 13.0), Palette.TEXT, 3.0, true)
+	draw_string(font, _center + Vector2(-OUTER_R1, 11), dial_text, HORIZONTAL_ALIGNMENT_CENTER, OUTER_R1 * 2.0, 32, Palette.TEXT)
 
 
 func _draw_ring(items: Array, r0: float, r1: float, ring: String, font_size: int, font: Font) -> void:
