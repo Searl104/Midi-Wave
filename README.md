@@ -15,7 +15,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
 | Grid | Click a note or remote diamond to add or remove a grid origin. Drag from it to set the grid's reach (Alt: unsnapped); back onto it returns to automatic |
-| Paste Collection | Click to stamp the collection picked in its panel (Alt: free) |
+| Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
 Pitch, Channel and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which
@@ -65,8 +65,8 @@ selected diamonds.
 Select some notes, right-click Paste Collection, type a name and press Save. Each name can be used
 once, ignoring case. A slash puts it in a folder, so `patterns/shaker01` saves `shaker01.json` in
 `patterns`. Folders are made as needed, and go when their last collection is deleted. The name field
-only takes characters a Windows file name can use. Drag a row onto the surface in any tool, or click it, then click the surface to
-stamp copies. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
+only takes characters a Windows file name can use. Drag a row onto the surface in any tool, or click it, then click the surface to place
+it. Shift-click keeps it loaded to place more. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
 undo step. Delete is in each row and asks first; it can't be undone.
 
 Each collection is a JSON file in `user://collections`, which is

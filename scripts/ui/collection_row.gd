@@ -35,7 +35,7 @@ func _init(collection_name: String, chosen: bool) -> void:
 	handle.clip_text = true
 	handle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	handle.focus_mode = Control.FOCUS_NONE
-	handle.tooltip_text = "Click to stamp it on the surface, or drag it there."
+	handle.tooltip_text = "Click to load it for placing, or drag it onto the surface."
 	handle.toggle_mode = true
 	handle.button_pressed = chosen
 	handle.pressed.connect(func() -> void: picked.emit(collection))

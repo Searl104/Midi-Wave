@@ -1,10 +1,10 @@
 class_name CollectionTool
 extends Tool
 ## Paste Collection. Its panel saves the selection under a new name and lists the collections. Click
-## a row to pick it, then click the surface to stamp copies (Alt places freely), or drag a row
-## onto the surface. Pasted notes become the selection.
+## a row to load it, then click the surface to place it (Shift keeps it loaded to place more, Alt
+## places freely), or drag a row onto the surface. Pasted notes become the selection.
 
-var picked := ""                   ## the collection left-clicks stamp
+var picked := ""                   ## the loaded collection, which a click places
 var _items: Array = []             # the picked collection
 var _ghosts: Array = []            # [note, offset] to draw it
 var _drop_ghosts: Array = []       # the same for a row being dragged
@@ -50,7 +50,7 @@ func build_options(box: VBoxContainer) -> void:
 	_status.hide()
 	box.add_child(_status)
 	PanelBuilder.section(box, "COLLECTIONS", Palette.BLUE)
-	box.add_child(PanelBuilder.hint("Drag one onto the surface, or click one and then click the surface to stamp copies."))
+	box.add_child(PanelBuilder.hint("Drag one onto the surface, or click one and then click the surface. Shift-click to place more."))
 	box.add_child(PanelBuilder.button("Open Collections Folder", func() -> void: OS.shell_open(Collections.folder()),
 			"Shows the collection files in your file manager."))
 	_list = VBoxContainer.new()
@@ -143,7 +143,7 @@ func toggle_folder(folder: String) -> void:
 	_rebuild_list()
 
 
-## Makes `collection` what clicks stamp, in this tool.
+## Loads `collection` for placing, in this tool.
 func pick(collection: String) -> void:
 	picked = collection
 	_items = Collections.read(collection)
@@ -152,12 +152,16 @@ func pick(collection: String) -> void:
 	surface.tools.close_panel.emit()
 
 
+func _unload() -> void:
+	picked = ""
+	_items = []
+	_ghosts = []
+
+
 func delete(collection: String) -> void:
 	Collections.remove(collection)
 	if collection == picked:
-		picked = ""
-		_items = []
-		_ghosts = []
+		_unload()
 	surface.tools.notice.emit("Deleted %s" % collection)
 	_rebuild_list()
 
@@ -212,9 +216,11 @@ func handle_input(event: InputEvent) -> bool:
 		return false
 	if mb.pressed:
 		if picked == "":
-			surface.tools.notice.emit("Pick a collection: right-click this tool")
+			surface.tools.notice.emit("Load a collection: right-click this tool")
 		else:
 			place(_items, mb.position, mb.alt_pressed)
+			if not mb.shift_pressed:
+				_unload()
 	return true
 
 

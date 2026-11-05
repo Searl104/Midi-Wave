@@ -1603,13 +1603,23 @@ func _collections() -> void:
 	tools.set_tool("select")
 	tool.pick("kits/Bells 1")
 	_check(tools.current == tool, "picking a row switches to the tool")
-	_press(MOUSE_BUTTON_LEFT, true, Vector2(500, 300))
-	_press(MOUSE_BUTTON_LEFT, false, Vector2(500, 300))
+	var shift_click := InputEventMouseButton.new()
+	shift_click.button_index = MOUSE_BUTTON_LEFT
+	shift_click.pressed = true
+	shift_click.shift_pressed = true
+	shift_click.position = Vector2(500, 300)
+	tool.handle_input(shift_click)
+	_check(surface.notes.size() == before + 2 and tool.picked == "kits/Bells 1", "Shift-click places it and keeps it loaded")
 	_press(MOUSE_BUTTON_LEFT, true, Vector2(700, 500))
 	_press(MOUSE_BUTTON_LEFT, false, Vector2(700, 500))
-	_check(surface.notes.size() == before + 4, "each click stamps a copy")
+	_check(surface.notes.size() == before + 4 and tool.picked == "", "a plain click places it and clears it")
+	_check(tool._ghosts.is_empty(), "and the ghost goes")
+	_press(MOUSE_BUTTON_LEFT, true, Vector2(300, 700))
+	_press(MOUSE_BUTTON_LEFT, false, Vector2(300, 700))
+	_check(surface.notes.size() == before + 4 and tools.current == tool, "the next click places nothing, in the same tool")
 	surface.undo()
 	surface.undo()
+	tool.pick("kits/Bells 1")
 	# The panel.
 	var box := VBoxContainer.new()
 	add_child(box)
