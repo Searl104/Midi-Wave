@@ -1,8 +1,7 @@
 class_name VelocityTool
-extends RingTool
-## Sets how loudly notes play, as a share of the wave that hits them. Both a tool and a ring option:
-## a click stamps the value in its panel on a note, and a drag up or down adjusts it, along with the
-## rest of the selection. Its ring is a dial, which right-click opens in any tool when it's chosen.
+extends Tool
+## Sets how loudly notes play, as a share of the wave that hits them. A click stamps the value in its
+## panel on a note, and a drag up or down adjusts it, along with the rest of the selection.
 
 const DRAG_PIXELS := 2.0           ## px of drag per 1%
 
@@ -19,8 +18,8 @@ func title() -> String:
 	return "Velocity"
 
 
-func acts_as_tool() -> bool:
-	return true
+func section() -> int:
+	return 1
 
 
 func has_options() -> bool:
@@ -31,8 +30,6 @@ func build_options(box: VBoxContainer) -> void:
 	PanelBuilder.slider(box, "Click sets", "velocity_stamp", 1.0, 100.0, 1.0, func(v: float) -> String: return "%d%%" % v)
 	box.add_child(PanelBuilder.hint("Click a note to apply this, then drag up or down to adjust it."))
 
-
-# --- The tool -------------------------------------------------------------------------------
 
 func handle_input(event: InputEvent) -> bool:
 	var mb := event as InputEventMouseButton
@@ -83,39 +80,6 @@ func draw_overlay(canvas: WaveSurface) -> void:
 	if o:
 		canvas.draw_string(canvas.get_theme_default_font(), canvas.to_screen(o.pos) + Vector2(-40, -Note.RADIUS - 22.0),
 				"%d%%" % o.velocity, HORIZONTAL_ALIGNMENT_CENTER, 80, 13, Palette.TEXT)
-
-
-# --- The ring -------------------------------------------------------------------------------
-
-func _prepare(_at: Vector2) -> void:
-	surface.history.end_group()
-	surface.history.set_stroke(true)
-
-
-func build() -> void:
-	var o := surface.get_note(note_id)
-	radial.outer_items = []
-	radial.inner_items = []
-	radial.center_item = {}
-	radial.title = "Velocity"
-	radial.subtitle = ""
-	radial.dial = true
-	if o:
-		radial.dial_value = o.velocity / 100.0
-		radial.dial_text = "%d%%" % o.velocity
-		radial.dial_color = Palette.channel_color(o.channel)
-	radial.refresh()
-
-
-func pick_dial(value: float) -> void:
-	for id in surface.selection.group_for(note_id):
-		surface.set_note_velocity(id, roundi(value * 100.0))
-	build()
-
-
-func ring_closed() -> void:
-	surface.history.set_stroke(false)
-	surface.history.end_group()
 
 
 func draw_icon(canvas: CanvasItem, c: Vector2, ink: Color) -> void:

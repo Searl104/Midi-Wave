@@ -19,9 +19,8 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
-Pitch, Sound, Velocity and Modifier sit on the bar too. Clicking one chooses which ring a right-click
-on a note opens, and a yellow bar marks the choice. Only Velocity is also a tool, so clicking it does
-both.
+Pitch, Sound and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which ring
+a right-click on a note opens; a yellow bar marks the choice.
 
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
@@ -56,7 +55,6 @@ the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Sound:** 1-16.
-- **Velocity:** a dial. Move around it to set the value, and release to keep it.
 - **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same

@@ -31,12 +31,7 @@ func build() -> void:
 	pass
 
 
-## True if it's also a tool, picked like one as well as being the ring option.
-func acts_as_tool() -> bool:
-	return false
-
-
-## The ring's dial turned, 0-1.
+## A ring can show a dial for one fine value: build() sets radial.dial. This is its turn, 0-1.
 func pick_dial(_value: float) -> void:
 	pass
 

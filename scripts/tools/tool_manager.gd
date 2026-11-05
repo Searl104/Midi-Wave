@@ -27,8 +27,8 @@ var _settings_rings: Dictionary = {}   # rings tabs open, by Modifier.ring_id();
 
 func _init(owner_surface: WaveSurface) -> void:
 	surface = owner_surface
-	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), CollectionTool.new(surface), PitchTool.new(surface),
-			ChannelTool.new(surface), VelocityTool.new(surface), ModifierTool.new(surface),
+	tools = [TapTool.new(surface), SelectTool.new(surface), DrawTool.new(surface), BindTool.new(surface), GridTool.new(surface), VelocityTool.new(surface), CollectionTool.new(surface), PitchTool.new(surface),
+			ChannelTool.new(surface), ModifierTool.new(surface),
 			PanTool.new(surface), ZoomTool.new(surface)]
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "sequence_settings": SequenceSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
@@ -54,12 +54,10 @@ func is_editing() -> bool:
 
 ## Picks a tool. Picking the active one lets it respond (Draw switches what it places).
 func pick(id: String) -> void:
-	var ring := get_tool(id) as RingTool
-	if ring:
+	if get_tool(id) is RingTool:
 		set_ring_option(id)
-		if not ring.acts_as_tool():
-			tool_changed.emit(current_id())
-			return
+		tool_changed.emit(current_id())
+		return
 	_spring_from = null
 	if id == current_id():
 		current.repick()
@@ -77,7 +75,7 @@ func set_ring_option(id: String) -> void:
 
 func set_tool(id: String) -> void:
 	var t := get_tool(id)
-	if t == null or t == current or (t is RingTool and not t.acts_as_tool()):
+	if t == null or t == current or t is RingTool:
 		return
 	surface.drag.end()
 	current.deactivate()

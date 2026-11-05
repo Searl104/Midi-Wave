@@ -1748,13 +1748,10 @@ func _velocity() -> void:
 	copy.load_dict({}, Vector2.ZERO)
 	_check(copy.velocity == 100, "older saves are 100%")
 	_check("%" not in surface.get_note(b).hover_text(), "100% isn't mentioned")
-	# Picking it: a tool and the ring option.
+	# It's a plain tool.
 	tools.set_tool("select")
 	tools.pick("velocity")
-	_check(tools.current == tool and tools.ring_option == tool, "it's both tool and ring option")
-	tools.pick("pitch")
-	_check(tools.current == tool and tools.ring_option.tool_id() == "pitch", "a plain ring option leaves the tool")
-	tools.pick("velocity")
+	_check(tools.current == tool and tools.ring_option.tool_id() != "velocity", "it's a tool, not a ring option")
 	# Stamp and drag.
 	Settings.velocity_stamp = 70.0
 	var at := surface.to_screen(oa.pos)
@@ -1787,47 +1784,44 @@ func _velocity() -> void:
 	_check(surface.get_note(a).velocity == 60 and surface.get_note(b).velocity == 60, "the selection follows")
 	surface.selection.clear()
 	Settings.velocity_stamp = 100.0
-	# The dial, in any tool.
 	tools.set_tool("select")
-	surface.history.end_group()
-	var ring_at := surface.to_screen(Vector2(300, 300))
-	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
-	_check(radial.visible and radial.dial and radial.outer_items.is_empty(), "right-click opens the dial")
-	_check(radial.dial_text == "60%", "showing the value")
+	surface.selection.clear()
+	# The dial stays available to rings.
+	var turns: Array = []
+	var on_turn := func(v: float) -> void: turns.append(roundi(v * 100.0))
+	radial.dial_changed.connect(on_turn)
+	radial.outer_items = []
+	radial.inner_items = []
+	radial.center_item = {}
+	radial.open(Vector2(600, 400), true)
+	radial.dial = true
 	var c: Vector2 = radial._center
-	_radial_move(c + Vector2(0, -100))               # the top is halfway
-	_check(surface.get_note(a).velocity == 50, "moving around it sets the value")
+	_radial_move(c + Vector2(0, -100))
 	_radial_move(c + Vector2(100, 0))
-	_check(surface.get_note(a).velocity == 83, "clockwise is up")
 	_radial_move(c + Vector2(-5, 5))
-	_check(surface.get_note(a).velocity == 83, "the centre does nothing")
 	_radial_move(c + Vector2(-2, 100))
-	_check(surface.get_note(a).velocity == 1, "the gap goes to the nearer end")
-	_radial_move(c + Vector2(100, 0))
-	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(100, 0))
-	_check(not radial.visible and surface.get_note(a).velocity == 83, "release keeps it")
-	surface.undo()
-	_check(surface.get_note(a).velocity == 60, "the whole turn is one undo")
-	# Clicking without moving leaves it open.
-	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
-	_radial_press(MOUSE_BUTTON_RIGHT, false, ring_at)
-	_check(radial.visible and radial.dial, "a plain right-click stays open")
-	c = radial._center
+	_check(turns == [50, 83, 0], "moving around the dial turns it, the centre doesn't, and the gap takes the nearer end")
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(-2, 100))
+	_check(not radial.visible, "releasing a hold closes it")
+	radial.open(c, false)
+	radial.dial = true
 	var gui := InputEventMouseButton.new()
 	gui.button_index = MOUSE_BUTTON_LEFT
 	gui.pressed = true
 	gui.position = c + Vector2(0, -100)
 	radial._gui_input(gui)
-	_check(surface.get_note(a).velocity == 50, "a left click sets it")
+	_check(turns[-1] == 50, "a left click sets it")
 	gui.pressed = false
 	radial._gui_input(gui)
 	gui.pressed = true
 	gui.position = c + Vector2(400, 0)
 	radial._gui_input(gui)
 	_check(not radial.visible, "clicking off it closes")
+	radial.dial_changed.disconnect(on_turn)
+	radial.dial = false
 	tools.pick("pitch")
-	_press(MOUSE_BUTTON_RIGHT, true, ring_at)
-	_check(not radial.dial and not radial.outer_items.is_empty(), "other rings are rings")
+	_press(MOUSE_BUTTON_RIGHT, true, surface.to_screen(Vector2(300, 300)))
+	_check(not radial.dial and not radial.outer_items.is_empty(), "rings stay rings")
 	radial.close()
 	Midi.message_sent.disconnect(spy)
 	tools.set_tool("select")
