@@ -261,7 +261,7 @@ scons target=template_release
 scons platform=windows use_mingw=yes target=template_release
 ```
 
-Export: open in Godot 4.4+, Project → Export → Windows Desktop. The extension DLL is copied next to the exe.
+Export: open in Godot 4.7.2, Project → Export → Windows Desktop. The extension DLL is copied next to the exe.
 
 ## How the wave works
 

@@ -1,6 +1,6 @@
 # MIDI Wave: notes for Claude
 
-Godot 4.4 app: a liquid surface where waves trigger MIDI notes. The user runs it on Windows with loopMIDI.
+Godot 4.7.2 app: a liquid surface where waves trigger MIDI notes. The user runs it on Windows with loopMIDI.
 The spec lives in the editable doc **MIDI Wave Spec**: https://claude.ai/artifact/9KPPqbxemAgocHncR9TQVA
 (the claude.ai project file `claude/midi-wave-spec.md` only points there). Read it before changing behavior.
 
@@ -9,7 +9,8 @@ this `channel`, and every note is sent on real MIDI channel 1 of its Sound's por
 
 ## Dev environment setup
 
-**Editor.** Godot 4.4 or newer (`project.godot` targets 4.4, GL Compatibility renderer). Open the repo folder
+**Editor.** Godot 4.7.2 stable, GL Compatibility renderer. `project.godot` still carries the older `4.4`
+feature tag, and godot-cpp is still pinned to `4.4` (see below), until both are bumped. Open the repo folder
 as a project and run `scenes/main.tscn` (the main scene). The two autoloads are `Settings`
 (`scripts/core/settings.gd`) and `Midi` (`scripts/midi/midi_out.gd`).
 
