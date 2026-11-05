@@ -189,7 +189,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 - **Tidal**: dark, glossy sand ripples on a plane below the water, in the scan's own (darkened) colour, with caustic light dancing across them. The sand pans at 65% of the surface's rate, like a sea floor. Ripples refract it and passing waves make its highlights flare. Texture maps from Poly Haven's *Aerial Beach 01* (CC0).
 - **Glass**: the original flat dark glass.
 
-The **Sound panel** sets a volume and a note length per sound: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
+The **Sound panel** sets a volume and a note length per sound: drag a knob, or scroll it in 5% steps for volume, and double-click to reset. Volume is continuous. Lengths run in eighth notes up to 4 beats.
 
 Options, MIDI tab: sound outputs and MIDI input. General tab: hover preview,
 tempo, colour-blind palette, and layouts. Settings that belong to a tool

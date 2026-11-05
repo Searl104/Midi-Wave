@@ -13,13 +13,14 @@ const DRAG_PIXELS := 150.0         ## drag this far for the full range
 
 var min_value := 0.0
 var max_value := 1.0
-var step := 0.05
+var step := 0.05                   ## what values snap to; 0 is continuous
+var wheel_step := 0.0              ## a scroll notch, if not `step`
 var reset_value := 0.0
 var color := Color.WHITE
 var fmt: Callable
 var value := 0.0:
 	set(v):
-		var snapped_v := clampf(snappedf(v, step), min_value, max_value)
+		var snapped_v := clampf(snappedf(v, step) if step > 0.0 else v, min_value, max_value)
 		if not is_equal_approx(snapped_v, value):
 			value = snapped_v
 			value_changed.emit(value)
@@ -53,9 +54,9 @@ func _gui_input(event: InputEvent) -> void:
 				if mb.double_click:
 					value = reset_value
 			MOUSE_BUTTON_WHEEL_UP:
-				value += step
+				value += _notch()
 			MOUSE_BUTTON_WHEEL_DOWN:
-				value -= step
+				value -= _notch()
 		accept_event()
 		return
 	var mm := event as InputEventMouseMotion
@@ -63,6 +64,10 @@ func _gui_input(event: InputEvent) -> void:
 		_dragged = clampf(_dragged - mm.relative.y / DRAG_PIXELS * (max_value - min_value), min_value, max_value)
 		value = _dragged
 		accept_event()
+
+
+func _notch() -> float:
+	return wheel_step if wheel_step > 0.0 else step
 
 
 func _notification(what: int) -> void:

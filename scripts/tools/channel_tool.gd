@@ -50,7 +50,8 @@ func _channel_cell(grid: GridContainer, ch: int) -> Array:
 	var volume := Knob.new()
 	volume.min_value = 0.0
 	volume.max_value = 1.0
-	volume.step = 0.05
+	volume.step = 0.0                # continuous
+	volume.wheel_step = 0.05
 	volume.reset_value = 1.0
 	volume.color = Palette.channel_color(ch)
 	volume.fmt = func(v: float) -> String: return "Off" if v <= 0.0 else "%d%%" % roundi(v * 100.0)

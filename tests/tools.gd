@@ -1246,6 +1246,11 @@ func _channel_volume() -> void:
 	free.relative = Vector2(0, 60)
 	volume._gui_input(free)
 	_check(volume.value == 0.5, "only with the button held")
+	move.relative = Vector2(0, 3)
+	volume._gui_input(move)
+	_check(is_equal_approx(volume.value, 0.48), "volume is continuous")
+	move.relative = Vector2(0, -3)
+	volume._gui_input(move)
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
 	wheel.pressed = true
