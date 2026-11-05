@@ -16,7 +16,7 @@ func add_splash(pos: Vector2, color: Color, strength: float) -> void:
 
 
 ## Briefly flashes an object's brackets, to show where an action landed.
-func flash_brackets(o: SurfaceObject) -> void:
+func flash_brackets(o: Note) -> void:
 	if o:
 		bracket_flashes.append({"pos": o.pos, "half": o.bracket_half(), "t": 0.0})
 
@@ -44,7 +44,7 @@ func _age(items: Array, delta: float, life: float) -> void:
 func draw_splashes(surface: WaveSurface) -> void:
 	for sp in splashes:
 		var k: float = sp.t / SPLASH_TIME
-		var rr := SurfaceObject.RADIUS + 46.0 * ease(k, 0.4)
+		var rr := Note.RADIUS + 46.0 * ease(k, 0.4)
 		surface.draw_arc(surface.to_screen(sp.pos), rr, 0.0, TAU, 64, Color(sp.color, (1.0 - k) * 0.6 * sp.strength), 2.0, true)
 
 
@@ -57,4 +57,4 @@ func draw_bracket_flashes(surface: WaveSurface) -> void:
 func draw_touch_flashes(surface: WaveSurface) -> void:
 	for tf in touch_flashes:
 		var k: float = tf.t / TOUCH_FLASH_TIME
-		surface.draw_arc(surface.to_screen(tf.pos), SurfaceObject.RADIUS + 6.0 + 22.0 * k, 0.0, TAU, 40, Color(1, 1, 1, 0.5 * (1.0 - k)), 2.0, true)
+		surface.draw_arc(surface.to_screen(tf.pos), Note.RADIUS + 6.0 + 22.0 * k, 0.0, TAU, 40, Color(1, 1, 1, 0.5 * (1.0 - k)), 2.0, true)

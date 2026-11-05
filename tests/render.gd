@@ -21,15 +21,22 @@ func _ready() -> void:
 	var b := s.add_note_at(Vector2(400, 200), 64, 2)
 	var c := s.add_note_at(Vector2(600, 200), 67, 12)
 	var r := s.add_note_at(Vector2(300, 400), 72, 1)
-	s.set_note_mode(r, SurfaceObject.Mode.RELAY)
+	s.add_modifier(r, "relay")
+	s.set_relay_sound(r, false)
 	s.set_pulse_params(r, 0.8, 4.0)
 	var r2 := s.add_note_at(Vector2(700, 400), 72, 5)
-	s.set_note_mode(r2, SurfaceObject.Mode.RELAY)
-	s.set_modifier(b, "toggle")
-	s.set_modifier(c, "toggle")
-	s.set_modifier_state(c, false)
-	s.toggle_slot(a, 3)
-	s.toggle_slot(c, 9)
+	s.add_modifier(r2, "relay")
+	s.set_relay_sound(r2, false)
+	var sounding := s.add_note_at(Vector2(520, 500), 69, 4)
+	s.add_modifier(sounding, "relay")
+	s.add_modifier(sounding, "sequence")
+	s.add_modifier(b, "sequence")
+	s.add_modifier(c, "sequence")
+	s.set_sequence_count(c, 7)
+	s.set_sequence_step(c, 0, false)
+	s.set_sequence_step(c, 3, false)
+	s.set_binding(a, "kp3")
+	s.set_binding(c, "midi36")
 	s.set_pulse_params(r2, 0.6, 1.0)
 	s.get_note(r2).muted = true
 	_detach(s, r2, Vector2(900, 550))
@@ -64,8 +71,4 @@ func _detach(s: WaveSurface, id: int, world: Vector2) -> void:
 
 
 func _grid(s: WaveSurface, note: int, handle: int) -> void:
-	s._hover_id = note
-	s._hover_handle = handle
-	s.snapping.toggle_at_hover()
-	s._hover_id = -1
-	s._hover_handle = -1
+	s.snapping.toggle_grid(s.get_note(handle if note == -1 else note), note == -1)

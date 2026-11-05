@@ -9,7 +9,9 @@ var options: OptionsPanel
 var status_label: Label
 var hint_label: Label
 var toolbar: Toolbar
+var tool_panel: ToolPanel
 var midi_in: MidiInput
+var mappings: MidiMappings
 
 
 func _ready() -> void:
@@ -35,21 +37,36 @@ func _ready() -> void:
 	add_child(surface)
 	surface.tools.mode_changed.connect(_on_mode_changed)
 	surface.tools.tool_changed.connect(_on_tool_changed)
+	surface.tools.notice.connect(_toast)
 
 	_build_hud()
 
 	toolbar = Toolbar.new()
 	toolbar.surface = surface
 	add_child(toolbar)
-	_draw_tool().place_type = SurfaceObject.Mode.RELAY if int(Settings.draw_type) == SurfaceObject.Mode.RELAY else SurfaceObject.Mode.NOTE
-	surface.tools.set_tool(Settings.tool)
+	tool_panel = ToolPanel.new()
+	tool_panel.toolbar = toolbar
+	surface.tools.close_panel.connect(tool_panel.close)
+	toolbar.panel = tool_panel
+	add_child(tool_panel)
+	surface.tools.set_ring_option(Settings.ring_option)
+	surface.tools.set_tool("tap" if Settings.tool == "wave" else Settings.tool)   # "wave" is the old name
 
+	mappings = MidiMappings.new(surface)
+	mappings.triggered.connect(_run_action)
 	options = OptionsPanel.new()
+	options.mappings = mappings
+	options.surface = surface
 	add_child(options)
 	options.clear_notes_requested.connect(surface.clear_notes)
 	options.reset_layout_requested.connect(func() -> void:
 		surface.clear_notes()
 		surface.seed_default_layout())
+	options.test_layout_requested.connect(func() -> void:
+		var demo := DemoLayout.new()
+		surface.load_layout(demo.layout)
+		for id in demo.starters:
+			surface.trigger_note(id))
 
 	radial = RadialMenu.new()
 	var glass_mat := ShaderMaterial.new()
@@ -61,16 +78,14 @@ func _ready() -> void:
 
 	midi_in = MidiInput.new()
 	add_child(midi_in)
-	midi_in.slot_pressed.connect(surface.press_slot)
-	midi_in.slot_released.connect(surface.release_slot)
-	midi_in.learned.connect(func(base: int) -> void:
-		_toast("Pads: key 1 = %s, keys 2-9 follow" % MidiMessage.note_name(base)))
-	options.midi_learn_requested.connect(func() -> void:
-		midi_in.learning = true
-		_toast("Hit the pad for keypad key 1"))
+	midi_in.note_pressed.connect(func(pitch: int) -> void:
+		if mappings.listening == "":                    # otherwise the note is being learned
+			surface.tools.binding_pressed("midi%d" % pitch))
+	midi_in.note_released.connect(func(pitch: int) -> void: surface.tools.binding_released("midi%d" % pitch))
+	midi_in.message_received.connect(mappings.receive)
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
-	_reopen_last_port()
+	Midi.apply_slots()
 	_update_status()
 
 
@@ -114,25 +129,25 @@ func _apply_look_params() -> void:
 
 func _on_mode_changed(editing: bool) -> void:
 	surface.tools.close_ring()
-	_toast(surface.tools.current.title() if editing else "Wave  ·  layout locked")
+	_toast(surface.tools.current.title() if editing else "Tap  ·  layout locked")
 
 
 func _on_tool_changed(_t: String) -> void:
 	surface.tools.close_ring()
 	if toolbar:
 		toolbar.queue_redraw()
-	Settings.set_value("tool", surface.tools.current_id())
-	Settings.set_value("draw_type", _draw_tool().place_type)
+	if not surface.tools.springing():
+		Settings.set_value("tool", surface.tools.current_id())
+	Settings.set_value("ring_option", surface.tools.ring_option.tool_id())
 
 
-func _draw_tool() -> DrawTool:
-	return surface.tools.get_tool("draw")
-
-
-## The Save state button: toggles' current states become their start states.
-func _save_state() -> void:
-	surface.save_state()
-	_toast("Start states saved")
+## A mapped MIDI message arrived.
+func _run_action(action: String) -> void:
+	match action:
+		"stop":
+			surface.stop()
+		"panic":
+			Midi.panic()
 
 
 var _toast_label: Label
@@ -161,12 +176,11 @@ func _toast(text: String) -> void:
 	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.5)
 
 
-func _reopen_last_port() -> void:
-	if Settings.midi_port == "" or not Midi.has_native_backend():
-		return
-	var idx := Midi.list_ports().find(Settings.midi_port)
-	if idx != -1:
-		Midi.open_port(idx)
+func _notification(what: int) -> void:
+	# A button released while the window is unfocused never arrives.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and surface:
+		surface.tools.end_spring()
+		surface.release_all_bindings()
 
 
 # --- HUD -------------------------------------------------------------------------------
@@ -193,16 +207,9 @@ func _build_hud() -> void:
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(status_label)
 
-	var save := Button.new()
-	save.text = "Save state"
-	save.tooltip_text = "Make every toggle's current state its start state"
-	save.focus_mode = Control.FOCUS_NONE
-	save.pressed.connect(_save_state)
-	top.add_child(save)
-
 	var stop := Button.new()
 	stop.text = "Stop"
-	stop.tooltip_text = "Clear every wave and return to the save state"
+	stop.tooltip_text = "Clear every wave and return sequences to step 1 (Space, KP Enter)"
 	stop.focus_mode = Control.FOCUS_NONE
 	stop.pressed.connect(func() -> void: surface.stop())
 	top.add_child(stop)
@@ -228,9 +235,12 @@ func _build_hud() -> void:
 func _update_status() -> void:
 	var text := "    "
 	if Midi.is_open():
-		text += "→ " + Midi.current_port_name()
+		var ports := Midi.open_ports()
+		text += "→ " + (ports[0] if ports.size() == 1 else "%d ports" % ports.size())
+		if not Midi.missing_ports().is_empty():
+			text += " · %d not found" % Midi.missing_ports().size()
 	elif Midi.has_native_backend():
-		text += "no MIDI output · open Options to pick a port"
+		text += "no MIDI output · pick ports in Options"
 	else:
 		text += "log-only mode (MIDI extension not loaded)"
 	status_label.text = text

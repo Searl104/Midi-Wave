@@ -1,16 +1,14 @@
 class_name PitchTool
 extends RingTool
-## Outer ring = the scale's notes, inner ring = octave, centre = delete. With no object it places
-## a new one, and later picks retune it. Hovering a pitch can preview it.
-
-const DIGIT_WINDOW_MS := 600       ## time allowed for the second digit of a channel number
+## Outer ring = the scale's notes, inner ring = octave. With no object it places
+## a new one, and later picks retune it. Hovering a pitch can preview it. On a selected note, a pick
+## moves the rest of the selection by the same scale steps, so a chord keeps its shape; an octave
+## moves everything by the same octaves. A note that would leave the MIDI range stays put.
 
 var _pos := Vector2.ZERO
 var _octave := 4
 var _channel := 0
 var _pitch := -1                   # the current pitch, -1 = none yet
-var _digit_first := -1             # first digit of a possible 10-16, or -1
-var _digit_time := 0
 var _previewed := -1
 
 
@@ -22,9 +20,20 @@ func title() -> String:
 	return "Pitch"
 
 
+func has_options() -> bool:
+	return true
+
+
+func build_options(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "SCALE", Palette.YELLOW)
+	PanelBuilder.pick(box, "Root", "root_note", range(Scales.ROOT_NAMES.size()), Scales.ROOT_NAMES)
+	var names: Array = Array(Scales.names())
+	PanelBuilder.pick(box, "Scale", "scale_name", names, names)
+	box.add_child(PanelBuilder.hint("Sets the notes the ring shows. Existing notes keep their pitch."))
+
+
 func _prepare(at: Vector2) -> void:
 	_pos = at
-	_digit_first = -1
 	_previewed = -1
 	var current := surface.last_pitch
 	_channel = surface.last_channel
@@ -35,7 +44,7 @@ func _prepare(at: Vector2) -> void:
 		_channel = o.channel
 		_pitch = o.note
 	_octave = clampi(Scales.octave_of(current, Settings.root_note), 1, 7)
-	radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED} if o else {}
+	radial.center_item = {}
 
 
 func build() -> void:
@@ -46,11 +55,8 @@ func build() -> void:
 	radial.inner_items = []
 	for o in range(1, 8):
 		radial.inner_items.append({"id": o, "label": str(o), "color": Palette.YELLOW, "selected": o == _octave})
-	var ch_text := "ch %d" % (_channel + 1)
-	if _digit_first != -1 and Time.get_ticks_msec() - _digit_time <= DIGIT_WINDOW_MS:
-		ch_text += "…"                  # waiting for a second digit (10-16)
-	radial.title = "%s %s · octave %d · %s" % [
-		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _octave, ch_text]
+	radial.title = "%s %s · octave %d · sound %d" % [
+		Scales.ROOT_NAMES[Settings.root_note], Settings.scale_name, _octave, _channel + 1]
 	radial.subtitle = ""
 	radial.refresh()
 
@@ -69,8 +75,8 @@ func pick_outer(id: Variant) -> void:
 	if note_id == -1:
 		# Placed. Further picks retune this object.
 		note_id = surface.add_note_at(_pos, pitch, _channel)
-		radial.center_item = {"id": "delete", "label": "Del", "color": Palette.RED}
 	else:
+		_shift_others(_scale_steps(_pitch, pitch))
 		surface.set_note_pitch(note_id, pitch)
 		if surface.get_note(note_id).channel != _channel:
 			surface.set_note_channel(note_id, _channel)
@@ -84,17 +90,6 @@ func pick_inner(id: Variant) -> void:
 	set_octave(id)
 
 
-func pick_center(id: Variant) -> void:
-	if note_id != -1 and id == "delete":
-		surface.remove_note(note_id)
-		radial.close()                   # nothing left to edit
-
-
-## Moves up or down an octave.
-func step_octave(direction: int) -> void:
-	set_octave(_octave + direction)
-
-
 ## The note keeps its letter (A, C#, ...) and moves to the new octave.
 func set_octave(octave: int) -> void:
 	var old := _octave
@@ -106,30 +101,36 @@ func set_octave(octave: int) -> void:
 			if note_id != -1 and surface.get_note(note_id):
 				surface.set_note_pitch(note_id, moved)
 				Midi.play_note(moved, 90, 0.25, _channel)
+				for id in _others():
+					var other := surface.get_note(id).note + 12 * (_octave - old)
+					if other >= 0 and other <= 127:
+						surface.set_note_pitch(id, other)
 	build()
 
 
-## Two-digit channel typing: 1-9 apply at once; a quick second digit makes 10-16
-## (1 then 2 = 12); any other second digit starts over.
-func type_digit(d: int) -> void:
-	var now := Time.get_ticks_msec()
-	if _digit_first != -1 and now - _digit_time <= DIGIT_WINDOW_MS:
-		var v := _digit_first * 10 + d
-		_digit_first = -1
-		if v >= 10 and v <= 16:
-			_channel = v - 1
-			build()
-			return
-	if d >= 1 and d <= 9:
-		_channel = d - 1
-		_digit_first = d if d == 1 else -1     # only "1" can start 10-16
-		_digit_time = now
-		build()
-		if _digit_first != -1:
-			# Show "ch 1…" while a second digit can still follow, then settle on "ch 1".
-			surface.get_tree().create_timer(DIGIT_WINDOW_MS / 1000.0 + 0.02).timeout.connect(func() -> void:
-				if radial.visible and surface.tools.open_ring == self and Time.get_ticks_msec() - _digit_time > DIGIT_WINDOW_MS:
-					build())
+## The rest of the selection, if the ring is on a selected note.
+func _others() -> Array:
+	return surface.selection.group_for(note_id).filter(func(id: int) -> bool: return id != note_id)
+
+
+## How many scale steps lie between two pitches, signed.
+func _scale_steps(from: int, to: int) -> int:
+	var dir := 1 if to > from else -1
+	var steps := 0
+	var p := from
+	while p != to and p >= 0 and (to - p) * dir > 0:
+		p = Scales.step(p, dir, Settings.root_note, Settings.scale_name)
+		steps += dir
+	return steps
+
+
+func _shift_others(steps: int) -> void:
+	if steps == 0:
+		return
+	for id in _others():
+		var moved := Scales.step(surface.get_note(id).note, steps, Settings.root_note, Settings.scale_name)
+		if moved >= 0:
+			surface.set_note_pitch(id, moved)
 
 
 ## A quaver.
