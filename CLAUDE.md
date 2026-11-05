@@ -35,6 +35,12 @@ Settings and the note layout save to `%APPDATA%\Godot\app_userdata\MIDI Wave\set
 environment has no MIDI hardware, so MIDI behavior can't be heard here; check it by reading the code and
 the logged messages, and say so when something couldn't be tested.
 
+## Required reading
+
+Before starting work, read the claude.ai project doc **Working with Direction**
+(`claude/working-with-direction.md`), which covers how decisions, requests and testing work here.
+Open issues are in `claude/open-issues.md`.
+
 ## Keep the Windows DLLs built and committed
 
 The MIDI output extension's Windows DLLs are committed in `addons/midi_out/bin/`, so a fresh clone works
