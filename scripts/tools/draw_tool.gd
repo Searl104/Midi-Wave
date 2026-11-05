@@ -4,6 +4,7 @@ extends Tool
 ## position before release, as one undo step). It snaps like a moved note; Alt places freely.
 ## Existing notes and diamonds can still be dragged, and the ghost hides over them. Rings on empty
 ## space set the brush, and Ctrl-click copies a note into it. Ctrl-drag from a diamond sets reach.
+## Shift-click deletes a note, and places nothing on empty space.
 ## The brush is a real Note kept off the surface, so rings edit it like any other.
 
 var brush := Note.new()
@@ -62,7 +63,12 @@ func handle_input(event: InputEvent) -> bool:
 
 func _press(mb: InputEventMouseButton) -> void:
 	var hit := surface.pick_at(mb.position)
-	if mb.ctrl_pressed:
+	if mb.shift_pressed:
+		if not hit.is_empty() and hit[0] == "note":
+			surface.history.end_group()
+			surface.remove_note(hit[1])
+			surface.history.end_group()
+	elif mb.ctrl_pressed:
 		if not hit.is_empty() and hit[0] == "note":
 			pick_up(hit[1])
 		elif not hit.is_empty():

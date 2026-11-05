@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_sequence()
+	_draw_delete()
 	_port_slots()
 	_collections()
 	_held_during_cooldown()
@@ -1694,6 +1695,32 @@ func _collections() -> void:
 	Collections.remove("Bad")
 	tools.set_tool("select")
 	surface.selection.clear()
+	surface.clear_notes()
+
+
+func _draw_delete() -> void:
+	tools.set_tool("draw")
+	var a := surface.add_object(Vector2(300, 300), 60, 0)
+	var b := surface.add_object(Vector2(500, 300), 62, 0)
+	surface.save_notes()
+	surface.history.end_group()
+	var click := func(at: Vector2, shift: bool) -> void:
+		for down in [true, false]:
+			var e := InputEventMouseButton.new()
+			e.button_index = MOUSE_BUTTON_LEFT
+			e.pressed = down
+			e.shift_pressed = shift
+			e.position = at
+			tools.handle_input(e)
+	click.call(surface.to_screen(Vector2(300, 300)), true)
+	_check(surface.get_note(a) == null and surface.get_note(b) != null and surface.notes.size() == 1, "Shift-click deletes that note")
+	surface.undo()
+	_check(surface.get_note(a) != null, "and undoes")
+	click.call(surface.to_screen(Vector2(700, 600)), true)
+	_check(surface.notes.size() == 2, "on empty space it places nothing")
+	click.call(surface.to_screen(Vector2(700, 600)), false)
+	_check(surface.notes.size() == 3, "without Shift it places")
+	tools.set_tool("select")
 	surface.clear_notes()
 
 

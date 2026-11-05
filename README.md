@@ -12,7 +12,7 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 |---|---|
 | Tap | Empty space: start a wave. A note: play it alone, with no wave. Tapping counts as a hit, so sequences apply, and it overrides mute. A relay fires its pulse. Diamonds don't react: the click goes through to what's under them |
 | Select and Move | Click a note or diamond to select it (Shift adds or removes); clicking one of a group narrows to it. Drag to move (Alt: free). Drag on empty space for a box (Shift adds). Ctrl-drag from a diamond sets its relay's reach |
-| Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Ctrl-drag from a diamond sets reach |
+| Draw | A ghost note shows the brush. Press to place a note, then drag to position it (Alt: free). Notes and diamonds can still be dragged. Ctrl-click a note copies it into the brush. Shift-click a note deletes it. Ctrl-drag from a diamond sets reach |
 | Bind | Click a note to arm it, then press KP0-9 or hit a MIDI note. Delete clears its binding; Esc or empty space cancels |
 | Grid | Click a note or remote diamond to add or remove a grid origin. Drag from it to set the grid's reach (Alt: unsnapped); back onto it returns to automatic |
 | Paste Collection | Click to place the collection loaded from its panel, which clears it. Shift-click keeps it loaded (Alt: free) |
