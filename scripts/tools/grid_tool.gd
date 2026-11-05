@@ -36,6 +36,8 @@ func build_options(box: VBoxContainer) -> void:
 	PanelBuilder.pick(box, "Spokes per grid", "spoke_count", Settings.SPOKE_OPTIONS,
 			Settings.SPOKE_OPTIONS.map(func(c: int) -> String: return "None" if c == 0 else str(c)))
 	PanelBuilder.pick(box, "Guides extend to", "guides_to_edge", [true, false], ["Window edge", "Wave reach"])
+	PanelBuilder.pick(box, "Divisions per beat", "divisions", Settings.DIVISION_OPTIONS,
+			Settings.DIVISION_OPTIONS.map(func(d: int) -> String: return str(d)))
 	PanelBuilder.check(box, "Division rings", "guide_divisions")
 	PanelBuilder.slider(box, "Guide brightness", "guide_brightness", 0.3, 1.5, 0.05, func(v: float) -> String: return "%d%%" % roundi(v * 100))
 

@@ -33,7 +33,7 @@ else. Esc closes it too.
 |---|---|
 | Tap | Wave strength, reach and falloff curve |
 | Bind | MIDI input (also in Options) |
-| Grid | Clear All, snapping and guides |
+| Grid | Clear All, snapping, divisions per beat and guides |
 | Paste Collection | Save the selection under a name, and the list of collections |
 | Pitch | Root and scale. These set what the ring shows; existing notes keep their pitch |
 | Channel | Default note length, and a Volume and a Length knob per channel. Volume scales velocity; Off silences notes, though relays still fire |
@@ -182,7 +182,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
 Options, MIDI tab: output slots and MIDI input. General tab: hover preview,
-tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
+tempo, colour-blind palette, and layouts. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
 `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`.

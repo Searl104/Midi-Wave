@@ -80,8 +80,6 @@ func _build() -> void:
 
 	PanelBuilder.section(box, "TIMING", Palette.ACCENT)
 	PanelBuilder.slider(box, "Tempo", "bpm", 40.0, 240.0, 1.0, func(v: float) -> String: return "%d BPM" % v)
-	PanelBuilder.pick(box, "Divisions per beat", "divisions", Settings.DIVISION_OPTIONS,
-			Settings.DIVISION_OPTIONS.map(func(d: int) -> String: return str(d)))
 	box.add_child(PanelBuilder.hint("Waves cross one beat of space per beat, so the layout stays in time at any tempo."))
 
 	PanelBuilder.section(box, "DISPLAY", Palette.YELLOW)
