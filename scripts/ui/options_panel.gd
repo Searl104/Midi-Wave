@@ -11,7 +11,7 @@ const WIDTH := 330.0
 
 var mappings: MidiMappings
 
-var _ports: OptionButton
+var _slots: Array = []         ## a port picker per slot
 var _port_status: Label
 
 
@@ -74,12 +74,9 @@ func _build() -> void:
 	_build_look(_tab("Look"))
 
 	PanelBuilder.section(box, "MIDI OUTPUT", Palette.BLUE)
-	_ports = OptionButton.new()
-	_ports.clip_text = true
-	_ports.fit_to_longest_item = false
-	_ports.tooltip_text = "The port MIDI Wave sends notes to, such as your loopMIDI port."
-	_ports.item_selected.connect(_on_port_selected)
-	box.add_child(_ports)
+	box.add_child(PanelBuilder.hint("Each of the 16 note colours sends to its own port, always on channel 1. Slots can share a port."))
+	for slot in Midi.SLOTS:
+		_slots.append(_slot_row(box, slot))
 	var port_row := HBoxContainer.new()
 	box.add_child(port_row)
 	_port_status = Label.new()
@@ -88,8 +85,8 @@ func _build() -> void:
 	_port_status.add_theme_font_size_override("font_size", 12)
 	_port_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	port_row.add_child(_port_status)
-	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports."))
-	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all channels."))
+	port_row.add_child(PanelBuilder.button("Refresh", refresh_ports, "Looks for MIDI output ports, and opens any that slots are waiting for."))
+	port_row.add_child(PanelBuilder.button("Panic", Midi.panic, "Stops every sounding note on all ports."))
 	PanelBuilder.check(box, "Play notes while hovering the pitch ring", "hover_preview")
 
 	PanelBuilder.section(box, "MIDI INPUT", Palette.BLUE)
@@ -248,36 +245,67 @@ func _show_look_box() -> void:
 		_look_boxes[look_name].visible = look_name == Settings.look
 
 
+## A slot's colour, number and port picker.
+func _slot_row(box: VBoxContainer, slot: int) -> OptionButton:
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var dot := ColorRect.new()
+	dot.color = Palette.channel_color(slot)
+	dot.custom_minimum_size = Vector2(6, 22)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dot)
+	var number := Label.new()
+	number.text = str(slot + 1)
+	number.custom_minimum_size.x = 22
+	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	row.add_child(number)
+	var picker := OptionButton.new()
+	picker.clip_text = true
+	picker.fit_to_longest_item = false
+	picker.focus_mode = Control.FOCUS_NONE
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker.tooltip_text = "The port notes of this colour send to, on channel 1."
+	picker.item_selected.connect(func(i: int) -> void: Midi.set_slot(slot, picker.get_item_metadata(i)))
+	row.add_child(picker)
+	return picker
+
+
+## Rebuilds the pickers from the ports there are now, and opens what's now available.
 func refresh_ports() -> void:
-	_ports.clear()
-	if not Midi.has_native_backend():
-		_ports.add_item("MIDI extension not loaded")
-		_ports.disabled = true
-	else:
-		var names := Midi.list_ports()
-		if names.is_empty():
-			_ports.add_item("No MIDI outputs found")
-			_ports.disabled = true
-		else:
-			_ports.disabled = false
-			for n in names:
-				_ports.add_item(n)
-			_ports.select(names.find(Settings.midi_port) if Midi.is_open() else -1)
+	Midi.apply_slots()
+	var names := Midi.list_ports()
+	for slot in Midi.SLOTS:
+		var picker: OptionButton = _slots[slot]
+		var port: String = Settings.midi_slots[slot]
+		picker.clear()
+		picker.add_item("None")
+		picker.set_item_metadata(0, "")
+		for n in names:
+			picker.add_item(n)
+			picker.set_item_metadata(-1 + picker.item_count, n)
+		if port != "" and not names.has(port):   # keep it, in case it comes back
+			picker.add_item(port + " (not found)")
+			picker.set_item_metadata(picker.item_count - 1, port)
+		var selected := 0
+		for i in picker.item_count:
+			if picker.get_item_metadata(i) == port:
+				selected = i
+		picker.select(selected)
+		picker.disabled = not Midi.has_native_backend()
 	_update_port_status()
 
 
-func _on_port_selected(index: int) -> void:
-	if Midi.open_port(index):
-		Settings.set_value("midi_port", Midi.current_port_name())
-
-
 func _update_port_status() -> void:
-	if Midi.is_open():
-		_port_status.text = "Sending to " + Midi.current_port_name()
-	elif Midi.has_native_backend():
-		_port_status.text = "No port open. Pick one above (e.g. your loopMIDI port)."
-	else:
+	if not Midi.has_native_backend():
 		_port_status.text = "Log-only mode."
+		return
+	var missing := Midi.missing_ports()
+	if not missing.is_empty():
+		_port_status.text = "Not found: " + ", ".join(missing)
+	elif Midi.is_open():
+		_port_status.text = "Sending to " + ", ".join(Midi.open_ports())
+	else:
+		_port_status.text = "Pick a port for each colour you use (e.g. your loopMIDI ports)."
 
 
 # --- Builders -----------------------------------------------------------------------

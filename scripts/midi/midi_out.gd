@@ -6,99 +6,133 @@ extends Node
 ## (built from native/). If that extension isn't built yet, every message
 ## is printed to the Output panel instead, so the rest of the app still works.
 
+##
+## Notes are numbered 0-15 by slot, which is what their colour shows. Each slot picks a port in
+## Options, and every message goes out on channel 1 of its slot's port. Slots can share a port.
+
 signal port_changed(port_name: String)
-signal message_sent(bytes: PackedByteArray)
+signal message_sent(bytes: PackedByteArray)     ## as addressed to a slot, before routing
 
 const NATIVE_CLASS := "MidiOutDevice"
+const SLOTS := 16
 
-## Channel used when a call passes channel = -1. 0-15.
+## Slot used when a call passes channel = -1. 0-15.
 var default_channel := 0
 ## Print messages when no port is open (always true without the native backend).
 var log_when_closed := true
 
-var _device: Object = null
-var _port_name := ""
+var device_factory: Callable           ## makes a device; tests swap this for a fake
+var _probe: Object = null              # lists ports, and is never opened
+var _open := {}                        # port name -> open device
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if ClassDB.class_exists(NATIVE_CLASS):
-		_device = ClassDB.instantiate(NATIVE_CLASS)
+		device_factory = func() -> Object: return ClassDB.instantiate(NATIVE_CLASS)
+		_probe = device_factory.call()
 	else:
 		push_warning("MIDI: native extension not built; messages will be logged only. See README.md.")
 
 
 func _exit_tree() -> void:
 	panic()
-	close_port()
+	for port in _open.keys():
+		_close(port)
+
+
+## Replaces the backend, for tests.
+func use_backend(factory: Callable) -> void:
+	for port in _open.keys():
+		_close(port)
+	device_factory = factory
+	_probe = factory.call() if factory.is_valid() else null
 
 
 # --- Ports ---------------------------------------------------------------
 
 func has_native_backend() -> bool:
-	return _device != null
+	return _probe != null
 
 
 func backend_name() -> String:
-	if _device == null:
+	if _probe == null:
 		return "log only"
-	return _device.get_api_name()
+	return _probe.get_api_name()
 
 
 func list_ports() -> PackedStringArray:
 	var names := PackedStringArray()
-	if _device == null:
+	if _probe == null:
 		return names
-	for i in _device.get_port_count():
-		names.append(_device.get_port_name(i))
+	for i in _probe.get_port_count():
+		names.append(_probe.get_port_name(i))
 	return names
 
 
-func open_port(index: int) -> bool:
-	if _device == null:
-		return false
-	close_port()
-	if not _device.open_port(index):
-		return false
-	_port_name = _device.get_port_name(index)
-	port_changed.emit(_port_name)
-	return true
+## Opens every port a slot wants, and closes the rest.
+func apply_slots() -> void:
+	var wanted := {}
+	for port in Settings.midi_slots:
+		if port != "":
+			wanted[port] = true
+	for port in _open.keys():
+		if not wanted.has(port):
+			_close(port)
+	var names := list_ports()
+	for port in wanted:
+		var index := names.find(port)
+		if _open.has(port) or index == -1 or _probe == null:
+			continue
+		var device: Object = device_factory.call()
+		if device.open_port(index):
+			_open[port] = device
+	port_changed.emit("")
 
 
-## Creates a port other apps can connect to (macOS / Linux only).
-func open_virtual_port(port_name: String = "Godot MIDI Driver") -> bool:
-	if _device == null:
-		return false
-	close_port()
-	if not _device.open_virtual_port(port_name):
-		return false
-	_port_name = port_name + " (virtual)"
-	port_changed.emit(_port_name)
-	return true
+## Points a slot at a port, or at nothing with "". Silences first, as a note held through the change
+## would never get its Note Off.
+func set_slot(slot: int, port: String) -> void:
+	panic()
+	Settings.midi_slots[slot] = port
+	Settings.set_value("midi_slots", Settings.midi_slots)
+	apply_slots()
 
 
-func close_port() -> void:
-	if _device != null and _device.is_port_open():
-		_device.close_port()
-	if _port_name != "":
-		_port_name = ""
-		port_changed.emit("")
+func _close(port: String) -> void:
+	if _open[port].is_port_open():
+		_open[port].close_port()
+	_open.erase(port)
 
 
 func is_open() -> bool:
-	return _device != null and _device.is_port_open()
+	return not _open.is_empty()
 
 
-func current_port_name() -> String:
-	return _port_name
+func open_ports() -> PackedStringArray:
+	return PackedStringArray(_open.keys())
+
+
+## Ports a slot wants that aren't open.
+func missing_ports() -> PackedStringArray:
+	var out := PackedStringArray()
+	for port in Settings.midi_slots:
+		if port != "" and not _open.has(port) and not out.has(port):
+			out.append(port)
+	return out
 
 
 # --- Sending -------------------------------------------------------------
 
+## Sends a channel message to the port of the slot in its channel bits, on channel 1.
 func send(bytes: PackedByteArray) -> void:
-	if is_open():
-		_device.send_message(bytes)
-	elif log_when_closed:
+	var slot := bytes[0] & 0x0F
+	var device: Object = _open.get(Settings.midi_slots[slot])
+	if device:
+		var routed := bytes.duplicate()
+		routed[0] = bytes[0] & 0xF0
+		device.send_message(routed)
+	elif log_when_closed and not is_open():
 		print("[MIDI] ", MidiMessage.describe(bytes))
 	message_sent.emit(bytes)
 
@@ -140,11 +174,16 @@ func all_notes_off(channel: int = -1) -> void:
 	send(MidiMessage.control_change(_resolve(channel), MidiMessage.CC_ALL_NOTES_OFF, 0))
 
 
-## All notes off + all sound off on every channel. Use when something sticks.
+## All notes off + all sound off on every channel of every open port. Use when something sticks.
 func panic() -> void:
 	for ch in 16:
-		send(MidiMessage.control_change(ch, MidiMessage.CC_ALL_NOTES_OFF, 0))
-		send(MidiMessage.control_change(ch, MidiMessage.CC_ALL_SOUND_OFF, 0))
+		for cc in [MidiMessage.CC_ALL_NOTES_OFF, MidiMessage.CC_ALL_SOUND_OFF]:
+			var bytes := MidiMessage.control_change(ch, cc, 0)
+			for port in _open:
+				_open[port].send_message(bytes)
+			if not is_open() and log_when_closed:
+				print("[MIDI] ", MidiMessage.describe(bytes))
+			message_sent.emit(bytes)
 
 
 func _resolve(channel: int) -> int:

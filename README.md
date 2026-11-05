@@ -73,6 +73,14 @@ Each collection is a JSON file in `user://collections`, which is
 `%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
 shows in the list, as its path is its name. **Open Collections Folder** in the panel goes straight there.
 
+## MIDI output
+
+**Options → General → MIDI Output** has 16 slots, one per note colour. Each has a dropdown of the
+system's ports, and every note goes out on channel 1 of its slot's port, so one port carries one
+voice. Slots can share a port, and None silences a slot. Picks are saved by port name. A port that
+isn't there stays picked and is listed as not found, and Refresh opens it once it exists. Changing a
+slot sends a Panic first, so nothing is left held. Volume and note length still go by colour.
+
 ## Keys
 
 | Key | Action |
@@ -173,7 +181,7 @@ Hover and selection are drawn as white corner brackets (thin for hover, bright f
 
 The **Channel panel** sets a volume and a note length per MIDI channel: drag or scroll a knob, and double-click to reset. Lengths run in eighth notes up to 4 beats.
 
-Options (General tab): MIDI output port (remembered and reopened on launch), hover preview, MIDI
+Options (General tab): MIDI output slots, hover preview, MIDI
 input, tempo, divisions per beat, colour-blind palette, and layouts. Settings that belong to a tool
 are in its panel. The scale sets what the pitch ring shows, and a nudge lands on the current scale,
 but changing it doesn't touch existing notes. Settings and the note layout save automatically to
@@ -181,7 +189,7 @@ but changing it doesn't touch existing notes. Settings and the note layout save 
 
 ## Routing on Windows
 
-Run loopMIDI, create a port, pick it in Options → MIDI Output, and enable the same port as an
+Run loopMIDI, create a port, pick it for a slot in Options → MIDI Output, and enable the same port as an
 input on an armed instrument track in your DAW.
 
 ## Project layout

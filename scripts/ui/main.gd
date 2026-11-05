@@ -84,7 +84,7 @@ func _ready() -> void:
 	midi_in.message_received.connect(mappings.receive)
 
 	Midi.port_changed.connect(func(_n: String) -> void: _update_status())
-	_reopen_last_port()
+	Midi.apply_slots()
 	_update_status()
 
 
@@ -182,14 +182,6 @@ func _notification(what: int) -> void:
 		surface.release_all_bindings()
 
 
-func _reopen_last_port() -> void:
-	if Settings.midi_port == "" or not Midi.has_native_backend():
-		return
-	var idx := Midi.list_ports().find(Settings.midi_port)
-	if idx != -1:
-		Midi.open_port(idx)
-
-
 # --- HUD -------------------------------------------------------------------------------
 
 func _build_hud() -> void:
@@ -242,9 +234,12 @@ func _build_hud() -> void:
 func _update_status() -> void:
 	var text := "    "
 	if Midi.is_open():
-		text += "→ " + Midi.current_port_name()
+		var ports := Midi.open_ports()
+		text += "→ " + (ports[0] if ports.size() == 1 else "%d ports" % ports.size())
+		if not Midi.missing_ports().is_empty():
+			text += " · %d not found" % Midi.missing_ports().size()
 	elif Midi.has_native_backend():
-		text += "no MIDI output · open Options to pick a port"
+		text += "no MIDI output · pick ports in Options"
 	else:
 		text += "log-only mode (MIDI extension not loaded)"
 	status_label.text = text

@@ -11,7 +11,7 @@ const LEGACY_SIZE := Vector2(1280, 800)   ## window size used to convert version
 const DIVISION_OPTIONS := [1, 2, 3, 4, 6, 8]
 const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
-	"root_note", "scale_name", "midi_port", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
+	"root_note", "scale_name", "midi_port", "midi_slots", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
 	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
@@ -33,7 +33,8 @@ var falloff_curve := 1.6        ## 1 = linear, higher = drops faster near the so
 var note_beats := 0.5           ## how long a note is held, in beats: a tempo-locked Default
 var root_note := 0              ## 0-11, C = 0
 var scale_name := "Minor Pentatonic"
-var midi_port := ""             ## last opened output port, reopened on launch
+var midi_port := ""             ## the single output port of older saves, moved to the slots on load
+var midi_slots: Array = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]   ## output port per slot
 var notes: Array = []           ## [{x, y, note, channel, mode, ...}] in world units
 var view_offset := Vector2.ZERO ## world position of the window's top-left corner
 var layout_version := LAYOUT_VERSION
@@ -222,6 +223,11 @@ func load_settings() -> void:
 	_migrate_note_lengths(cfg)
 	if not midi_mappings is Dictionary:
 		midi_mappings = MidiMappings.DEFAULTS.duplicate()
+	midi_slots.resize(16)
+	midi_slots = midi_slots.map(func(p: Variant) -> String: return "" if p == null else str(p))
+	if midi_port != "":                  # older saves: everything stays on that port
+		midi_slots.fill(midi_port)
+		midi_port = ""
 	if channel_volumes.size() != 16:
 		channel_volumes.resize(16)
 		channel_volumes = channel_volumes.map(func(v: Variant) -> float: return 1.0 if v == null else float(v))

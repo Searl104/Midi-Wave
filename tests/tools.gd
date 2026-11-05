@@ -37,6 +37,7 @@ func _ready() -> void:
 	_grid_tool()
 	_tool_options()
 	_sequence()
+	_port_slots()
 	_collections()
 	_held_during_cooldown()
 	_midi_controls()
@@ -1300,6 +1301,109 @@ func _channel_volume() -> void:
 	Midi.message_sent.disconnect(spy)
 	surface.stop()
 	surface.clear_notes()
+
+
+## Stands in for the native device.
+class FakeDevice:
+	extends RefCounted
+	static var opened: Array = []
+	var port := ""
+	var sent: Array = []
+	var names := ["Bass", "Keys", "Drums"]
+
+	func get_port_count() -> int:
+		return names.size()
+
+	func get_port_name(i: int) -> String:
+		return names[i]
+
+	func get_api_name() -> String:
+		return "fake"
+
+	func open_port(i: int) -> bool:
+		port = names[i]
+		opened.append(self)
+		return true
+
+	func is_port_open() -> bool:
+		return port != ""
+
+	func close_port() -> void:
+		port = ""
+
+	func send_message(bytes: PackedByteArray) -> bool:
+		sent.append(bytes)
+		return true
+
+
+func _device(port: String) -> FakeDevice:
+	for d in FakeDevice.opened:
+		if d.port == port:
+			return d
+	return null
+
+
+func _port_slots() -> void:
+	var saved: Array = Settings.midi_slots
+	Settings.midi_slots = saved.duplicate()
+	Settings.midi_slots.fill("")
+	FakeDevice.opened.clear()
+	Midi.use_backend(func() -> Object: return FakeDevice.new())
+	_check(not Midi.is_open() and Midi.has_native_backend(), "no ports open at first")
+	Midi.set_slot(0, "Bass")
+	Midi.set_slot(5, "Keys")
+	Midi.set_slot(6, "Keys")
+	Midi.set_slot(7, "Gone")
+	_check(Array(Midi.open_ports()) == ["Bass", "Keys"], "ports open as slots want them")
+	_check(FakeDevice.opened.size() == 2, "two slots share one device")
+	_check(Array(Midi.missing_ports()) == ["Gone"], "a port that isn't there is reported")
+	var bass := _device("Bass")
+	var keys := _device("Keys")
+	bass.sent.clear()
+	keys.sent.clear()
+	Midi.note_on(60, 100, 0)
+	Midi.note_on(62, 100, 5)
+	Midi.note_off(62, 6)
+	_check(bass.sent.size() == 1 and bass.sent[0] == PackedByteArray([0x90, 60, 100]), "slot 1 reaches its port on channel 1")
+	_check(keys.sent[0] == PackedByteArray([0x90, 62, 100]), "slot 6 too, on channel 1")
+	_check(keys.sent[1][0] == 0x80, "slot 7 shares it, also on channel 1")
+	bass.sent.clear()
+	keys.sent.clear()
+	Midi.note_on(60, 100, 7)
+	Midi.note_on(60, 100, 9)
+	_check(bass.sent.is_empty() and keys.sent.is_empty(), "missing and empty slots send nothing")
+	Settings.set_channel_volume(5, 0.5)
+	Midi.note_on(62, 100, 5)
+	_check(keys.sent[0][2] == 50, "volume still follows the colour")
+	Settings.set_channel_volume(5, 1.0)
+	# Panic reaches every port, and every channel.
+	bass.sent.clear()
+	keys.sent.clear()
+	Midi.panic()
+	_check(bass.sent.size() == 32 and keys.sent.size() == 32 and bass.sent[31][0] == 0xBF, "Panic covers each port")
+	# Changing a slot silences first, and closes what's unused.
+	Midi.set_slot(5, "")
+	_check(_device("Keys") != null, "a port stays open while a slot uses it")
+	keys = _device("Keys")
+	keys.sent.clear()
+	Midi.set_slot(6, "")
+	_check(keys.sent.size() == 32 and not keys.is_port_open() and Array(Midi.open_ports()) == ["Bass"], "the last slot closes it, after a Panic")
+	# The panel.
+	var options := OptionsPanel.new()
+	options.mappings = MidiMappings.new(surface)
+	add_child(options)
+	options.refresh_ports()
+	var picker: OptionButton = options._slots[0]
+	_check(options._slots.size() == 16 and picker.item_count == 4 and picker.get_item_text(picker.selected) == "Bass", "a picker per slot")
+	_check(options._slots[7].get_item_text(options._slots[7].selected) == "Gone (not found)", "a missing port stays picked")
+	_check(options._slots[3].get_item_text(options._slots[3].selected) == "None", "and an empty slot says None")
+	_check("Gone" in options._port_status.text, "the status names it")
+	options._slots[3].select(3)
+	options._slots[3].item_selected.emit(3)
+	_check(Settings.midi_slots[3] == "Drums" and Array(Midi.open_ports()).has("Drums"), "picking opens the port")
+	options.queue_free()
+	Midi.use_backend(Callable())
+	Settings.midi_slots = saved
 
 
 func _midi_event(message: int, field: String = "", value: int = 0, value2: int = 0) -> InputEventMIDI:
