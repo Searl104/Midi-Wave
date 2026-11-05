@@ -1893,6 +1893,7 @@ func _layouts() -> void:
 	var row: LayoutRow = panel.tree.find_children("*", "LayoutRow", true, false)[0]
 	row.load_button.pressed.emit()
 	_check(row.confirm_button.visible and not row.load_button.visible and surface.notes.size() == 2, "Load asks first")
+	_check(row.confirm_button.text == "Clear all and load?" and row.keep_button.text == "Cancel", "in plain words")
 	row.keep_button.pressed.emit()
 	_check(row.load_button.visible and surface.notes.size() == 2, "Keep leaves it alone")
 	row.load_button.pressed.emit()

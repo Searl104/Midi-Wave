@@ -35,7 +35,8 @@ func _init(layout_name: String) -> void:
 
 func _ask(action: String) -> void:
 	_asking = action
-	confirm_button.text = "Replace notes" if action == "load" else "Confirm"
+	confirm_button.text = "Clear all and load?" if action == "load" else "Confirm"
+	keep_button.text = "Cancel" if action == "load" else "Keep"
 	load_button.hide()
 	delete_button.hide()
 	confirm_button.show()
