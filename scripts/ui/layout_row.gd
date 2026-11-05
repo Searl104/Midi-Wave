@@ -24,9 +24,9 @@ func _init(layout_name: String) -> void:
 	add_child(title)
 	load_button = PanelBuilder.button("Load", _ask.bind("load"), "Replaces the surface with this layout, after asking.")
 	add_child(load_button)
-	delete_button = PanelBuilder.danger(PanelBuilder.button("Delete", _ask.bind("delete"), "Deletes this layout, after asking."))
+	delete_button = PanelBuilder.danger(PanelBuilder.button("X", _ask.bind("delete"), "Deletes this layout, after asking."))
 	add_child(delete_button)
-	confirm_button = PanelBuilder.danger(PanelBuilder.button("Are you sure?", _confirm, "Goes ahead. This can't be undone."))
+	confirm_button = PanelBuilder.danger(PanelBuilder.button("Delete", _confirm, "Goes ahead. This can't be undone."))
 	add_child(confirm_button)
 	keep_button = PanelBuilder.button("Cancel", _answer, "Changes nothing.")
 	add_child(keep_button)
@@ -35,7 +35,7 @@ func _init(layout_name: String) -> void:
 
 func _ask(action: String) -> void:
 	_asking = action
-	confirm_button.text = "Clear all and load?" if action == "load" else "Are you sure?"
+	confirm_button.text = "Clear all and load?" if action == "load" else "Delete"
 	load_button.hide()
 	delete_button.hide()
 	confirm_button.show()

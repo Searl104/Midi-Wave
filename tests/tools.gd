@@ -1642,7 +1642,7 @@ func _collections() -> void:
 	_check(not row.confirm_button.visible, "no confirm yet")
 	row.delete_button.pressed.emit()
 	_check(row.confirm_button.visible and not row.delete_button.visible and Collections.list().size() == 1, "Delete asks")
-	_check(row.confirm_button.text == "Are you sure?" and row.cancel_button.text == "Cancel", "in plain words")
+	_check(row.delete_button.text == "X" and row.confirm_button.text == "Delete" and row.cancel_button.text == "Cancel", "in plain words")
 	row.cancel_button.pressed.emit()
 	_check(row.delete_button.visible and not row.confirm_button.visible and Collections.list().size() == 1, "Keep keeps it")
 	row.delete_button.pressed.emit()
@@ -1911,7 +1911,7 @@ func _layouts() -> void:
 	# Delete asks, and folders tidy up.
 	row = panel.tree.find_children("*", "LayoutRow", true, false)[0]
 	row.delete_button.pressed.emit()
-	_check(Layouts.list().size() == 1 and row.confirm_button.text == "Are you sure?" and row.keep_button.text == "Cancel", "Delete asks first")
+	_check(Layouts.list().size() == 1 and row.delete_button.text == "X" and row.confirm_button.text == "Delete" and row.keep_button.text == "Cancel", "X asks first")
 	_check(row.delete_button.has_theme_stylebox_override("normal") and row.confirm_button.has_theme_stylebox_override("normal"), "deleting is tinted")
 	_check(not row.load_button.has_theme_stylebox_override("normal") and not row.keep_button.has_theme_stylebox_override("normal"), "and nothing else is")
 	row.confirm_button.pressed.emit()

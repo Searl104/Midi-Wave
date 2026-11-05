@@ -68,7 +68,7 @@ once, ignoring case. A slash puts it in a folder, so `patterns/shaker01` saves `
 `patterns`. Folders are made as needed, and go when their last collection is deleted. The name field
 only takes characters a Windows file name can use. Drag a row onto the surface in any tool, or click it, then click the surface to place
 it. Shift-click keeps it loaded to place more. Pasted notes keep their modifiers, bindings and grids, and become the selection, as one
-undo step. Delete is in each row and asks first; it can't be undone.
+undo step. Each row has an X, which asks for Delete or Cancel; deleting can't be undone.
 
 Each collection is a JSON file in `user://collections`, which is
 `%APPDATA%\Godot\app_userdata\MIDI Wave\collections` on Windows. Anything you move or rename there
@@ -93,7 +93,7 @@ held. Each sound has its own volume and note length.
 
 **Options → Layout** saves the whole surface: notes, tempo, divisions, each sound's volume and length,
 ports and view. Names work as for collections, so a slash makes a folder. Saving with a used name
-asks to overwrite. Load and Delete in each row ask first, and neither can be undone. After a load the
+asks to overwrite. Load and X in each row ask first, and neither can be undone. After a load the
 name field holds the layout's name, ready to save over. Files are in `user://layouts`, and **Open
 Layouts Folder** goes there. Clear all, Default layout and Test layout are on this tab too.
 
