@@ -4,6 +4,9 @@ Godot 4.4 app: a liquid surface where waves trigger MIDI notes. The user runs it
 The spec lives in the editable doc **MIDI Wave Spec**: https://claude.ai/artifact/9KPPqbxemAgocHncR9TQVA
 (the claude.ai project file `claude/midi-wave-spec.md` only points there). Read it before changing behavior.
 
+A **Sound** is one of 16 numbered colours with a MIDI output, which notes are assigned to. Code and saves call
+this `channel`, and every note is sent on real MIDI channel 1 of its Sound's port.
+
 ## Dev environment setup
 
 **Editor.** Godot 4.4 or newer (`project.godot` targets 4.4, GL Compatibility renderer). Open the repo folder
@@ -29,8 +32,8 @@ scons target=template_release
 **Local files that stay out of git:** `.godot/`, `*.uid`, `/icon.svg.import`, `native/godot-cpp/`, `native/rtmidi/`,
 build objects and Linux/macOS libraries.
 
-**Running with real MIDI (the user's setup, Windows).** Create a loopMIDI port, pick it in
-Options → MIDI Output, and enable the same port as an input on an armed instrument track in the DAW.
+**Running with real MIDI (the user's setup, Windows).** Create a loopMIDI port, pick it for a Sound in
+Options → MIDI, and enable the same port as an input on an armed instrument track in the DAW.
 Settings and the note layout save to `%APPDATA%\Godot\app_userdata\MIDI Wave\settings.cfg`. This cloud
 environment has no MIDI hardware, so MIDI behavior can't be heard here; check it by reading the code and
 the logged messages, and say so when something couldn't be tested.
