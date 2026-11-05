@@ -1912,6 +1912,8 @@ func _layouts() -> void:
 	row = panel.tree.find_children("*", "LayoutRow", true, false)[0]
 	row.delete_button.pressed.emit()
 	_check(Layouts.list().size() == 1 and row.confirm_button.text == "Are you sure?" and row.keep_button.text == "Cancel", "Delete asks first")
+	_check(row.delete_button.has_theme_stylebox_override("normal") and row.confirm_button.has_theme_stylebox_override("normal"), "deleting is tinted")
+	_check(not row.load_button.has_theme_stylebox_override("normal") and not row.keep_button.has_theme_stylebox_override("normal"), "and nothing else is")
 	row.confirm_button.pressed.emit()
 	_check(Layouts.list().is_empty() and not DirAccess.dir_exists_absolute(Layouts.DIR + "sets"), "and removes it and its folder")
 	# Bad and partial files.

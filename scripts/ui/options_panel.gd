@@ -127,9 +127,9 @@ func _build_layout(box: VBoxContainer) -> void:
 	PanelBuilder.section(box, "NOTES", Palette.TEXT_DIM)
 	var notes_row := HBoxContainer.new()
 	box.add_child(notes_row)
-	notes_row.add_child(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface."))
-	notes_row.add_child(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes."))
-	notes_row.add_child(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature."))
+	notes_row.add_child(PanelBuilder.danger(PanelBuilder.button("Clear all", func() -> void: clear_notes_requested.emit(), "Removes every note from the surface.")))
+	notes_row.add_child(PanelBuilder.danger(PanelBuilder.button("Default layout", func() -> void: reset_layout_requested.emit(), "Replaces the notes with the starting ring of notes.")))
+	notes_row.add_child(PanelBuilder.danger(PanelBuilder.button("Test layout", func() -> void: test_layout_requested.emit(), "Replaces the notes with a self-playing demo of each feature.")))
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 

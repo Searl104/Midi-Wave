@@ -40,10 +40,10 @@ func _init(collection_name: String, chosen: bool) -> void:
 	handle.button_pressed = chosen
 	handle.pressed.connect(func() -> void: picked.emit(collection))
 	add_child(handle)
-	delete_button = PanelBuilder.button("Delete", _ask, "Deletes this collection, after asking.")
+	delete_button = PanelBuilder.danger(PanelBuilder.button("Delete", _ask, "Deletes this collection, after asking."))
 	add_child(delete_button)
-	confirm_button = PanelBuilder.button("Are you sure?", func() -> void: delete_confirmed.emit(collection),
-			"Deletes this collection. This can't be undone.")
+	confirm_button = PanelBuilder.danger(PanelBuilder.button("Are you sure?", func() -> void: delete_confirmed.emit(collection),
+			"Deletes this collection. This can't be undone."))
 	add_child(confirm_button)
 	cancel_button = PanelBuilder.button("Cancel", _answer, "Keeps this collection.")
 	add_child(cancel_button)

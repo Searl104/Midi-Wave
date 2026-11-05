@@ -30,7 +30,7 @@ func _ready() -> void:
 	overwrite_row = HBoxContainer.new()
 	overwrite_row.hide()
 	add_child(overwrite_row)
-	overwrite_row.add_child(PanelBuilder.button("Overwrite", _overwrite, "Replaces the saved layout. This can't be undone."))
+	overwrite_row.add_child(PanelBuilder.danger(PanelBuilder.button("Overwrite", _overwrite, "Replaces the saved layout. This can't be undone.")))
 	overwrite_row.add_child(PanelBuilder.button("Keep", _cancel_overwrite, "Keeps the saved layout, and saves nothing."))
 	add_child(PanelBuilder.button("Open Layouts Folder", func() -> void: OS.shell_open(NamedFiles.folder(Layouts.DIR)),
 			"Shows the layout files in your file manager."))

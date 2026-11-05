@@ -101,6 +101,19 @@ static func section(box: VBoxContainer, text: String, col: Color) -> void:
 	row.add_child(l)
 
 
+## Tints a button that clears the board or deletes files. Returns it. The theme is only there once
+## it's in the tree, so the styles wait until then.
+static func danger(b: Button) -> Button:
+	b.ready.connect(func() -> void:
+		for state in ["normal", "hover", "pressed"]:
+			var style := b.get_theme_stylebox(state).duplicate() as StyleBoxFlat
+			if style:
+				style.bg_color = style.bg_color.lerp(Palette.RED, 0.45 if state == "hover" else 0.3)
+				style.border_color = style.border_color.lerp(Palette.RED, 0.7)
+				b.add_theme_stylebox_override(state, style))
+	return b
+
+
 static func slider(box: VBoxContainer, label: String, key: String, min_v: float, max_v: float,
 		step: float, fmt: Callable) -> HSlider:
 	var row := HBoxContainer.new()
