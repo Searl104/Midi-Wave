@@ -9,8 +9,8 @@ this `channel`, and every note is sent on real MIDI channel 1 of its Sound's por
 
 ## Dev environment setup
 
-**Editor.** Godot 4.7.2 stable, GL Compatibility renderer. `project.godot` still carries the older `4.4`
-feature tag, and godot-cpp is still pinned to `4.4` (see below), until both are bumped. Open the repo folder
+**Editor.** Godot 4.7.2 stable, GL Compatibility renderer. `project.godot` carries the `4.7` feature tag.
+godot-cpp is still pinned to `4.4` (see below), because it has no 4.6 or 4.7 branch yet. Open the repo folder
 as a project and run `scenes/main.tscn` (the main scene). The two autoloads are `Settings`
 (`scripts/core/settings.gd`) and `Midi` (`scripts/midi/midi_out.gd`).
 
