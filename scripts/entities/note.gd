@@ -232,9 +232,15 @@ func _draw_velocity_fill(surface: WaveSurface, p: Vector2, col: Color) -> void:
 	var r := RADIUS - 1.0
 	var top := asin(clampf(1.0 - 2.0 * velocity / 100.0, -1.0, 1.0))
 	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	var triangles := PackedInt32Array()
 	for i in 25:
 		points.append(p + Vector2.from_angle(lerpf(top, PI - top, i / 24.0)) * r)
-	surface.draw_colored_polygon(points, Color(col, 0.2))
+		colors.append(Color(col, 0.2))
+		if i >= 2:
+			triangles.append_array([0, i - 1, i])
+	# Spelled out as a fan: draw_colored_polygon can't triangulate the sliver of a very low velocity.
+	RenderingServer.canvas_item_add_triangle_array(surface.get_canvas_item(), triangles, points, colors)
 
 
 func draw(surface: WaveSurface, font: Font, now: int) -> void:
