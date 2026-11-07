@@ -221,10 +221,10 @@ scripts/
   midi/midi_mappings.gd   MIDI messages that run app actions
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
-  surface/                undo_history, selection, snapping, surface_effects, demo_layout, named_files, collections, layouts
+  surface/                undo_history, selection, snapping, surface_editing, surface_drawing, surface_effects, demo_layout, named_files, collections, layouts
   tools/                  One script per tool and ring, plus tool_manager and object_drag
   ui/main.gd              Builds the scene and HUD
-  ui/wave_surface.gd      Holds the view and entities, runs the simulation, draws in order
+  ui/wave_surface.gd      Holds the view and entities and runs the simulation; editing and drawing live in surface/
   ui/radial_menu.gd       The ring picker, with quick pick
   ui/toolbar.gd           The strip of tools and ring choices
   ui/tool_panel.gd        The popup that holds a tool's options
@@ -236,7 +236,7 @@ scripts/
   ui/knob.gd              A compact dial
   ui/options_panel.gd     Options panel
   ui/glass_theme.gd       UI theme
-tests/                    Headless checks: baseline (MIDI and layouts), tools, demo; render
+tests/                    Headless checks: baseline (MIDI and layouts), tools (one file per area in tests/tools/, shared helpers in tests/support/), demo; render
 shaders/waves.gdshaderinc Ripple maths shared by the surface shaders
 shaders/abyssal.gdshader  Abyssal surface: endless depth under the water
 shaders/tidal.gdshader    Tidal surface: black glossy sand below the water
