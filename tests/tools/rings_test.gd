@@ -127,35 +127,38 @@ func _ring_options() -> void:
 
 
 func _tab() -> void:
-	var cases := ["select", "select", "pan", "zoom"]
-	for id in cases:
-		tools.set_tool(id)
-		_key(KEY_TAB)
-		_check(tools.current_id() == "tap" and not tools.is_editing(), "Tab from %s goes to Tap" % id)
-		_key(KEY_TAB)
-		_check(tools.current_id() == id and tools.is_editing(), "Tab returns to %s" % id)
 	tools.set_tool("select")
-	tools.pick("tap")
-	_key(KEY_TAB)
-	_check(tools.current_id() == "select", "Tap picked on the bar returns too")
-	# A ring option isn't a tool, so it's left alone.
-	tools.pick("channel")
-	_key(KEY_TAB)
-	_key(KEY_TAB)
-	_check(tools.current_id() == "select" and tools.ring_option.tool_id() == "channel", "the ring option stays")
 	tools.pick("pitch")
-	# Nothing happens during a spring-load.
+	var seen: Array = []
+	for i in 4:
+		_key(KEY_TAB)
+		seen.append(tools.ring_option.tool_id())
+	_check(seen == ["channel", "modifier", "pitch", "channel"], "Tab cycles the ring choice, wrapping")
+	_check(tools.current_id() == "select" and tools.is_editing(), "and leaves the tool alone")
+	var back: Array = []
+	for i in 3:
+		_key(KEY_TAB, false, true)
+		back.append(tools.ring_option.tool_id())
+	_check(back == ["pitch", "modifier", "channel"], "Shift+Tab goes back")
+	tools.pick("pitch")
+	var changed := [false]
+	var on_change := func(_id: String) -> void: changed[0] = true
+	tools.tool_changed.connect(on_change)
+	_key(KEY_TAB)
+	tools.tool_changed.disconnect(on_change)
+	_check(changed[0], "and reports it, so the bar redraws and it's saved")
+	tools.set_tool("tap")
+	_key(KEY_TAB)
+	_check(tools.current_id() == "tap" and tools.ring_option.tool_id() == "modifier", "in Tap too, staying in Tap")
+	tools.set_tool("select")
 	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
 	_key(KEY_TAB)
-	_check(tools.current_id() == "pan", "ignored while spring-loaded")
+	_check(tools.current_id() == "pan" and tools.ring_option.tool_id() == "pitch", "and during a spring-load")
 	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
-	_check(tools.current_id() == "select", "spring-load still returns")
-	var ctrl := InputEventKey.new()
-	ctrl.keycode = KEY_TAB
-	ctrl.pressed = true
-	ctrl.ctrl_pressed = true
-	tools.handle_input(ctrl)
-	_check(tools.current_id() == "select", "Ctrl+Tab does nothing")
+	_check(tools.current_id() == "select", "which still returns")
+	_key(KEY_TAB, true)
+	_check(tools.ring_option.tool_id() == "pitch", "Ctrl+Tab does nothing")
+	tools.pick("pitch")
 	tools.set_tool("select")
 
 
@@ -171,8 +174,8 @@ func _tool_keys() -> void:
 	tools.set_tool("select")
 	_key(KEY_T)
 	_check(tools.current_id() == "tap" and not tools.is_editing(), "T locks the layout, like Tap on the bar")
-	_key(KEY_TAB)
-	_check(tools.current_id() == "select", "and Tab still returns")
+	_key(KEY_S)
+	_check(tools.current_id() == "select" and tools.is_editing(), "and S unlocks it")
 	_key(KEY_D, true)
 	_check(tools.current_id() == "select", "Ctrl+D picks nothing")
 	_key(KEY_D, false, true)

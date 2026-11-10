@@ -20,10 +20,11 @@ A strip on the left edge holds the tools. Left-click picks one. The layout is lo
 | Pan, Zoom | Drag to move the view, or to zoom about the pressed point (right or up zooms in) |
 
 Pitch, Sound and Modifier sit on the bar too, but they aren't tools. Clicking one chooses which ring
-a right-click on a note opens; a yellow bar marks the choice.
+a right-click on a note opens; a yellow bar marks the choice. Tab moves the choice down the bar
+(Pitch, Sound, Modifier, then back to Pitch) and Shift+Tab moves it up, in any tool.
 
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
-Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
+The tool and ring choice are remembered.
 
 **Tool keys** pick a tool as a click on the bar does: T Tap, S Select and Move, D Draw, B Bind,
 G Grid, V Velocity, C Paste Collection, H Pan, Z Zoom. They work with no Shift, Ctrl or Alt held,
@@ -108,7 +109,7 @@ Layouts Folder** goes there. Clear all, Default layout and Test layout are on th
 |---|---|
 | Space, KP Enter | Stop: clear all waves and return sequences to step 1. Cooldowns keep running |
 | KP0-9 | Fire that binding |
-| Tab | Tap and the previous tool |
+| Tab, Shift+Tab | Next or previous ring choice (Pitch, Sound, Modifier). Every tool |
 | T, S, D, B, G, V, C, H, Z | Pick Tap, Select and Move, Draw, Bind, Grid, Velocity, Paste Collection, Pan or Zoom (change in Options → Controls) |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
 | < / > (comma / period) | Nudge the selection, or the hovered note, a scale step; with Shift, an octave. Every tool |

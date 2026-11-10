@@ -15,8 +15,6 @@ signal close_panel                 ## a tool is done with its panel
 var surface: WaveSurface
 var tools: Array[Tool] = []
 var current: Tool
-var _before_tap: Tool              # the tool Tab returns to from Tap
-var _editing_before_tap := true
 var ring_option: RingTool          ## which ring a right-click on a note opens
 var _editing := true               # false in the Tap tool; a nav tool leaves this as it was
 var _spring_from: Tool = null      # the tool to return to when the middle button comes up
@@ -33,7 +31,6 @@ func _init(owner_surface: WaveSurface) -> void:
 	_settings_rings = {"relay_settings": RelaySettingsRing.new(surface), "sequence_settings": SequenceSettingsRing.new(surface)}
 	ring_option = get_tool("pitch")
 	current = get_tool("select")
-	_before_tap = current
 
 
 func get_tool(id: String) -> Tool:
@@ -80,9 +77,6 @@ func set_tool(id: String) -> void:
 	surface.drag.end()
 	current.deactivate()
 	var was_editing := is_editing()
-	if t is TapTool:
-		_before_tap = current
-		_editing_before_tap = _editing
 	current = t
 	if not t.navigates():
 		_editing = t.edits_layout()
@@ -129,9 +123,9 @@ func _handle_tweak(key: InputEventKey) -> bool:
 	return false
 
 
-## Stop, Tab, keypad bindings, tool keys and undo. Tab flips to Tap and back; a tool key picks its
-## tool, as a toolbar click does; undo and redo work in every editing tool; Esc closes an open ring.
-## The active tool gets any other key.
+## Stop, Tab, keypad bindings, tool keys and undo. Tab cycles the ring choice (Shift+Tab goes
+## back); a tool key picks its tool, as a toolbar click does; undo and redo work in every editing
+## tool; Esc closes an open ring. The active tool gets any other key.
 func _handle_key(key: InputEventKey) -> bool:
 	var digit := _keypad_digit(key)
 	if digit != -1:
@@ -148,8 +142,7 @@ func _handle_key(key: InputEventKey) -> bool:
 	if _handle_tweak(key):
 		return true
 	if key.keycode == KEY_TAB and not key.ctrl_pressed and not key.alt_pressed:
-		if not springing():
-			toggle_tap()
+		cycle_ring_option(-1 if key.shift_pressed else 1)
 		return true
 	if key.keycode == KEY_ESCAPE and radial and radial.visible:
 		radial.close()
@@ -221,15 +214,15 @@ func springing() -> bool:
 	return _spring_from != null
 
 
-## Flips between the Tap tool and the tool used before it.
-func toggle_tap() -> void:
-	if current is not TapTool:
-		set_tool("tap")
+## Moves the ring choice to the next ring on the bar (`step` -1: the previous one), wrapping
+## around, as clicking it on the bar does.
+func cycle_ring_option(step: int) -> void:
+	var rings := tools.filter(func(t: Tool) -> bool: return t is RingTool)
+	if rings.is_empty():
 		return
-	set_tool(_before_tap.tool_id())
-	if is_editing() != _editing_before_tap:      # a nav tool returns to the mode it was used in
-		_editing = _editing_before_tap
-		mode_changed.emit(_editing)
+	var i := rings.find(ring_option)
+	set_ring_option(rings[posmod(i + step, rings.size())].tool_id())
+	tool_changed.emit(current_id())
 
 
 func draw_overlay(canvas: WaveSurface) -> void:

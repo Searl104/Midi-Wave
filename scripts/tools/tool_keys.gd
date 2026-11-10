@@ -11,7 +11,7 @@ const DEFAULTS := {
 }
 ## Keys the app already uses, which a tool can't take, with what they do.
 const RESERVED := {
-	KEY_SPACE: "Stop", KEY_KP_ENTER: "Stop", KEY_TAB: "Tap and back", KEY_ESCAPE: "closing rings and panels",
+	KEY_SPACE: "Stop", KEY_KP_ENTER: "Stop", KEY_TAB: "cycling the ring choice", KEY_ESCAPE: "closing rings and panels",
 	KEY_M: "Mute", KEY_COMMA: "Nudge", KEY_PERIOD: "Nudge", KEY_LESS: "Nudge", KEY_GREATER: "Nudge",
 	KEY_DELETE: "Delete", KEY_BACKSPACE: "Delete",
 }
