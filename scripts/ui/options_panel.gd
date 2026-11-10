@@ -36,7 +36,8 @@ func _ready() -> void:
 	hide()
 	visibility_changed.connect(func() -> void:
 		if not visible:
-			mappings.cancel())
+			mappings.cancel()
+			_cancel_key_learn())
 	Midi.port_changed.connect(func(_n: String) -> void: _update_port_status())
 
 
@@ -72,7 +73,9 @@ func _build() -> void:
 	tabs.focus_mode = Control.FOCUS_NONE
 	tabs.use_hidden_tabs_for_min_size = true    # keeps the panel one width across tabs
 	outer.add_child(tabs)
-	tabs.tab_changed.connect(func(_i: int) -> void: mappings.cancel())
+	tabs.tab_changed.connect(func(_i: int) -> void:
+		mappings.cancel()
+		_cancel_key_learn())
 	var box := _tab("General")
 	_build_midi(_tab("MIDI"))
 	_build_controls(_tab("Controls"))
@@ -133,12 +136,28 @@ func _build_layout(box: VBoxContainer) -> void:
 	box.add_child(PanelBuilder.hint("Test layout replaces the notes with one group per feature and starts playing. Stop ends it."))
 
 
-## Controls tab: a row per action, each learning the next MIDI message from the controller.
+## Controls tab: a row per tool, each learning the next key press, then a row per action, each
+## learning the next MIDI message from the controller.
 var _control_rows := {}
 var _controller_hint: Label
+var _key_rows := {}
+var _key_listening := ""           ## the tool waiting for a key press, or ""
 
 
 func _build_controls(box: VBoxContainer) -> void:
+	PanelBuilder.section(box, "TOOL KEYS", Palette.YELLOW)
+	box.add_child(PanelBuilder.hint("Press Learn, then press a key. Pressing it picks the tool, as clicking it on the toolbar does. A key on its own only: Space, Tab, Esc, M, < >, Delete, Backspace, the keypad digits and KP Enter are already used."))
+	for id in ToolKeys.ORDER:
+		_key_rows[id] = _key_row(box, id)
+	box.add_child(PanelBuilder.button("Reset keys", func() -> void:
+		_key_listening = ""
+		ToolKeys.reset()
+		_refresh_keys(), "Returns to the starting keys: T, S, D, B, G, V, C, H and Z."))
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "tool_keys":
+			_refresh_keys())
+	_refresh_keys()
+
 	PanelBuilder.section(box, "MIDI MAPPINGS", Palette.BLUE)
 	box.add_child(PanelBuilder.hint("Press Learn, then press a key, pad or button, or move a knob. A control change fires each time it rises above 0."))
 	_controller_hint = PanelBuilder.hint("Pick a controller under MIDI input on the MIDI tab first.")
@@ -175,6 +194,7 @@ func _control_row(box: VBoxContainer, action: String) -> Dictionary:
 		if mappings.listening == action:
 			mappings.cancel()
 		else:
+			_cancel_key_learn()
 			mappings.listen(action), "Waits for the next MIDI message from the controller. Press again to cancel.")
 	row.add_child(learn)
 	var clear := PanelBuilder.button("Clear", func() -> void: mappings.clear(action), "Removes this mapping.")
@@ -197,6 +217,87 @@ func _refresh_controls() -> void:
 		row.clear.disabled = key == ""
 		row.warning.visible = bound > 0
 		row.warning.text = "Also fires %d bound note%s." % [bound, "" if bound == 1 else "s"]
+
+
+func _key_row(box: VBoxContainer, id: String) -> Dictionary:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	box.add_child(col)
+	var row := HBoxContainer.new()
+	col.add_child(row)
+	var name_l := Label.new()
+	name_l.text = surface.tools.get_tool(id).title()
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_l.clip_text = true
+	row.add_child(name_l)
+	var value := Label.new()
+	value.custom_minimum_size.x = 70
+	value.clip_text = true
+	value.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	row.add_child(value)
+	var learn := PanelBuilder.button("Learn", func() -> void:
+		if _key_listening == id:
+			_cancel_key_learn()
+		else:
+			mappings.cancel()
+			_key_listening = id
+			_key_rows[id].warning.visible = false
+			_refresh_keys(), "Waits for the next key press. Press again, or Esc, to cancel.")
+	row.add_child(learn)
+	var clear := PanelBuilder.button("Clear", func() -> void:
+		if _key_listening == id:
+			_key_listening = ""
+		ToolKeys.clear(id)
+		_refresh_keys(), "Removes this tool's key.")
+	row.add_child(clear)
+	var warning := PanelBuilder.hint("")
+	warning.add_theme_color_override("font_color", Palette.YELLOW)
+	warning.visible = false
+	col.add_child(warning)
+	return {"value": value, "learn": learn, "clear": clear, "warning": warning}
+
+
+func _cancel_key_learn() -> void:
+	if _key_listening != "":
+		_key_listening = ""
+		_refresh_keys()
+
+
+func _refresh_keys() -> void:
+	for id in _key_rows:
+		var row: Dictionary = _key_rows[id]
+		var listening := _key_listening == id
+		row.value.text = "Press a key..." if listening else ToolKeys.label(id)
+		row.learn.text = "Cancel" if listening else "Learn"
+		row.clear.disabled = ToolKeys.key_for(id) == ""
+
+
+## While a tool row is learning, the next key press is its key, and goes nowhere else.
+func _input(event: InputEvent) -> void:
+	if _key_listening == "" or not visible:
+		return
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo or ToolKeys.is_modifier_only(key):
+		return
+	get_viewport().set_input_as_handled()
+	var id := _key_listening
+	if ToolKeys.keycode_of(key) == KEY_ESCAPE and not ToolKeys.has_modifier(key):
+		_cancel_key_learn()
+		return
+	var why := ToolKeys.refusal(key)
+	var row: Dictionary = _key_rows[id]
+	row.warning.text = why
+	row.warning.visible = why != ""
+	if why != "":
+		return                      # keeps listening for another key
+	var taken_from := ToolKeys.ORDER.filter(func(other: String) -> bool:
+		return other != id and OS.find_keycode_from_string(ToolKeys.key_for(other)) == ToolKeys.keycode_of(key) and ToolKeys.key_for(other) != "")
+	_key_listening = ""
+	ToolKeys.assign(id, ToolKeys.keycode_of(key))
+	if not taken_from.is_empty():
+		row.warning.text = "Taken from %s, which now has no key." % surface.tools.get_tool(taken_from[0]).title()
+		row.warning.visible = true
+	_refresh_keys()
 
 
 ## Look tab: the surface shader and its controls (only the chosen look's are shown).

@@ -25,6 +25,11 @@ a right-click on a note opens; a yellow bar marks the choice.
 Middle-drag holds Pan and Shift + middle-drag holds Zoom, returning to the previous tool on release.
 Tab flips between Tap and the previous tool. The tool and ring choice are remembered.
 
+**Tool keys** pick a tool as a click on the bar does: T Tap, S Select and Move, D Draw, B Bind,
+G Grid, V Velocity, C Paste Collection, H Pan, Z Zoom. They work with no Shift, Ctrl or Alt held,
+so Ctrl+C, Ctrl+V and Ctrl+Z are unchanged, and do nothing while middle-drag holds Pan or Zoom.
+Change them in **Options → Controls**.
+
 **Tool panels:** hovering a toolbar item that has options shows a faint right-click icon beside it.
 Right-click to open its panel, just right of the toolbar and centred on the item. Hover any setting
 for a tooltip on what it does. Click the item again, or anywhere outside, to close it; a click outside does nothing
@@ -104,6 +109,7 @@ Layouts Folder** goes there. Clear all, Default layout and Test layout are on th
 | Space, KP Enter | Stop: clear all waves and return sequences to step 1. Cooldowns keep running |
 | KP0-9 | Fire that binding |
 | Tab | Tap and the previous tool |
+| T, S, D, B, G, V, C, H, Z | Pick Tap, Select and Move, Draw, Bind, Grid, Velocity, Paste Collection, Pan or Zoom (change in Options → Controls) |
 | M | Mute or unmute the selection, or the hovered note. Every tool |
 | < / > (comma / period) | Nudge the selection, or the hovered note, a scale step; with Shift, an octave. Every tool |
 | Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y | Undo / redo (50 steps), in editing tools |
@@ -143,7 +149,13 @@ A note holds one binding: a keypad key (KP0-9) or a MIDI note, and many notes ca
 at the note's upper left shows it. A binding fires like a tap, in any tool. A press during a cooldown does nothing until it ends, and fires then if still held. A press on a relay in Tap waits the same way, and fires once. While it's held, relays
 refire on their cooldown, except Retrigger ones. Older saves' keypad slots become KP1-9 bindings.
 
-**Options → Controls** maps MIDI messages to Stop and Panic. Press Learn, then press a key,
+**Options → Controls → Tool keys** has a row per tool. Press Learn, then press a key. A key picks
+one tool, so learning it again moves it, and the row names the tool that lost it. A key with
+Shift, Ctrl, Alt or Meta held, and the keys the app already uses (Space, Tab, Esc, M, < >, Delete,
+Backspace, the keypad digits and KP Enter), are refused, and the row keeps waiting. Esc or Cancel
+stops waiting, Clear removes a tool's key, and Reset keys returns to the starting letters.
+
+**Options → Controls → MIDI mappings** maps MIDI messages to Stop and Panic. Press Learn, then press a key,
 pad or button, or move a knob, on the chosen controller. Notes, control changes and Start, Stop and
 Continue can all be learned, on any channel, and a control change fires each time it rises above 0.
 One message drives one action, so learning it again moves it. If notes are bound to the same MIDI
@@ -220,7 +232,7 @@ scripts/
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
   entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
   surface/                undo_history, selection, snapping, surface_editing, surface_drawing, surface_effects, demo_layout, named_files, collections, layouts
-  tools/                  One script per tool and ring, plus tool_manager and object_drag
+  tools/                  One script per tool and ring, plus tool_manager, tool_keys and object_drag
   ui/main.gd              Builds the scene and HUD
   ui/wave_surface.gd      Holds the view and entities and runs the simulation; editing and drawing live in surface/
   ui/radial_menu.gd       The ring picker, with quick pick

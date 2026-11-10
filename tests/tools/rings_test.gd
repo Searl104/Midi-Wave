@@ -6,6 +6,7 @@ func run() -> void:
 	_quick_pick()
 	_ring_options()
 	_tab()
+	_tool_keys()
 	_bindings()
 	_group_rings()
 
@@ -155,6 +156,91 @@ func _tab() -> void:
 	ctrl.ctrl_pressed = true
 	tools.handle_input(ctrl)
 	_check(tools.current_id() == "select", "Ctrl+Tab does nothing")
+	tools.set_tool("select")
+
+
+func _tool_keys() -> void:
+	var saved: Dictionary = Settings.tool_keys
+	Settings.tool_keys = ToolKeys.DEFAULTS.duplicate()
+	tools.set_tool("select")
+	var keys := {"tap": KEY_T, "select": KEY_S, "draw": KEY_D, "bind": KEY_B, "grid": KEY_G,
+			"velocity": KEY_V, "collection": KEY_C, "pan": KEY_H, "zoom": KEY_Z}
+	for id in ToolKeys.ORDER:
+		_key(keys[id])
+		_check(tools.current_id() == id, "%s picks %s" % [OS.get_keycode_string(keys[id]), id])
+	tools.set_tool("select")
+	_key(KEY_T)
+	_check(tools.current_id() == "tap" and not tools.is_editing(), "T locks the layout, like Tap on the bar")
+	_key(KEY_TAB)
+	_check(tools.current_id() == "select", "and Tab still returns")
+	_key(KEY_D, true)
+	_check(tools.current_id() == "select", "Ctrl+D picks nothing")
+	_key(KEY_D, false, true)
+	_check(tools.current_id() == "select", "nor does Shift+D")
+	_press(MOUSE_BUTTON_MIDDLE, true, Vector2.ZERO)
+	_key(KEY_D)
+	_check(tools.current_id() == "pan", "ignored while spring-loaded")
+	_press(MOUSE_BUTTON_MIDDLE, false, Vector2.ZERO)
+	_check(tools.current_id() == "select", "and the spring-load returns")
+	# Assigning, taking a key from another tool, clearing and resetting.
+	ToolKeys.assign("draw", KEY_S)
+	_check(ToolKeys.key_for("draw") == "S" and ToolKeys.key_for("select") == "", "a key moves to the new tool")
+	_key(KEY_S)
+	_check(tools.current_id() == "draw", "and picks it")
+	tools.set_tool("select")
+	ToolKeys.clear("draw")
+	_key(KEY_S)
+	_check(tools.current_id() == "select", "a cleared key does nothing")
+	ToolKeys.reset()
+	_check(Settings.tool_keys == ToolKeys.DEFAULTS, "Reset returns to the defaults")
+	# Keys that can't be learned.
+	var refused := func(code: Key, shift: bool = false) -> bool:
+		var e := InputEventKey.new()
+		e.keycode = code
+		e.shift_pressed = shift
+		return ToolKeys.refusal(e) != ""
+	_check(refused.call(KEY_SPACE) and refused.call(KEY_TAB) and refused.call(KEY_M) and refused.call(KEY_COMMA)
+			and refused.call(KEY_DELETE) and refused.call(KEY_ESCAPE), "keys the app uses are refused")
+	_check(refused.call(KEY_K, true), "as are keys with Shift")
+	var kp := InputEventKey.new()
+	kp.physical_keycode = KEY_KP_3
+	_check(ToolKeys.refusal(kp) != "" and ToolKeys.tool_for(kp) == "", "and the keypad digits")
+	_check(not refused.call(KEY_K) and not refused.call(KEY_F1), "other keys are fine")
+	# The Controls tab: Learn takes the next key press, refuses used keys, and Esc cancels.
+	var options := OptionsPanel.new()
+	options.surface = surface
+	options.mappings = MidiMappings.new(surface)
+	add_child(options)
+	options.toggle()
+	var row: Dictionary = options._key_rows["grid"]
+	_check(row.value.text == "G", "the tab shows each key")
+	row.learn.pressed.emit()
+	_check(row.value.text == "Press a key..." and row.learn.text == "Cancel", "Learn listens")
+	var press := func(code: Key) -> void:
+		var e := InputEventKey.new()
+		e.keycode = code
+		e.pressed = true
+		options._input(e)
+	press.call(KEY_SHIFT)
+	_check(options._key_listening == "grid", "a modifier on its own is skipped")
+	press.call(KEY_SPACE)
+	_check(options._key_listening == "grid" and row.warning.visible, "a used key is refused, and it keeps listening")
+	press.call(KEY_K)
+	_check(ToolKeys.key_for("grid") == "K" and row.value.text == "K" and not row.warning.visible, "a free key is learned")
+	row.learn.pressed.emit()
+	press.call(KEY_D)
+	_check(ToolKeys.key_for("grid") == "D" and ToolKeys.key_for("draw") == "", "taking another tool's key")
+	_check(row.warning.visible and row.warning.text.contains("Draw"), "says which tool lost it")
+	row.learn.pressed.emit()
+	press.call(KEY_ESCAPE)
+	_check(options._key_listening == "" and ToolKeys.key_for("grid") == "D", "Esc cancels")
+	row.learn.pressed.emit()
+	options.tabs.current_tab = 0
+	_check(options._key_listening == "", "changing tab cancels")
+	row.clear.pressed.emit()
+	_check(row.value.text == "None" and row.clear.disabled, "Clear shows")
+	options.queue_free()
+	Settings.tool_keys = saved
 	tools.set_tool("select")
 
 

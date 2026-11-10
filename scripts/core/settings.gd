@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
 	"root_note", "scale_name", "midi_port", "midi_slots", "velocity_stamp", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "tool_keys", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
@@ -112,6 +112,9 @@ var channel_beats: Array = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
 
 ## MIDI messages that run app actions: see MidiMappings.
 var midi_mappings: Dictionary = MidiMappings.DEFAULTS.duplicate()
+
+## Keyboard keys that pick tools: see ToolKeys.
+var tool_keys: Dictionary = ToolKeys.DEFAULTS.duplicate()
 
 ## What the Velocity tool applies to a clicked note, 1-100.
 var velocity_stamp := 100.0
@@ -222,6 +225,11 @@ func load_settings() -> void:
 	_migrate_note_lengths(cfg)
 	if not midi_mappings is Dictionary:
 		midi_mappings = MidiMappings.DEFAULTS.duplicate()
+	if not tool_keys is Dictionary:
+		tool_keys = ToolKeys.DEFAULTS.duplicate()
+	for id in ToolKeys.DEFAULTS:             # a tool newer than the save gets its default key
+		if not tool_keys.has(id):
+			tool_keys[id] = ToolKeys.DEFAULTS[id]
 	midi_slots.resize(16)
 	midi_slots = midi_slots.map(func(p: Variant) -> String: return "" if p == null else str(p))
 	if midi_port != "":                  # older saves: everything stays on that port

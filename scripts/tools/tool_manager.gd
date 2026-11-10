@@ -129,8 +129,9 @@ func _handle_tweak(key: InputEventKey) -> bool:
 	return false
 
 
-## Stop, Tab, keypad bindings and undo. Tab flips to Tap and back; undo and redo work in every
-## editing tool; Esc closes an open ring. The active tool gets any other key.
+## Stop, Tab, keypad bindings, tool keys and undo. Tab flips to Tap and back; a tool key picks its
+## tool, as a toolbar click does; undo and redo work in every editing tool; Esc closes an open ring.
+## The active tool gets any other key.
 func _handle_key(key: InputEventKey) -> bool:
 	var digit := _keypad_digit(key)
 	if digit != -1:
@@ -152,6 +153,13 @@ func _handle_key(key: InputEventKey) -> bool:
 		return true
 	if key.keycode == KEY_ESCAPE and radial and radial.visible:
 		radial.close()
+		return true
+	var tool_id := ToolKeys.tool_for(key)
+	if tool_id != "":
+		if not springing():
+			close_ring()
+			close_panel.emit()
+			pick(tool_id)
 		return true
 	if not is_editing() or not key.ctrl_pressed:
 		return false
