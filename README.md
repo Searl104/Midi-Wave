@@ -56,8 +56,9 @@ else. Esc closes it too.
 | Empty space, in Draw | The chosen ring, set on the brush |
 
 **Quick pick:** hold right-click, aim, and release to pick and close. Releasing off the rings cancels.
-Right-click without moving to leave the ring open. Left-click picks and keeps it open; a click off
-the rings closes it. Esc closes a ring.
+Releasing before anything is highlighted closes the ring too. Only a ring with a centre button (the
+relay's settings) opens with it highlighted, so a right-click without moving leaves that ring open.
+Left-click picks and keeps it open; a click off the rings closes it. Esc closes a ring.
 
 - **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Sound:** 1-16.

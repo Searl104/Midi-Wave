@@ -51,7 +51,7 @@ func _quick_pick() -> void:
 	# No move: stays open, and left clicks pick without closing.
 	c = open_ring.call()
 	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
-	_check(radial.visible and not radial.holding and o.relay().sound, "release without moving stays open")
+	_check(radial.visible and not radial.holding and o.relay().sound, "release without moving, on the highlighted centre, stays open")
 	var left := InputEventMouseButton.new()
 	left.button_index = MOUSE_BUTTON_LEFT
 	left.pressed = true
@@ -96,6 +96,15 @@ func _ring_options() -> void:
 	tools.pick("modifier")
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(100, 100))
 	_check(not radial.visible, "empty space opens nothing")
+	# With nothing highlighted, a release without moving closes it, changing nothing.
+	for option in ["pitch", "channel", "modifier"]:
+		tools.pick(option)
+		var before := JSON.stringify(surface.get_note(a).to_dict())
+		_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+		_check(radial._hover_ring == "", "%s opens with nothing highlighted" % option)
+		_radial_press(MOUSE_BUTTON_RIGHT, false, Vector2(640, 400))
+		_check(not radial.visible and JSON.stringify(surface.get_note(a).to_dict()) == before, "%s: a release before highlighting anything closes it" % option)
+	tools.pick("modifier")
 	# Quick pick adds; the same pick removes; a group follows.
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
 	var c: Vector2 = radial._center

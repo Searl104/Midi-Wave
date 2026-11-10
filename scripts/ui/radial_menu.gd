@@ -5,7 +5,8 @@ extends Control
 ##
 ## Quick pick: opened with `hold` on a right-button press, it follows the pointer while the button
 ## stays down. Releasing over any item picks it and closes; releasing off the rings cancels. A
-## release without moving leaves it open for clicking.
+## release without moving leaves it open for clicking only if something is highlighted (the centre
+## button, which sits under the pointer as the ring opens); with nothing highlighted it closes.
 ##
 ## Dial mode replaces the rings with one large knob, for fine control over a single value. Moving
 ## around it sets the value, by dragging or during a hold, and releasing a hold keeps it.
@@ -182,6 +183,8 @@ func _input(event: InputEvent) -> void:
 			if not dial:
 				activate(mb.position)
 			close()
+		elif not dial and _hover_ring == "":
+			close()                    # released before anything was highlighted
 	elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 		get_viewport().set_input_as_handled()
 		if dial:
