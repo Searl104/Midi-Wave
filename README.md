@@ -161,8 +161,8 @@ of space per beat, so the layout stays in time at any tempo. **Beat spacing** is
 sets how many screen pixels one beat takes up. Distances, waves, reach, rings and the reach glow
 scale around the centre of the window, while notes, rings, tabs, handles and labels stay the same
 size, and timing doesn't change. The look's background (Abyssal's depths, Tidal's sand) doesn't zoom;
-only panning moves it. Reach is shown in beats. While you drag a note or emitter it shows
-its own rings (bars brightest, beats bright, divisions faded).
+only panning moves it. Reach is shown in beats. While you drag a note or emitter, the grids it can
+snap to show their rings (bars brightest, beats bright, divisions faded).
 
 **Grids.** The Grid tool puts a grid on a note or remote diamond: its timing rings plus 8 spokes
 (every 45°, or 4, 6, 12 or 16). Grids are drawn faintly, with their division rings if Division rings
@@ -170,14 +170,16 @@ is on, and saved with the layout. Any number can be on, and Clear All in the Gri
 A grid's reach is automatic until you drag it: a beat past the wave Reach, or a relay's own reach
 for a remote diamond or a note with a docked relay. Nothing draws or snaps past it.
 
-While dragging, the dragged item shows its own rings and snaps (within 12 screen px) to the nearest
-grid point: where a ring crosses a spoke, else a spoke, else a ring. The Draw ghost and pasted notes
+While dragging, the dragged item snaps (within 12 screen px) to the nearest grid point of the grids
+that are on: where a ring crosses a spoke, else a spoke, else a ring. The Draw ghost and pasted notes
 land on the nearest grid point. Centre snapping puts the item exactly on top of any note or emitter
 whose centre is within the snap distance, ahead of grid points. Alt places freely.
 
 The **Grid panel** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
 
 Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
+
+The dragged item's own grid (the rings and spokes that followed a note or emitter while you moved it) is also deprecated and off by default. Snapping never used it, only the grids on notes and diamonds, so snapping is unchanged. It has no Options control: set `drag_rings=true` in `settings.cfg` to bring it back.
 
 Notes off screen keep playing; a marker on the window edge shows them firing.
 

@@ -13,7 +13,7 @@ const KEYS := [
 	"wave_strength", "bpm", "beat_spacing", "divisions", "wave_range", "falloff_curve", "note_beats",
 	"root_note", "scale_name", "midi_port", "midi_slots", "velocity_stamp", "midi_in_port", "hover_preview", "cursor_glow", "tool", "ring_option", "brush", "notes", "view_offset", "layout_version",
 	"snap_enabled", "snap_distance", "snap_spokes", "spoke_count", "guides_to_edge",
-	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "snap_centres", "look",
+	"guide_divisions", "guide_brightness", "snap_memory", "touch_snap", "drag_rings", "colorblind", "channel_beats", "channel_volumes", "midi_mappings", "snap_centres", "look",
 	"abyss_sink", "abyss_density", "abyss_glints", "abyss_shafts", "abyss_depth", "abyss_refraction",
 	"tidal_scale", "tidal_depth", "tidal_shine", "tidal_relief", "tidal_refraction", "tidal_color", "tidal_caustics", "tidal_caustic_scale", "tidal_caustic_speed",
 ]
@@ -107,6 +107,10 @@ var colorblind := false:
 ## Deprecated: touch to snap (touch an object while dragging to snap to it). Off by default and
 ## not in the Options panel; set touch_snap=true in the settings file to bring it back.
 var touch_snap := false
+## Deprecated: the dragged item's own rings and spokes (the grid that follows a note or emitter while
+## it is dragged). Off by default and not in the Options panel; set drag_rings=true in the settings
+## file to bring it back. Snapping only ever uses the grids on notes and diamonds, so it is unaffected.
+var drag_rings := false
 var snap_memory := true         ## remember the target snapped to on drop for the next drag
 var snap_centres := true        ## snap onto the centre of a note or emitter the item is dropped on
 

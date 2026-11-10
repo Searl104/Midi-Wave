@@ -2,7 +2,8 @@ class_name Snapping
 extends RefCounted
 ## Timing rings, spokes and grids: where a dragged or newly placed object lands, and the readout.
 ##
-## Rings show around each grid while dragging. The dragged item snaps to the nearest ring, spoke
+## Rings show around each grid while dragging (the dragged item's own rings are deprecated, off
+## unless drag_rings=true in the settings file). The dragged item snaps to the nearest ring, spoke
 ## or crossing; Shift places freely; onto a note or emitter it lands on the centre. Touch to snap
 ## (deprecated, off unless touch_snap=true in the settings file) adds touched objects as targets.
 

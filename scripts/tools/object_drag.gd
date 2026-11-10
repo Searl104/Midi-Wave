@@ -207,6 +207,8 @@ func draw_rings() -> void:
 	var dragged := surface.get_note(id)
 	var focus: Variant = info.get("ref_point")
 	for i in info.centres.size():
+		if i == 0 and not Settings.drag_rings:
+			continue                       # the dragged item's own rings are deprecated and off
 		var centre_w: Vector2 = info.centres[i]
 		var is_held: bool = centre_w == info.centres[0]
 		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness

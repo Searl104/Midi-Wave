@@ -23,7 +23,7 @@ const TIPS := {
 	"snap_spokes": "Snap to a grid's spokes as well as its rings.",
 	"snap_centres": "Snap exactly onto a note or emitter when dragged over it.",
 	"spoke_count": "How many straight lines radiate from each grid.",
-	"guides_to_edge": "How far the rings around a dragged item run. A grid's own reach still applies.",
+	"guides_to_edge": "How far a grid's rings run while you drag. A grid's own reach still applies.",
 	"guide_divisions": "Show the faint rings between beats.",
 	"guide_brightness": "How bright grid and drag guides are.",
 	"abyss_sink": "How fast marine snow sinks.",

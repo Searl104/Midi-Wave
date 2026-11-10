@@ -1,7 +1,8 @@
 class_name Grid
 extends RefCounted
 ## A snap grid: timing rings and spokes centred on a note or a detached emitter. Whatever carries
-## it passes its own world position as `origin`. The same guides show around dragged items.
+## it passes its own world position as `origin`. The same guides can show around a dragged item,
+## but that is deprecated and off unless drag_rings=true in the settings file.
 ## Nothing draws or snaps past a grid's reach. With no reach set, it follows its carrier.
 
 var reach := 0.0                   ## world units; 0 = automatic
