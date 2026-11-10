@@ -28,7 +28,7 @@ Tab flips between Tap and the previous tool. The tool and ring choice are rememb
 **Tool keys** pick a tool as a click on the bar does: T Tap, S Select and Move, D Draw, B Bind,
 G Grid, V Velocity, C Paste Collection, H Pan, Z Zoom. They work with no Shift, Ctrl or Alt held,
 so Ctrl+C, Ctrl+V and Ctrl+Z are unchanged, and do nothing while middle-drag holds Pan or Zoom.
-Change them in **Options → Controls**.
+Each tool's key shows small in the bottom left of its icon. Change them in **Options → Controls**.
 
 **Tool panels:** hovering a toolbar item that has options shows a faint right-click icon beside it.
 Right-click to open its panel, just right of the toolbar and centred on the item. Hover any setting

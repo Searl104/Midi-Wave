@@ -3,10 +3,12 @@ extends Control
 ## The tool strip on the left edge, one slot per tool in ToolManager. Each tool draws its own icon;
 ## the active tool is lit, and a yellow bar marks the ring option. Right-click opens an item's
 ## ToolPanel, if it has options; hovering such an item shows a faint right-click hint beside it.
+## A tool with a key (Options > Controls) shows it small in the slot's bottom left.
 
 const SLOT := 44.0
 const PAD := 6.0
 const HINT_INK := Color(1, 1, 1, 0.4)    ## the right-click hint
+const KEY_FONT_SIZE := 9                 ## the tool key in each slot's corner
 
 var surface: WaveSurface
 var panel: ToolPanel
@@ -23,6 +25,9 @@ func _ready() -> void:
 	offset_right = 12.0 + size.x
 	offset_top = -size.y / 2.0
 	offset_bottom = size.y / 2.0
+	Settings.changed.connect(func(key: String) -> void:
+		if key == "tool_keys":
+			queue_redraw())
 
 
 func _slot_rect(i: int) -> Rect2:
@@ -112,6 +117,10 @@ func _draw() -> void:
 			draw_rect(Rect2(r.position + Vector2(1, 9), Vector2(3, SLOT - 18)), Palette.YELLOW)
 		var ink := Palette.TEXT if on or option else Palette.TEXT_DIM
 		t.draw_icon(self, r.get_center(), ink)
+		var key := ToolKeys.key_for(t.tool_id())
+		if key != "":
+			draw_string(get_theme_default_font(), r.position + Vector2(5.0, SLOT - 4.0), key,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, KEY_FONT_SIZE, Color(ink, 0.75 if on else 0.55))
 	if _hover != -1 and manager.tools[_hover].has_options() and not panel.visible:
 		_draw_options_hint(Vector2(size.x + 20.0, _slot_rect(_hover).get_center().y))
 
