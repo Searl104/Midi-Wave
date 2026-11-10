@@ -12,7 +12,6 @@ var channel := 0
 var velocity := 100                ## 1-100: the share of a hit's strength it plays at
 var muted := false                 ## no sound and no pulse from waves
 var binding := ""                  ## what fires it: "kp0"-"kp9", "midi<note>", or "" for none
-var snap_note := ""                ## target last snapped to when dropped
 var grid: Grid = null              ## snap grid centred here, if on
 var modifiers: Array[Modifier] = []
 
@@ -82,7 +81,6 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	grid = Grid.new() if bool(d.get("grid", false)) else null
 	if grid:
 		grid.reach = maxf(float(d.get("grid_reach", 0.0)), 0.0)
-	snap_note = str(d.get("snap_note", ""))
 	modifiers.clear()
 	if d.has("mods"):
 		for md in d["mods"]:
@@ -110,7 +108,7 @@ func to_dict() -> Dictionary:
 		mods.append(m.to_dict())
 	return {
 		"x": pos.x, "y": pos.y, "note": note, "channel": channel, "mods": mods,
-		"id": id, "snap_note": snap_note, "binding": binding, "muted": muted, "velocity": velocity, "grid": grid != null, "grid_reach": grid.reach if grid else 0.0,
+		"id": id, "binding": binding, "muted": muted, "velocity": velocity, "grid": grid != null, "grid_reach": grid.reach if grid else 0.0,
 	}
 
 

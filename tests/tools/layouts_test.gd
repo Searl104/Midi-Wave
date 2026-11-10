@@ -317,7 +317,6 @@ func _collections() -> void:
 		Collections.remove(n)
 	var a := surface.add_object(Vector2(100, 100), 60, 2)
 	var b := surface.add_object(Vector2(300, 100), 64, 3)
-	var c := surface.add_object(Vector2(900, 900), 67, 4)
 	surface.add_modifier(a, "relay")
 	surface.add_modifier(b, "sequence")
 	surface.set_sequence_count(b, 5)
@@ -327,8 +326,6 @@ func _collections() -> void:
 	var e: Emitter = surface.get_note(a).emitter()
 	e.attached = false
 	e.pos = Vector2(100, 200)
-	surface.get_note(a).snap_note = "n%d" % b
-	surface.get_note(b).snap_note = "n%d" % c          # outside the group
 	# Saving.
 	_check(tool.save_selection("Pair") == "Select some notes first.", "saving needs a selection")
 	surface.selection.notes = {a: true, b: true}
@@ -354,8 +351,6 @@ func _collections() -> void:
 	_check(pa.emitter().pos == Vector2(400, 600) and not pa.emitter().attached, "with its remote emitter")
 	_check(pb.note == 64 and pb.channel == 3 and pb.binding == "kp4" and pb.grid != null, "binding and grid kept")
 	_check(pb.get_modifier("sequence").steps == [true, false, false, true, true], "modifiers kept")
-	_check(pa.snap_note == "n%d" % pb.id, "snap memory follows the group")
-	_check(pb.snap_note == "", "and links outside it are dropped")
 	surface.undo()
 	_check(surface.notes.size() == before, "one undo removes the lot")
 	# Stamping.

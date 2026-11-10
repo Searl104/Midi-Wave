@@ -1,14 +1,12 @@
 class_name SurfaceEffects
 extends RefCounted
-## Short-lived visuals that aren't entities: splashes when notes play, and bracket and touch flashes.
+## Short-lived visuals that aren't entities: splashes when notes play, and bracket flashes.
 
 const SPLASH_TIME := 0.6
 const BRACKET_FLASH_TIME := 0.4
-const TOUCH_FLASH_TIME := 0.35
 
 var splashes: Array = []           # {pos: Vector2 (world), t: float, color: Color, strength: float}
 var bracket_flashes: Array = []    # {pos: Vector2 (world), half: float, t: float}
-var touch_flashes: Array = []      # {pos: Vector2 (world), t: float}
 
 
 func add_splash(pos: Vector2, color: Color, strength: float) -> void:
@@ -21,12 +19,7 @@ func flash_brackets(o: Note) -> void:
 		bracket_flashes.append({"pos": o.pos, "half": o.bracket_half(), "t": 0.0})
 
 
-func add_touch_flash(pos: Vector2) -> void:
-	touch_flashes.append({"pos": pos, "t": 0.0})
-
-
 func tick(delta: float) -> void:
-	_age(touch_flashes, delta, TOUCH_FLASH_TIME)
 	_age(bracket_flashes, delta, BRACKET_FLASH_TIME)
 	_age(splashes, delta, SPLASH_TIME)
 
@@ -53,8 +46,3 @@ func draw_bracket_flashes(surface: WaveSurface) -> void:
 		var k: float = bfl.t / BRACKET_FLASH_TIME
 		surface.draw_brackets(surface.to_screen(bfl.pos), bfl.half + 2.0 + 10.0 * ease(k, 0.4), 2.0, 0.9 * (1.0 - k), 0.42)
 
-
-func draw_touch_flashes(surface: WaveSurface) -> void:
-	for tf in touch_flashes:
-		var k: float = tf.t / TOUCH_FLASH_TIME
-		surface.draw_arc(surface.to_screen(tf.pos), Note.RADIUS + 6.0 + 22.0 * k, 0.0, TAU, 40, Color(1, 1, 1, 0.5 * (1.0 - k)), 2.0, true)

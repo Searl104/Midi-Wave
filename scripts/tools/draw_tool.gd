@@ -117,20 +117,18 @@ func pick_up(id: int) -> void:
 		surface.save_notes()
 
 
-## What belongs to one spot isn't copied: the binding, grids, snap memory and a remote emitter.
+## What belongs to one spot isn't copied: the binding, grids and a remote emitter.
 func _copy_from_dict(d: Dictionary) -> void:
 	brush.note = int(d.get("note", brush.note))
 	brush.channel = int(d.get("channel", brush.channel))
 	brush.load_dict(d, Vector2.ZERO)
 	brush.binding = ""
 	brush.grid = null
-	brush.snap_note = ""
 	var e: Emitter = brush.emitter()
 	if e:
 		e.attached = true
 		e.pos = Vector2.ZERO
 		e.grid = null
-		e.snap = ""
 
 
 func draw_overlay(canvas: WaveSurface) -> void:

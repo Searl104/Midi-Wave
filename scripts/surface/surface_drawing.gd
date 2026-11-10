@@ -77,8 +77,6 @@ func draw() -> void:
 	surface.tools.draw_overlay(surface)
 
 	if not surface.drag.info.is_empty():
-		if dragging_item:
-			surface.drag.draw_touches()
 		surface.drag.draw_readout(font)
 	elif surface.hovered_note() != -1 and not surface.drag.active():
 		var hovered := surface.get_note(surface.hovered_note())

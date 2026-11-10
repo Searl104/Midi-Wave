@@ -2,10 +2,8 @@ class_name Snapping
 extends RefCounted
 ## Timing rings, spokes and grids: where a dragged or newly placed object lands, and the readout.
 ##
-## Rings show around each grid while dragging (the dragged item's own rings are deprecated, off
-## unless drag_rings=true in the settings file). The dragged item snaps to the nearest ring, spoke
-## or crossing; Shift places freely; onto a note or emitter it lands on the centre. Touch to snap
-## (deprecated, off unless touch_snap=true in the settings file) adds touched objects as targets.
+## Rings show around each grid while dragging. The dragged item snaps to the nearest ring, spoke
+## or crossing; Alt places freely; onto a note or emitter it lands on the centre.
 
 const FRACTIONS := {
 	"1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/6": "⅙", "5/6": "⅚",
@@ -23,9 +21,9 @@ static func ring_step() -> float:
 	return Settings.BEAT_UNIT / maxf(float(Settings.divisions), 1.0)
 
 
-## Every object a held item can touch, keyed "n<id>" (a note) or "e<id>" (a detached
-## emitter), with its world position. The held note and its own emitter are left out.
-func touch_targets(exclude_id: int) -> Dictionary:
+## Every object a held item can land on the centre of, keyed "n<id>" (a note) or "e<id>" (a
+## detached emitter), with its world position. The held note and its own emitter are left out.
+func object_targets(exclude_id: int) -> Dictionary:
 	var out := {}
 	for m in surface.notes:
 		if m.id == exclude_id or surface.drag.group.has(m.id):
@@ -37,7 +35,7 @@ func touch_targets(exclude_id: int) -> Dictionary:
 	return out
 
 
-## Grids that are on, keyed like touch targets, as {key: [Grid, world position, reach]}.
+## Grids that are on, keyed like object targets, as {key: [Grid, world position, reach]}.
 ## The held note (and its emitter) and the rest of a dragged group are left out.
 func active_grids(exclude_id: int = -1) -> Dictionary:
 	var out := {}
@@ -111,21 +109,17 @@ func grid_snap(p: Vector2) -> Vector2:
 
 
 ## Works out rings, snapping and the readout for dragging object `n` (`kind` "note" or
-## "emitter") to world point `p`, snapping only to the touched objects in `touched`.
+## "emitter") to world point `p`, snapping to the grids that are on.
 ## Returns {pos, centres, readout, loop, snapped, centre, ref_point}; centres[0] is the held item.
 ## Centre snapping (onto any note or emitter within the snap distance) beats rings and spokes.
-func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictionary = {}) -> Dictionary:
+func compute_drag(n: Note, kind: String, p: Vector2, free: bool) -> Dictionary:
 	var reach := Settings.wave_range
 	free = free or not Settings.snap_enabled
-	var targets := touch_targets(n.id)
-	var pairs: Array = []      # [world point, owning object id, key]
-	for key in touched:
-		if targets.has(key):
-			pairs.append([targets[key], int(key.substr(1)), key, INF])
+	var targets := object_targets(n.id)
+	var pairs: Array = []      # [world point, owning object id, key, grid reach]
 	var grids := active_grids(n.id)
 	for key in grids:
-		if not touched.has(key):
-			pairs.append([grids[key][1], int(key.substr(1)), key, grids[key][2]])
+		pairs.append([grids[key][1], int(key.substr(1)), key, grids[key][2]])
 
 	var step_px := ring_step()
 	var best: Array = []
@@ -161,7 +155,7 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 			spoke = pr
 			spoke_ang = snapped_ang
 
-	# Centre: any note or emitter (touched or not) whose centre is within the snap distance.
+	# Centre: any note or emitter whose centre is within the snap distance.
 	var centre: Array = []
 	var centre_d := tol
 	if not free and Settings.snap_centres:
@@ -217,7 +211,7 @@ func compute_drag(n: Note, kind: String, p: Vector2, free: bool, touched: Dictio
 		snapped = true
 		ref = spoke
 	else:
-		# Not snapped: measure to the nearest touched object, else the nearest object in reach.
+		# Not snapped: measure to the nearest grid, else the nearest object in reach.
 		var pool: Array = pairs.duplicate()
 		if pool.is_empty():
 			for key in targets:

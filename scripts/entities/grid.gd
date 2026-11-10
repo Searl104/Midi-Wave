@@ -1,8 +1,7 @@
 class_name Grid
 extends RefCounted
 ## A snap grid: timing rings and spokes centred on a note or a detached emitter. Whatever carries
-## it passes its own world position as `origin`. The same guides can show around a dragged item,
-## but that is deprecated and off unless drag_rings=true in the settings file.
+## it passes its own world position as `origin`.
 ## Nothing draws or snaps past a grid's reach. With no reach set, it follows its carrier.
 
 var reach := 0.0                   ## world units; 0 = automatic
@@ -17,8 +16,9 @@ func nearest(origin: Vector2, p: Vector2, ring: float, spoke_step: float) -> Arr
 	return [origin + Vector2.from_angle(ang) * r, origin + Vector2.from_angle(roundf(ang / spoke_step) * spoke_step) * r]
 
 
-## One object's timing rings and spokes, out to the window edge (or the wave's reach).
-static func draw_guide(surface: WaveSurface, centre_w: Vector2, weight: float, divisions: bool, limit: float = INF) -> void:
+## A grid's timing rings and spokes, out to the window edge (or the wave's reach) and no further
+## than `limit`, the grid's reach in world units.
+static func draw_guide(surface: WaveSurface, centre_w: Vector2, weight: float, divisions: bool, limit: float) -> void:
 	var step_s := Snapping.ring_step() * surface.z()    # ring spacing on screen
 	var div: int = Settings.divisions
 	var reach_s := Settings.wave_range * surface.z()
@@ -32,10 +32,8 @@ static func draw_guide(surface: WaveSurface, centre_w: Vector2, weight: float, d
 		far = minf(far, reach_s)
 	far = minf(far, limit * surface.z())
 	var count := mini(int(floor(far / step_s + 0.001)), 600)
-	if limit == INF:
-		count = mini(int(ceil(far / step_s)), 600)
 	if Settings.spoke_count > 0:
-		# Spokes out to the guide limit, on the held item and on every snap target.
+		# Spokes out to the guide limit.
 		var spokes: int = Settings.spoke_count
 		for i in spokes:
 			var sd := Vector2.from_angle(i * TAU / spokes)

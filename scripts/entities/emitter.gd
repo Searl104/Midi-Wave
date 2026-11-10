@@ -16,7 +16,6 @@ var strength := DEFAULT_STRENGTH
 var cooldown := DEFAULT_COOLDOWN   ## beats; 0 = retrigger
 var own_reach := 0.0               ## wave reach in world units (0 = the global Reach)
 var grid: Grid = null              ## snap grid centred here, if on and detached
-var snap := ""                     ## target last snapped to when dropped
 var ready_at := 0                  ## clock time it can fire again
 var hold_next := 0                 ## next refire time while its binding is held
 var pulse_flash := 0.0
@@ -31,7 +30,6 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	grid = Grid.new() if bool(d.get("grid_emit", false)) else null
 	if grid:
 		grid.reach = maxf(float(d.get("grid_emit_reach", 0.0)), 0.0)
-	snap = str(d.get("snap_emit", ""))
 	own_reach = maxf(float(d.get("range", 0.0)), 0.0)
 	strength = clampf(float(d.get("pulse_strength", DEFAULT_STRENGTH)), 0.05, 1.0)
 	# Cooldowns are in beats (tempo-locked). Older saves stored seconds: convert at the saved tempo.
@@ -48,7 +46,7 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 func to_dict() -> Dictionary:
 	return {"pulse_strength": strength, "cooldown_beats": cooldown, "attached": attached,
 			"ex": pos.x, "ey": pos.y, "range": own_reach, "grid_emit": grid != null,
-			"grid_emit_reach": grid.reach if grid else 0.0, "snap_emit": snap}
+			"grid_emit_reach": grid.reach if grid else 0.0}
 
 
 func is_retrigger() -> bool:

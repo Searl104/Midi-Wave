@@ -42,7 +42,7 @@ func _tweaks() -> void:
 
 func _saves() -> void:
 	Settings.notes = [
-		{"x": 10.0, "y": 0.0, "note": 60, "channel": 0, "mode": 2, "pulse_strength": 0.5, "cooldown_beats": 2.0, "attached": false, "ex": 30.0, "ey": 40.0, "mod": "sequence", "mod_start": false, "id": 3, "range": 200.0, "grid_emit": true, "snap_emit": "n1"},
+		{"x": 10.0, "y": 0.0, "note": 60, "channel": 0, "mode": 2, "pulse_strength": 0.5, "cooldown_beats": 2.0, "attached": false, "ex": 30.0, "ey": 40.0, "mod": "sequence", "mod_start": false, "id": 3, "range": 200.0, "grid_emit": true},
 		{"x": 20.0, "y": 0.0, "note": 62, "channel": 1, "mode": 1, "id": 4},
 		{"x": 30.0, "y": 0.0, "note": 64, "channel": 2, "mode": 0, "attached": false, "ex": 9.0, "ey": 9.0, "id": 5},
 	]
@@ -50,7 +50,7 @@ func _saves() -> void:
 	var r := surface.get_note(3)
 	_check(r.relay() and not r.relay().sound and r.get_modifier("sequence") and r.get_modifier("sequence").steps == [false, true], "an old toggle becomes a sequence")
 	var e := r.emitter()
-	_check(e.strength == 0.5 and e.cooldown == 2.0 and not e.attached and e.pos == Vector2(30, 40) and e.own_reach == 200.0 and e.grid and e.snap == "n1", "keeps its emitter")
+	_check(e.strength == 0.5 and e.cooldown == 2.0 and not e.attached and e.pos == Vector2(30, 40) and e.own_reach == 200.0 and e.grid, "keeps its emitter")
 	_check(surface.get_note(4).relay() and surface.get_note(4).relay().sound and surface.notes.size() == 3, "an old hybrid is one sounding relay")
 	_check(surface.get_note(5).modifiers.is_empty(), "an old plain note has no relay")
 	surface.save_notes()

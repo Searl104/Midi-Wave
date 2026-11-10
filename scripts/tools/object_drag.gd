@@ -2,10 +2,7 @@ class_name ObjectDrag
 extends RefCounted
 ## Holding and moving something on the surface: an object ("note"), an emitter ("emitter"), or an
 ## emitter's reach ("range"). A selected item carries the rest of the selection, which keeps its
-## shape; a note's remote diamond only moves if it's selected too. Any tool can use it. While moving, it shows the rings and readout from Snapping.
-##
-## Touch to snap (deprecated, see Snapping) lives here too: touching another object while moving
-## toggles it as a snap target, when the overlap begins.
+## shape; a note's remote diamond only moves if it's selected too. Any tool can use it. While moving, it shows the grids it can snap to and the readout from Snapping.
 
 const THRESHOLD := 6.0             ## screen px before a press becomes a move
 
@@ -15,8 +12,6 @@ var kind := ""
 var moved := false                 ## past the threshold
 var info: Dictionary = {}          ## rings + readout for the current move (empty when not moving)
 var group: Dictionary = {}         # id -> [pos, emit, moves_note, moves_emit]
-var touched: Dictionary = {}       # object keys toggled as snap targets this drag
-var _overlapping: Dictionary = {}  # object keys the held item overlaps right now
 var _press_pos := Vector2.ZERO
 
 
@@ -38,7 +33,6 @@ func begin(object_id: int, what: String, pos: Vector2) -> void:
 	kind = what
 	_press_pos = pos
 	moved = false
-	touched = {}
 	group = {}
 	if what == "range" and sel.notes.has(id) and sel.notes.size() > 1:
 		for gid in sel.group_for(id):
@@ -54,13 +48,6 @@ func begin(object_id: int, what: String, pos: Vector2) -> void:
 			var g := surface.get_note(gid)
 			if g and not group.has(gid):
 				group[gid] = _start_of(g, false)
-	var o := surface.get_note(id)
-	if o:
-		var remembered: String = o.emitter().snap if what == "emitter" else o.snap_note
-		if Settings.touch_snap and Settings.snap_memory and remembered != "" and surface.snapping.touch_targets(id).has(remembered):
-			touched[remembered] = true
-	# Whatever the held item already overlaps at the start doesn't count as a touch.
-	_overlapping = _overlaps_at(o, o.pos if what == "note" else o.emitter().world_pos(o)) if o else {}
 
 
 func _start_of(g: Note, moves_note: bool) -> Array:
@@ -84,8 +71,7 @@ func move_to(screen_pos: Vector2, free: bool) -> void:
 	if kind == "range":
 		_move_reach(n, p, free)
 		return
-	_update_touches(n, p)
-	info = surface.snapping.compute_drag(n, kind, p, free, touched)
+	info = surface.snapping.compute_drag(n, kind, p, free)
 	var delta := Vector2.ZERO
 	var e: Emitter = n.emitter()
 	if kind == "emitter":
@@ -152,13 +138,6 @@ func end() -> bool:
 	elif id != -1:
 		var n := surface.get_note(id)
 		if n and moved:
-			var snapped_to: String = info.get("snap_key", "") if info.get("snapped", false) else ""
-			if not (Settings.snap_memory and Settings.touch_snap):
-				snapped_to = ""
-			if kind == "emitter":
-				n.emitter().snap = snapped_to
-			else:
-				n.snap_note = snapped_to
 			if kind == "emitter" and n.emitter().pos.distance_to(n.pos) <= Note.RADIUS / surface.z():
 				n.emitter().attached = true  # dropped back on its own note: re-attach
 				n.emitter().pos = n.pos
@@ -168,47 +147,18 @@ func end() -> bool:
 	kind = ""
 	moved = false
 	info = {}
-	touched = {}
-	_overlapping = {}
 	group = {}
 	return was_moved
-
-
-func _update_touches(n: Note, p: Vector2) -> void:
-	if not Settings.touch_snap:
-		return
-	var now_over := _overlaps_at(n, p)
-	for key in now_over:
-		if not _overlapping.has(key):
-			if touched.has(key):
-				touched.erase(key)
-			else:
-				touched[key] = true
-			surface.effects.add_touch_flash(now_over[key])
-	_overlapping = now_over
-
-
-func _overlaps_at(n: Note, p: Vector2) -> Dictionary:
-	var held_r := Emitter.HANDLE_RADIUS if kind == "emitter" else Note.RADIUS
-	var out := {}
-	var targets := surface.snapping.touch_targets(n.id)
-	for key in targets:
-		var other_r := Note.RADIUS if key.begins_with("n") else Emitter.HANDLE_RADIUS
-		if p.distance_to(targets[key]) < (held_r + other_r) / surface.z():
-			out[key] = targets[key]
-	return out
 
 
 # --- Drawing -------------------------------------------------------------------------------
 
 func draw_rings() -> void:
-	# Rings run out to the edges of the window (not just the wave's reach). Rings past the
-	# reach are drawn a little dimmer: waves fade out before getting there.
+	# The grids the item can snap to, brighter while dragging; the one it measures from is brightest.
+	# Rings past the wave's reach are drawn a little dimmer: waves fade out before getting there.
 	var dragged := surface.get_note(id)
 	var focus: Variant = info.get("ref_point")
-	for i in info.centres.size():
-		if i == 0 and not Settings.drag_rings:
-			continue                       # the dragged item's own rings are deprecated and off
+	for i in range(1, info.centres.size()):   # centres[0] is the held item, which has no rings
 		var centre_w: Vector2 = info.centres[i]
 		var is_held: bool = centre_w == info.centres[0]
 		var weight := (1.0 if (is_held or (focus != null and centre_w.is_equal_approx(focus))) else 0.6) * Settings.guide_brightness
@@ -224,16 +174,6 @@ func draw_rings() -> void:
 			for dv in [Vector2.RIGHT, Vector2.DOWN]:
 				surface.draw_line(at - dv * arm, at - dv * (radius + 8.0), sc, 1.5, true)
 				surface.draw_line(at + dv * (radius + 8.0), at + dv * arm, sc, 1.5, true)
-
-
-## Touched objects get a highlight ring; a touch shows a brief flash.
-func draw_touches() -> void:
-	var targets := surface.snapping.touch_targets(id)
-	for key in touched:
-		if targets.has(key):
-			var r := (Note.RADIUS if key.begins_with("n") else Emitter.HANDLE_RADIUS) + 8.0
-			surface.draw_arc(surface.to_screen(targets[key]), r, 0.0, TAU, 40, Color(Palette.ACCENT.lightened(0.4), 0.85), 2.0, true)
-	surface.effects.draw_touch_flashes(surface)
 
 
 func draw_readout(font: Font) -> void:

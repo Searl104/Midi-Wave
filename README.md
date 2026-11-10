@@ -177,10 +177,6 @@ whose centre is within the snap distance, ahead of grid points. Alt places freel
 
 The **Grid panel** sets: snapping on/off, snap distance, spoke snapping on/off, centre snapping on/off, spokes per grid (none, 4, 6, 8, 12, 16; 6 gives 60° lines), guides to the window edge or only the wave's reach, division rings on/off and guide brightness.
 
-Touch to snap, the older way of picking snap targets (touch an object while dragging to snap to it), is deprecated and off by default. It has no Options control: set `touch_snap=true` in `settings.cfg` to bring it back, along with `snap_memory`.
-
-The dragged item's own grid (the rings and spokes that followed a note or emitter while you moved it) is also deprecated and off by default. Snapping never used it, only the grids on notes and diamonds, so snapping is unchanged. It has no Options control: set `drag_rings=true` in `settings.cfg` to bring it back.
-
 Notes off screen keep playing; a marker on the window edge shows them firing.
 
 A faint glow under the cursor shows how far a wave from there reaches and how it fades. **Options → Look → Cursor glow** sets its strength (0% hides it, up to 200%).

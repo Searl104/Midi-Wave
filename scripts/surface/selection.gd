@@ -88,7 +88,7 @@ func copy() -> int:
 
 
 ## Pastes the copied group centred at a screen position; the pasted objects become the selection.
-## Pasted copies leave out what belongs to the original: its grids and snap memory.
+## Pasted copies leave out what belongs to the original: its grids.
 func paste_at(screen_pos: Vector2) -> int:
 	if _clipboard.is_empty():
 		return 0
@@ -102,12 +102,10 @@ func paste_at(screen_pos: Vector2) -> int:
 		var o := surface.get_note(id)
 		o.load_dict(c, o.pos)
 		o.grid = null
-		o.snap_note = ""
 		var e: Emitter = o.emitter()
 		if e:
 			e.pos = o.pos if e.attached else centre + c.emit_off
 			e.grid = null
-			e.snap = ""
 		notes[id] = true
 	surface.save_notes()
 	return _clipboard.size()

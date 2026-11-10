@@ -165,15 +165,11 @@ func place(items: Array, screen_pos: Vector2, free: bool = false) -> int:
 	surface.history.end_group()
 	surface.history.set_stroke(true)
 	sel.clear()
-	var new_ids := {}
 	for d in Collections.placed(items, landing(items, screen_pos, free)):
 		var id := surface.add_object(Vector2(d["x"], d["y"]), int(d["note"]), int(d["channel"]))
 		var o := surface.get_note(id)
 		o.load_dict(d, o.pos)
-		new_ids[int(d["id"])] = id
 		sel.notes[id] = true
-	for old in new_ids:
-		Collections.relink(surface.get_note(new_ids[old]), new_ids)
 	surface.save_notes()
 	surface.history.set_stroke(false)
 	surface.history.end_group()
