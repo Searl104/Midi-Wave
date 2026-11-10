@@ -87,6 +87,74 @@ func _quick_pick() -> void:
 	c = open_seq.call()
 	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
 	_check(not radial.visible and JSON.stringify(o.to_dict()) == settings, "a still release, with nothing highlighted, closes it")
+	# Painting: a left drag across the steps gives each the first step's new state.
+	surface.set_sequence_count(a, 4)
+	for i in 4:
+		surface.set_sequence_step(a, i, i % 2 == 0)              # On, Off, On, Off
+	var seq: SequenceModifier = o.get_modifier("sequence")
+	c = open_seq.call()
+	var step_at := func(i: int) -> Vector2:
+		return c + Vector2.from_angle(-PI / 2.0 + TAU * i / 4.0) * 112.0
+	surface.history.end_group()
+	var before := surface.history.undo_steps()
+	_radial_press(MOUSE_BUTTON_LEFT, true, step_at.call(0))
+	_check(seq.steps == [false, false, true, false], "the press turns its step Off")
+	_radial_move(step_at.call(1))
+	_radial_move(step_at.call(2))
+	_radial_move(step_at.call(1))
+	_check(seq.steps == [false, false, false, false], "and the drag paints Off, each step once")
+	_radial_press(MOUSE_BUTTON_LEFT, false, step_at.call(2))
+	_check(radial.visible and surface.history.undo_steps() == before + 1, "one stroke is one undo step, and the ring stays open")
+	_radial_press(MOUSE_BUTTON_LEFT, true, step_at.call(3))
+	_radial_move(step_at.call(0))
+	_radial_press(MOUSE_BUTTON_LEFT, false, step_at.call(0))
+	_check(seq.steps == [true, false, false, true], "starting on an Off step paints On")
+	_radial_move(step_at.call(1))
+	_check(seq.steps == [true, false, false, true], "moving after the release paints nothing")
+	_radial_move(c + Vector2(250, 0))
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(250, 0))
+	_check(not radial.visible and seq.steps == [true, false, false, true], "and a release off the rings closes it, keeping the paint")
+	surface.undo()
+	o = surface.get_note(a)
+	_check(o.get_modifier("sequence").steps == [false, false, false, false], "undo takes back one stroke")
+	# On a ring left open, the same.
+	seq = o.get_modifier("sequence")
+	c = open_seq.call()
+	radial.holding = false
+	var gui_press := func(at: Vector2, down: bool) -> void:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = down
+		e.position = at
+		radial._gui_input(e)
+	var gui_move := func(at: Vector2) -> void:
+		var e := InputEventMouseMotion.new()
+		e.position = at
+		radial._gui_input(e)
+	gui_press.call(step_at.call(1), true)
+	gui_move.call(step_at.call(2))
+	gui_move.call(step_at.call(3))
+	gui_press.call(step_at.call(3), false)
+	_check(seq.steps == [false, true, true, true] and radial.visible, "an open ring paints too")
+	radial.close()
+	# The Modifier ring doesn't paint: a drag can't remove a modifier and its settings.
+	tools.pick("modifier")
+	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
+	c = radial._center
+	radial.holding = false
+	var mod_at := func(i: int) -> Vector2:
+		return c + Vector2.from_angle(-PI / 2.0 + TAU * i / 4.0) * 112.0
+	gui_press.call(mod_at.call(3), true)                         # Silent
+	gui_move.call(mod_at.call(2))                                # Relay
+	gui_move.call(mod_at.call(1))                                # Sequence
+	gui_press.call(mod_at.call(1), false)
+	o = surface.get_note(a)
+	_check(o.get_modifier("silent") != null and o.relay() != null and o.get_modifier("sequence") != null, "the Modifier ring only takes the press")
+	radial.close()
+	surface.remove_modifier(a, "silent")
+	tools.pick("pitch")
+	o = surface.get_note(a)
+	tab = o.get_modifier("sequence")._tab_centre(surface, o)
 	# A left click during the hold picks and keeps it open.
 	c = open_seq.call()
 	_radial_press(MOUSE_BUTTON_LEFT, true, c + Vector2(0, -112))

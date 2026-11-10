@@ -246,6 +246,12 @@ func attach_radial(menu: RadialMenu) -> void:
 	radial.dial_changed.connect(func(value: float) -> void:
 		if open_ring:
 			open_ring.pick_dial(value))
+	radial.outer_painted.connect(func(id: Variant) -> void:
+		if open_ring:
+			open_ring.paint_outer(id))
+	radial.paint_ended.connect(func() -> void:
+		if open_ring:
+			open_ring.paint_ended())
 	radial.closed.connect(func() -> void:
 		if open_ring:
 			open_ring.ring_closed())

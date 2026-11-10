@@ -8,6 +8,10 @@ extends Control
 ## release without moving leaves it open for clicking only if something is highlighted (the centre
 ## button, which sits under the pointer as the ring opens); with nothing highlighted it closes.
 ##
+## Paint: on a ring whose outer items can be on together (`paint_outer`, the sequence's steps), a
+## left press picks the item under it and keeps going: holding the button and moving across more
+## outer items paints them, each once per stroke (outer_painted), until the release (paint_ended).
+##
 ## Dial mode replaces the rings with one large knob, for fine control over a single value (the
 ## relay's cooldown). Moving around it sets the value, by dragging or during a hold, and releasing a
 ## hold keeps it. A still release leaves the dial open.
@@ -20,6 +24,8 @@ signal center_chosen(id: Variant)
 signal closed
 signal dial_changed(value: float)   ## 0-1
 signal hover_changed(ring: String, id: Variant)   ## pointer moved onto an item while open
+signal outer_painted(id: Variant)   ## a left drag that began on the outer ring crossed another item
+signal paint_ended                  ## that left drag's button came up
 
 const CENTER_R := 30.0
 const INNER_R0 := 36.0
@@ -38,6 +44,7 @@ var inner_items: Array = []
 var center_item: Dictionary = {}
 var holding := false               ## the opening right-button press is still down
 var dial := false                  ## shows a dial instead of rings
+var paint_outer := false           ## a left drag across the outer ring paints its items
 var dial_value := 0.0              ## 0-1
 var dial_text := ""
 var dial_color := Palette.BLUE
@@ -48,6 +55,8 @@ var _press_pos := Vector2.ZERO
 var _moved := false
 var _hover_ring := ""       # "outer", "inner", "center" or ""
 var _hover_index := -1
+var _painting := false      # a left drag that began on the outer ring is under way
+var _painted := {}          # outer indexes this drag has picked or painted
 var _open_t := 0.0
 var _dial_held := false
 
@@ -76,6 +85,7 @@ func open(at: Vector2, hold: bool = false) -> void:
 
 func close() -> void:
 	holding = false
+	_painting = false
 	if visible:
 		hide()
 		closed.emit()
@@ -174,12 +184,17 @@ func _input(event: InputEvent) -> void:
 			_turn_dial(mm.position)
 		elif not dial:
 			hover_at(mm.position)
+			_paint_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
 	if mb == null:
 		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
+	if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
+		_end_paint()
+	elif mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
 		holding = false
+		if _painting:
+			return                     # mid-paint: the left button finishes, and the ring stays open
 		if _moved:
 			if not dial:
 				activate(mb.position)
@@ -190,7 +205,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		if dial:
 			_turn_dial(mb.position)
-		elif not activate(mb.position, true):
+		elif activate(mb.position, true):
+			_start_paint(mb.position)
+		else:
 			close()
 
 
@@ -202,10 +219,40 @@ func _gui_input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion
 	if mm:
 		hover_at(mm.position)
+		_paint_at(mm.position)
 		return
 	var mb := event as InputEventMouseButton
-	if mb and mb.pressed and not activate(mb.position, true):
-		close()
+	if mb and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
+		_end_paint()
+	elif mb and mb.pressed:
+		if activate(mb.position, true):
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				_start_paint(mb.position)
+		else:
+			close()
+
+
+## A left press picked an outer item on a paint ring: the drag that follows paints.
+func _start_paint(pos: Vector2) -> void:
+	var r := _ring_at(pos)
+	if paint_outer and visible and r[0] == "outer":
+		_painting = true
+		_painted = {r[1]: true}
+
+
+func _paint_at(pos: Vector2) -> void:
+	if not _painting:
+		return
+	var r := _ring_at(pos)
+	if r[0] == "outer" and not _painted.has(r[1]) and r[1] < outer_items.size():
+		_painted[r[1]] = true
+		outer_painted.emit(outer_items[r[1]].id)
+
+
+func _end_paint() -> void:
+	if _painting:
+		_painting = false
+		paint_ended.emit()
 
 
 func _dial_input(event: InputEvent) -> void:

@@ -15,6 +15,7 @@ func section() -> int:
 func open(menu: RadialMenu, id: int, at: Vector2, hold: bool = false) -> void:
 	radial = menu
 	menu.dial = false
+	menu.paint_outer = false
 	note_id = id
 	_prepare(at)
 	build()
@@ -41,6 +42,16 @@ func ring_closed() -> void:
 
 
 func pick_outer(_id: Variant) -> void:
+	pass
+
+
+## A left drag that began with pick_outer crossed another outer item (rings with paint_outer).
+func paint_outer(_id: Variant) -> void:
+	pass
+
+
+## That drag's button came up.
+func paint_ended() -> void:
 	pass
 
 

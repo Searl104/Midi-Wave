@@ -59,6 +59,11 @@ else. Esc closes it too.
 Releasing before anything is highlighted closes the ring too, so a right-click without moving
 opens and closes it. Left-click during the hold picks and keeps it open. Esc closes a ring.
 
+**Paint steps:** on the Sequence ring, hold the left button on a step and drag across the others:
+each step you cross takes the state the first one was turned to, so pressing an Off step and
+dragging turns them all On. Each step changes once per stroke, a stroke is one undo step, and the
+ring stays open. The Modifier ring doesn't paint, so a drag can't remove a modifier and its settings.
+
 The relay's settings are a **dial** instead of rings: hold right-click on the diamond and move
 around it to set the cooldown, then release to keep it. A right-click without moving leaves the
 dial open: drag on it with the left button, and click off it to close it. One opening is one undo step.
@@ -143,7 +148,7 @@ comes from the surface. A thin ring shows it, with a tab underneath. The tab's i
 next step, with a carousel of dots through it: steps just played on the left and steps to come on the
 right, blue for On and grey for Off, fading out so three show each side. Its settings ring
 sets the number of steps on the inner ring and turns steps On or Off on the outer ring, clockwise
-from the top. New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
+from the top; a left drag across the steps paints them (see Rings). New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
 the same pattern, turned to start where they started.
 
 **Silent** stops a note making any sound, but it still takes hits: a sequence on it steps on, a
