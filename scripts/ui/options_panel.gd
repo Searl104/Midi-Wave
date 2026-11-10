@@ -266,7 +266,7 @@ func _cancel_key_learn() -> void:
 func _refresh_keys() -> void:
 	for id in _key_rows:
 		var row: Dictionary = _key_rows[id]
-		var listening := _key_listening == id
+		var listening: bool = _key_listening == id
 		row.value.text = "Press a key..." if listening else ToolKeys.label(id)
 		row.learn.text = "Cancel" if listening else "Learn"
 		row.clear.disabled = ToolKeys.key_for(id) == ""
