@@ -4,7 +4,7 @@ extends RefCounted
 ## opens its settings ring. Subclasses set the rules, ring and tab; Stop resets any state.
 
 const RING := 10.0                 ## ring radius beyond the object's
-const KINDS := ["sequence", "relay"]
+const KINDS := ["sequence", "relay", "silent"]
 
 var flip := 0.0                    ## flash when the state changes
 
@@ -16,6 +16,8 @@ static func create(kind_name: String) -> Modifier:
 			return SequenceModifier.new()
 		"relay":
 			return RelayModifier.new()
+		"silent":
+			return SilentModifier.new()
 	return null
 
 

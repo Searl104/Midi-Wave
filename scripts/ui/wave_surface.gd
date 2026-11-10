@@ -374,9 +374,9 @@ func set_note_channel(id: int, channel: int) -> void:
 	editing.set_note_channel(id, channel)
 
 
-## Pulse strength (0-1) and cooldown in beats (tempo-locked, at least the minimum), on a relay.
-func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
-	editing.set_pulse_params(id, strength, cooldown)
+## A relay's cooldown in beats (tempo-locked, at least the minimum; 0 = Retrigger).
+func set_cooldown(id: int, cooldown: float) -> void:
+	editing.set_cooldown(id, cooldown)
 
 
 ## Adds a modifier if the object doesn't have it. A new relay sounds and is ready to fire; a new
@@ -392,10 +392,6 @@ func remove_modifier(id: int, kind: String) -> void:
 func clear_modifiers(id: int) -> void:
 	editing.clear_modifiers(id)
 
-
-## A relay's Sound: off makes it Silent and hollow; its pitch is kept.
-func set_relay_sound(id: int, on: bool) -> void:
-	editing.set_relay_sound(id, on)
 
 
 ## Sets a note's share of a hit's strength, 1-100.

@@ -86,20 +86,19 @@ func set_note_channel(id: int, channel: int) -> void:
 	surface.save_notes()
 
 
-## Pulse strength (0-1) and cooldown in beats (tempo-locked, at least the minimum), on a relay.
-func set_pulse_params(id: int, strength: float, cooldown: float) -> void:
+## A relay's cooldown in beats (tempo-locked, at least the minimum; 0 = Retrigger).
+func set_cooldown(id: int, cooldown: float) -> void:
 	var o := surface.get_note(id)
 	if o == null or o.relay() == null:
 		return
 	var e: Emitter = o.emitter()
-	e.strength = clampf(strength, 0.05, 1.0)
 	e.cooldown = Emitter.clamp_cooldown(cooldown)
 	e.ready_at = mini(e.ready_at, surface.clock_usec + e.cooldown_usec())
 	surface.save_notes()
 
 
-## Adds a modifier if the object doesn't have it. A new relay sounds and is ready to fire; a new
-## sequence is on an On step.
+## Adds a modifier if the object doesn't have it. A new relay is ready to fire; a new sequence is
+## on an On step; Silent stops a note that's sounding.
 func add_modifier(id: int, kind: String) -> void:
 	var o := surface.get_note(id)
 	if o == null or o.get_modifier(kind):
@@ -110,6 +109,8 @@ func add_modifier(id: int, kind: String) -> void:
 	if m is RelayModifier:
 		m.emitter.pos = o.pos
 	o.add_modifier(m)
+	if m is SilentModifier:
+		o.silence()
 	surface.save_notes()
 
 
@@ -131,16 +132,6 @@ func clear_modifiers(id: int) -> void:
 	surface.selection.emitters.erase(id)
 	surface.save_notes()
 
-
-## A relay's Sound: off makes it Silent and hollow; its pitch is kept.
-func set_relay_sound(id: int, on: bool) -> void:
-	var o := surface.get_note(id)
-	if o == null or o.relay() == null:
-		return
-	o.relay().sound = on
-	if not on:
-		o.silence()
-	surface.save_notes()
 
 
 ## Sets a note's share of a hit's strength, 1-100.

@@ -10,7 +10,7 @@ extends RefCounted
 ## (`starters`) sets them all going; Stop ends it. Pitches come from the current scale.
 
 const NOTE := 0
-const RELAY := 2                   ## a silent relay, in the older saved format this writes
+const RELAY := 2                   ## a relay with a Silent modifier, in the older saved format this writes
 
 var layout: Array = []             ## in a saved format
 var starters: Array = []           ## ids to fire once loaded
@@ -38,9 +38,9 @@ func _pitch(degree: int) -> int:
 	return scale[degree % scale.size()] + 12 * (degree / scale.size())
 
 
-## A relay firing `strength` waves from a detached emitter at `emit`, out to `reach`.
-func _sender(pos: Vector2, emit: Vector2, channel: int, reach: float, cooldown: float = 1.0, strength: float = 1.0, extra: Dictionary = {}) -> int:
-	var d := {"attached": false, "ex": emit.x, "ey": emit.y, "range": reach, "cooldown_beats": cooldown, "pulse_strength": strength}
+## A relay firing waves from a detached emitter at `emit`, out to `reach`.
+func _sender(pos: Vector2, emit: Vector2, channel: int, reach: float, cooldown: float = 1.0, extra: Dictionary = {}) -> int:
+	var d := {"attached": false, "ex": emit.x, "ey": emit.y, "range": reach, "cooldown_beats": cooldown}
 	d.merge(extra)
 	return _add(pos, 0, channel, RELAY, d)
 
@@ -48,7 +48,7 @@ func _sender(pos: Vector2, emit: Vector2, channel: int, reach: float, cooldown: 
 ## The two relays that keep a group going: each one's wave sets off the other.
 func _pair(a: Vector2, b: Vector2, reach: float) -> void:
 	for p in [a, b]:
-		var id := _add(p, 0, 1, RELAY, {"range": reach, "pulse_strength": 1.0, "cooldown_beats": 1.0})
+		var id := _add(p, 0, 1, RELAY, {"range": reach, "cooldown_beats": 1.0})
 		if p == a:
 			starters.append(id)
 
@@ -74,7 +74,7 @@ func _sequences(c: Vector2) -> void:
 	marks["seq_four"] = _add(c + Vector2(-80, 0), 2, 2, NOTE, {"mod": "sequence", "mod_steps": [false, false, true, false]})
 	marks["plain"] = _add(c + Vector2(-80, 44), 4, 3)
 	var target := c + Vector2(100, 90)
-	_sender(c + Vector2(-70, 90), target, 4, 60.0, 0.25, 1.0, {"mod": "sequence", "mod_steps": [true, false]})
+	_sender(c + Vector2(-70, 90), target, 4, 60.0, 0.25, {"mod": "sequence", "mod_steps": [true, false]})
 	marks["rested_target"] = _add(target, 6, 5)
 
 
@@ -84,19 +84,19 @@ func _mute(c: Vector2) -> void:
 	marks["muted"] = _add(c + Vector2(-70, -60), 1, 6, NOTE, {"muted": true})
 	marks["unmuted"] = _add(c + Vector2(-70, 10), 3, 7)
 	var target := c + Vector2(100, 90)
-	_sender(c + Vector2(-70, 90), target, 8, 60.0, 0.25, 1.0, {"muted": true})
+	_sender(c + Vector2(-70, 90), target, 8, 60.0, 0.25, {"muted": true})
 	marks["muted_target"] = _add(target, 5, 8)
 
 
-## Relays with cooldowns of 4, 1 and a quarter beat and retrigger, at rising strength, each aimed at
-## its own note with a short reach. They're all hit equally often; only the cooldown differs.
+## Relays with cooldowns of 4, 1 and a quarter beat and retrigger, each aimed at its own note
+## with a short reach. They're all hit equally often; only the cooldown differs.
 func _cooldowns(c: Vector2) -> void:
 	_driver(c)
-	var rows := [[-66.0, 4.0, 0.25], [-22.0, 1.0, 0.5], [22.0, 0.25, 0.75], [66.0, 0.0, 1.0]]
+	var rows := [[-66.0, 4.0], [-22.0, 1.0], [22.0, 0.25], [66.0, 0.0]]
 	for i in rows.size():
 		var y: float = rows[i][0]
 		var target := c + Vector2(100, y)
-		_sender(c + Vector2(-80, y), target, 9, 40.0, rows[i][1], rows[i][2])
+		_sender(c + Vector2(-80, y), target, 9, 40.0, rows[i][1])
 		marks["cooldown%d" % i] = _add(target, i * 2, 9)
 
 
@@ -123,5 +123,5 @@ func _grids(c: Vector2) -> void:
 	marks["on_ring"] = _add(g + Vector2(100, 0), 1, 12, NOTE, {"binding": "kp2"})
 	marks["on_spoke"] = _add(g + Vector2.from_angle(PI / 4.0) * 100.0, 2, 13, NOTE, {"binding": "kp3"})
 	var emit := c + Vector2(100, 90)
-	_sender(c + Vector2(-70, 90), emit, 14, 60.0, 1.0, 1.0, {"grid_emit": true, "binding": "kp4"})
+	_sender(c + Vector2(-70, 90), emit, 14, 60.0, 1.0, {"grid_emit": true, "binding": "kp4"})
 	marks["emitter_grid"] = _add(emit + Vector2(0, -50), 4, 15, NOTE, {"binding": "kp5"})

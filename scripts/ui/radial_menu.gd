@@ -8,8 +8,9 @@ extends Control
 ## release without moving leaves it open for clicking only if something is highlighted (the centre
 ## button, which sits under the pointer as the ring opens); with nothing highlighted it closes.
 ##
-## Dial mode replaces the rings with one large knob, for fine control over a single value. Moving
-## around it sets the value, by dragging or during a hold, and releasing a hold keeps it.
+## Dial mode replaces the rings with one large knob, for fine control over a single value (the
+## relay's cooldown). Moving around it sets the value, by dragging or during a hold, and releasing a
+## hold keeps it. A still release leaves the dial open.
 ##
 ## Items: {id: Variant, label: String, color: Color, selected: bool}
 

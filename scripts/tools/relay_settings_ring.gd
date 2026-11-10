@@ -1,11 +1,13 @@
 class_name RelaySettingsRing
 extends RingTool
-## A relay's tab opens this. Outer ring = cooldown, inner ring = emit strength, centre = Sound.
+## A relay's tab opens this: a dial for its cooldown. Retrigger is at the start of the sweep, then
+## ⅛ to 4 beats in eighth-beat steps. Turning it sets every selected relay, and one opening of
+## the dial is one undo step.
 
-## Beats; 0 = Retrigger (no timer: fires on every wave that reaches it).
-const COOLDOWNS := [0.0, 0.125, 1.0 / 6.0, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
-const COOLDOWN_LABELS := ["Retrig", "⅛", "⅙", "¼", "⅓", "½", "⅔", "¾", "1", "1½", "2", "3", "4"]
-const STRENGTHS := [0.25, 0.5, 0.75, 1.0]
+const STEP := 0.125                ## beats between stops
+const STOPS := 33                  ## Retrigger, then 1-32 eighths (⅛ to 4 beats)
+
+var _turning := false              # an undo stroke is open for this opening of the dial
 
 
 func tool_id() -> String:
@@ -16,23 +18,48 @@ func title() -> String:
 	return "Relay"
 
 
+## The cooldown in beats at stop `i`; stop 0 is Retrigger.
+static func cooldown_at(i: int) -> float:
+	return clampi(i, 0, STOPS - 1) * STEP
+
+
+## The nearest stop to a cooldown. Older saves can hold values between stops, such as ⅓.
+static func stop_for(cooldown: float) -> int:
+	return clampi(roundi(cooldown / STEP), 0, STOPS - 1)
+
+
+static func label(cooldown: float) -> String:
+	if cooldown <= 0.0:
+		return "Retrigger"
+	var whole := floori(cooldown + 0.0001)
+	var eighths := roundi((cooldown - whole) * 8.0)
+	var frac := ""
+	if eighths > 0:
+		var g := 8
+		while eighths % g != 0 or 8 % g != 0:
+			g -= 1
+		var key := "%d/%d" % [eighths / g, 8 / g]
+		frac = Snapping.FRACTIONS.get(key, key)
+	var text: String = (str(whole) + frac) if whole > 0 else frac
+	if absf(cooldown - (whole + eighths / 8.0)) > 0.001:
+		text = "≈ " + text                     # an older save's value between stops
+	return text
+
+
 func build() -> void:
 	var o := surface.get_note(note_id)
 	if o == null or o.relay() == null:
 		return
 	var e: Emitter = o.emitter()
 	radial.outer_items = []
-	for i in COOLDOWNS.size():
-		var c: float = COOLDOWNS[i]
-		radial.outer_items.append({"id": c, "label": COOLDOWN_LABELS[i], "color": Palette.YELLOW,
-				"selected": absf(e.cooldown - c) < 0.001})
 	radial.inner_items = []
-	for s in STRENGTHS:
-		radial.inner_items.append({"id": s, "label": "%d%%" % roundi(s * 100), "color": Palette.RED,
-				"selected": absf(e.strength - s) < 0.001})
-	radial.center_item = {"id": "sound", "label": "Sound" if o.relay().sound else "Silent", "color": Palette.channel_color(o.channel)}
-	radial.title = "Relay · cooldown in beats or Retrigger (outer) · strength (inner)"
-	radial.subtitle = "Centre: Sound / Silent"
+	radial.center_item = {}
+	radial.dial = true
+	radial.dial_value = float(stop_for(e.cooldown)) / (STOPS - 1)
+	radial.dial_text = label(e.cooldown)
+	radial.dial_color = Palette.YELLOW
+	radial.title = "Relay cooldown · beats, or Retrigger at the start"
+	radial.subtitle = ""
 	radial.refresh()
 
 
@@ -47,23 +74,19 @@ func _group() -> Array:
 	return ids.filter(func(id: int) -> bool: return surface.get_note(id) != null and surface.get_note(id).relay() != null)
 
 
-func pick_outer(id: Variant) -> void:
+func pick_dial(value: float) -> void:
+	if not _turning:
+		_turning = true
+		surface.history.end_group()
+		surface.history.set_stroke(true)
+	var c := cooldown_at(roundi(clampf(value, 0.0, 1.0) * (STOPS - 1)))
 	for gid in _group():
-		surface.set_pulse_params(gid, surface.get_note(gid).emitter().strength, id)
+		surface.set_cooldown(gid, c)
 	build()
 
 
-func pick_inner(id: Variant) -> void:
-	for gid in _group():
-		surface.set_pulse_params(gid, id, surface.get_note(gid).emitter().cooldown)
-	build()
-
-
-func pick_center(_id: Variant) -> void:
-	var o := surface.get_note(note_id)
-	if o == null or o.relay() == null:
-		return
-	var on: bool = not o.relay().sound
-	for gid in _group():
-		surface.set_relay_sound(gid, on)
-	build()
+func ring_closed() -> void:
+	if _turning:
+		_turning = false
+		surface.history.set_stroke(false)
+		surface.history.end_group()

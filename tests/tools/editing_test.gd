@@ -265,7 +265,7 @@ func _tap() -> void:
 	var note := surface.add_note_at(Vector2(300, 300), 60, 0)
 	var relay := surface.add_note_at(Vector2(500, 300), 62, 0)
 	surface.add_modifier(relay, "relay")
-	surface.set_relay_sound(relay, false)
+	surface.add_modifier(relay, "silent")
 	var sent: Array = []
 	var spy := func(b: PackedByteArray) -> void: sent.append(b)
 	Midi.message_sent.connect(spy)
@@ -496,8 +496,7 @@ func _draw_tool() -> void:
 	_check(surface.notes.size() == count, "Ctrl-click on empty space does nothing")
 	# Ctrl-click copies exactly; a tab doesn't place.
 	placed.emitter().cooldown = 3.0
-	placed.emitter().strength = 0.5
-	placed.relay().sound = false
+	surface.add_modifier(placed.id, "silent")
 	placed.emitter().attached = false
 	placed.emitter().pos = Vector2(900, 900)
 	surface.save_notes()
@@ -506,9 +505,9 @@ func _draw_tool() -> void:
 	_press(MOUSE_BUTTON_LEFT, true, surface.to_screen(placed.pos), false, true)
 	_press(MOUSE_BUTTON_LEFT, false, surface.to_screen(placed.pos), false, true)
 	var be: Emitter = brush.emitter()
-	_check(be.cooldown == 3.0 and be.strength == 0.5 and be.own_reach > 0.0 and not brush.relay().sound, "Ctrl-click copies the settings")
+	_check(be.cooldown == 3.0 and be.own_reach > 0.0 and not brush.sounds(), "Ctrl-click copies the settings, Silent too")
 	_check(be != placed.emitter() and be.attached and brush.binding == "", "but not the spot or binding")
-	_check(Settings.brush.get("channel", -1) == 5 and Settings.brush.mods.size() == 2, "the brush is saved")
+	_check(Settings.brush.get("channel", -1) == 5 and Settings.brush.mods.size() == 3, "the brush is saved")
 	var tab: Vector2 = placed.get_modifier("sequence")._tab_centre(surface, placed)
 	count = surface.notes.size()
 	_click(tab)
@@ -519,7 +518,7 @@ func _draw_tool() -> void:
 	radial.outer_chosen.emit("relay")
 	radial.outer_chosen.emit("relay")
 	radial.close()
-	_check(brush.emitter().cooldown == 1.0 and brush.relay().sound, "turned off and on, a modifier is back to defaults")
+	_check(brush.emitter().cooldown == 1.0, "turned off and on, a modifier is back to defaults")
 	radial.outer_chosen.emit("")
 	tools.pick("pitch")
 	# It reloads.
@@ -615,14 +614,9 @@ func _tabs() -> void:
 	_check(dock.x > 400 and dock.y < 300, "docked upper right")
 	_press(MOUSE_BUTTON_RIGHT, true, dock)
 	_check(radial.visible and tools.open_ring.tool_id() == "relay_settings", "right-click the diamond")
-	radial.outer_chosen.emit(2.0)
+	_check(radial.dial and radial.center_item.is_empty(), "a cooldown dial, with no Sound switch")
+	radial.dial_changed.emit(16.0 / 32.0)
 	_check(e.cooldown == 2.0, "cooldown")
-	radial.inner_chosen.emit(0.5)
-	_check(e.strength == 0.5, "strength")
-	radial.center_chosen.emit("sound")
-	_check(not o.relay().sound and not o.shows_pitch(), "centre turns Sound off")
-	radial.center_chosen.emit("sound")
-	_check(o.relay().sound, "and back on")
 	radial.close()
 	# Remote: the diamond and the dim handle both open it, at the diamond.
 	e.attached = false

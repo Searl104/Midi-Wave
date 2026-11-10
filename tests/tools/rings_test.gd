@@ -16,66 +16,83 @@ func _quick_pick() -> void:
 	surface.add_modifier(a, "relay")
 	surface.add_modifier(a, "sequence")
 	var o := surface.get_note(a)
-	var e: Emitter = o.emitter()
 	tools.set_tool("select")
-	var dock: Vector2 = e.dock_screen_pos(surface, o)
-	var open_ring := func() -> Vector2:
+	# The relay's tab opens a cooldown dial: no rings, no centre.
+	var dock: Vector2 = o.emitter().dock_screen_pos(surface, o)
+	var open_dial := func() -> Vector2:
 		_press(MOUSE_BUTTON_RIGHT, true, dock)
 		return radial._center
-	# Outer: release picks and closes.
-	var c: Vector2 = open_ring.call()
-	_check(radial.holding, "opens held")
-	var item: Vector2 = c + Vector2(0, -112)         # the top of the outer ring: Retrigger
-	_radial_move(item)
-	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
-	_check(e.cooldown == 0.0 and not radial.visible, "release on the outer ring picks and closes")
-	# Inner.
-	c = open_ring.call()
-	item = c + Vector2(0, -54)                       # the top of the inner ring: 25%
-	_radial_move(item)
-	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
-	_check(e.strength == 0.25 and not radial.visible, "release on the inner ring picks and closes")
-	# Centre.
-	c = open_ring.call()
-	_radial_move(c + Vector2(0, -112))
-	_radial_move(c)
+	var c: Vector2 = open_dial.call()
+	_check(radial.visible and radial.holding and radial.dial, "the relay tab opens a dial, held")
+	_check(radial.outer_items.is_empty() and radial.inner_items.is_empty() and radial.center_item.is_empty(), "with no rings and no centre")
+	_check(is_equal_approx(radial.dial_value, 8.0 / 32.0) and radial.dial_text == "1", "showing the cooldown, 1 beat")
+	var at_value := func(v: float) -> Vector2:
+		return c + Vector2.from_angle(RadialMenu.DIAL_START + RadialMenu.DIAL_SWEEP * v) * 100.0
+	surface.history.end_group()
+	var steps := surface.history.undo_steps()
+	_radial_move(at_value.call(0.0))
+	_check(o.emitter().cooldown == 0.0 and radial.dial_text == "Retrigger", "the start is Retrigger")
+	_radial_move(at_value.call(1.0))
+	_check(o.emitter().cooldown == 4.0 and radial.dial_text == "4", "the end is 4 beats")
+	_radial_move(at_value.call(11.0 / 32.0))
+	_check(o.emitter().cooldown == 1.375 and radial.dial_text == "1⅜", "in eighth-beat steps")
+	_radial_press(MOUSE_BUTTON_RIGHT, false, at_value.call(11.0 / 32.0))
+	_check(not radial.visible and o.emitter().cooldown == 1.375, "release keeps it and closes")
+	_check(surface.history.undo_steps() == steps + 1, "one turn of the dial is one undo step")
+	surface.undo()
+	o = surface.get_note(a)
+	_check(o.emitter().cooldown == 1.0, "which undoes to where it started")
+	# A still release leaves the dial open; a left drag turns it and a click off it closes it.
+	c = open_dial.call()
 	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
-	_check(not o.relay().sound and not radial.visible, "release on the centre picks and closes")
-	o.relay().sound = true
-	# Off the rings: cancels.
-	var settings := JSON.stringify(e.to_dict())
-	c = open_ring.call()
-	_radial_move(c + Vector2(250, 0))
-	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(250, 0))
-	_check(not radial.visible and JSON.stringify(e.to_dict()) == settings and o.relay().sound, "release off the rings cancels")
-	# No move: stays open, and left clicks pick without closing.
-	c = open_ring.call()
-	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
-	_check(radial.visible and not radial.holding and o.relay().sound, "release without moving, on the highlighted centre, stays open")
+	_check(radial.visible and not radial.holding, "a still release leaves the dial open")
 	var left := InputEventMouseButton.new()
 	left.button_index = MOUSE_BUTTON_LEFT
 	left.pressed = true
-	left.position = c + Vector2(0, -112)
+	left.position = at_value.call(0.5)
 	radial._gui_input(left)
-	_check(radial.visible and e.cooldown == 0.0, "left click picks and stays open")
+	_check(radial.visible and surface.get_note(a).emitter().cooldown == 2.0, "a left press turns it")
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.position = left.position
+	radial._gui_input(up)
 	left.position = c + Vector2(250, 0)
 	radial._gui_input(left)
-	_check(not radial.visible, "left click off the rings closes")
-	# A left click during the hold picks too.
-	e.cooldown = 1.0
-	c = open_ring.call()
-	_radial_press(MOUSE_BUTTON_LEFT, true, c + Vector2(0, -112))
-	_check(radial.visible and radial.holding and e.cooldown == 0.0, "left click during the hold keeps it open")
-	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
-	radial.close()
-	# The toggle's ring, and the group.
+	_check(not radial.visible, "a click off the dial closes it")
+	_check(RelaySettingsRing.label(0.125) == "⅛" and RelaySettingsRing.label(1.5) == "1½" and RelaySettingsRing.label(0.0) == "Retrigger", "labels")
+	_check(RelaySettingsRing.stop_for(1.0 / 3.0) == 3 and RelaySettingsRing.label(1.0 / 3.0) == "≈ ⅜", "an older save's ⅓ sits near ⅜")
+	# Quick pick on a ring of items: the sequence's.
+	o = surface.get_note(a)
 	var tab: Vector2 = o.get_modifier("sequence")._tab_centre(surface, o)
-	_press(MOUSE_BUTTON_RIGHT, true, tab)
-	c = radial._center
-	item = c + Vector2(0, -100)                      # step 1, at the top
+	var open_seq := func() -> Vector2:
+		_press(MOUSE_BUTTON_RIGHT, true, tab)
+		return radial._center
+	c = open_seq.call()
+	_check(radial.holding and not radial.dial, "the sequence tab opens its rings, held")
+	var item: Vector2 = c + Vector2(0, -112)         # the top of the outer ring: step 1
 	_radial_move(item)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
-	_check(o.get_modifier("sequence").steps == [false, false] and not radial.visible, "works on the sequence ring")
+	_check(o.get_modifier("sequence").steps == [false, false] and not radial.visible, "release on the outer ring picks and closes")
+	c = open_seq.call()
+	item = c + Vector2(0, -54)                       # the top of the inner ring: 1 step
+	_radial_move(item)
+	_radial_press(MOUSE_BUTTON_RIGHT, false, item)
+	_check(o.get_modifier("sequence").steps.size() == 1 and not radial.visible, "release on the inner ring picks and closes")
+	surface.set_sequence_count(a, 2)
+	var settings := JSON.stringify(o.to_dict())
+	c = open_seq.call()
+	_radial_move(c + Vector2(250, 0))
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c + Vector2(250, 0))
+	_check(not radial.visible and JSON.stringify(o.to_dict()) == settings, "release off the rings cancels")
+	c = open_seq.call()
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
+	_check(not radial.visible and JSON.stringify(o.to_dict()) == settings, "a still release, with nothing highlighted, closes it")
+	# A left click during the hold picks and keeps it open.
+	c = open_seq.call()
+	_radial_press(MOUSE_BUTTON_LEFT, true, c + Vector2(0, -112))
+	_check(radial.visible and radial.holding and o.get_modifier("sequence").steps[0], "left click during the hold keeps it open")
+	_radial_press(MOUSE_BUTTON_RIGHT, false, c)
+	radial.close()
 	surface.clear_notes()
 
 
@@ -108,7 +125,7 @@ func _ring_options() -> void:
 	# Quick pick adds; the same pick removes; a group follows.
 	_press(MOUSE_BUTTON_RIGHT, true, Vector2(640, 400))
 	var c: Vector2 = radial._center
-	var toggle_at: Vector2 = c + Vector2.from_angle(-PI / 2.0 + TAU / 3.0) * 112.0
+	var toggle_at: Vector2 = c + Vector2.from_angle(-PI / 2.0 + TAU / 4.0) * 112.0   # Sequence, of four
 	_radial_move(toggle_at)
 	_radial_press(MOUSE_BUTTON_RIGHT, false, toggle_at)
 	_check(surface.get_note(a).get_modifier("sequence") != null and not radial.visible, "quick pick adds a modifier")
@@ -261,7 +278,7 @@ func _bindings() -> void:
 	var b := surface.add_note_at(Vector2(500, 300), 62, 0)
 	var r := surface.add_note_at(Vector2(700, 300), 64, 0)
 	surface.add_modifier(r, "relay")
-	surface.set_relay_sound(r, false)
+	surface.add_modifier(r, "silent")
 	var ao := surface.get_note(a)
 	var bind: BindTool = tools.get_tool("bind")
 	# Stop.
@@ -442,14 +459,15 @@ func _group_rings() -> void:
 	open_on.call(c4)
 	radial.outer_chosen.emit("relay")
 	radial.outer_chosen.emit("sequence")
+	radial.outer_chosen.emit("silent")
 	radial.close()
 	_check(surface.get_note(g4).relay() != null and surface.get_note(e4).get_modifier("sequence") != null, "modifiers spread")
+	_check(not surface.get_note(g4).sounds() and surface.get_note(lone).sounds(), "Silent spreads too")
 	var o := surface.get_note(c4)
 	_press(MOUSE_BUTTON_RIGHT, true, o.emitter().dock_screen_pos(surface, o))
-	radial.outer_chosen.emit(2.0)
-	radial.center_chosen.emit("sound")
+	radial.dial_changed.emit(16.0 / 32.0)
 	radial.close()
-	_check(surface.get_note(g4).emitter().cooldown == 2.0 and not surface.get_note(e4).relay().sound, "relay settings spread")
+	_check(surface.get_note(g4).emitter().cooldown == 2.0 and surface.get_note(e4).emitter().cooldown == 2.0, "relay settings spread")
 	_press(MOUSE_BUTTON_RIGHT, true, o.get_modifier("sequence")._tab_centre(surface, o))
 	radial.inner_chosen.emit(4)
 	radial.outer_chosen.emit(1)
@@ -460,7 +478,7 @@ func _group_rings() -> void:
 	sel.clear()
 	sel.emitters = {c4: true, g4: true}
 	_press(MOUSE_BUTTON_RIGHT, true, o.emitter().dock_screen_pos(surface, o))
-	radial.outer_chosen.emit(3.0)
+	radial.dial_changed.emit(24.0 / 32.0)
 	radial.close()
 	_check(surface.get_note(g4).emitter().cooldown == 3.0 and surface.get_note(e4).emitter().cooldown == 2.0, "selected diamonds spread")
 	sel.clear()

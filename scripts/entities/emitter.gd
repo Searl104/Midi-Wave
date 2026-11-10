@@ -1,18 +1,18 @@
 class_name Emitter
 extends RefCounted
-## Where a relay's wave starts, and how it fires: strength, cooldown in beats and its own reach.
+## Where a relay's wave starts, and how it fires: cooldown in beats and its own reach. Every relay
+## pulses at STRENGTH; older saves' pulse_strength is ignored.
 ## It starts docked on its note; dragged away, it stays at a fixed spot on the surface, drawn under
 ## the notes, and a dim handle stays on the note. It is only a point: waves don't trigger it.
 
 const HANDLE_RADIUS := 7.0
 const MIN_COOLDOWN := 0.125        ## beats (an eighth of a beat)
-const DEFAULT_STRENGTH := 0.8
+const STRENGTH := 0.8             ## every relay's pulse
 const DEFAULT_COOLDOWN := 1.0      ## beats
 const COOLDOWN_GRACE := 20000      ## microseconds early a hit can land and still fire: about a frame
 
 var attached := true
 var pos := Vector2.ZERO            ## world units; used while detached
-var strength := DEFAULT_STRENGTH
 var cooldown := DEFAULT_COOLDOWN   ## beats; 0 = retrigger
 var own_reach := 0.0               ## wave reach in world units (0 = the global Reach)
 var grid: Grid = null              ## snap grid centred here, if on and detached
@@ -31,7 +31,6 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	if grid:
 		grid.reach = maxf(float(d.get("grid_emit_reach", 0.0)), 0.0)
 	own_reach = maxf(float(d.get("range", 0.0)), 0.0)
-	strength = clampf(float(d.get("pulse_strength", DEFAULT_STRENGTH)), 0.05, 1.0)
 	# Cooldowns are in beats (tempo-locked). Older saves stored seconds: convert at the saved tempo.
 	var cd := DEFAULT_COOLDOWN
 	if d.has("cooldown_beats"):
@@ -44,7 +43,7 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 
 
 func to_dict() -> Dictionary:
-	return {"pulse_strength": strength, "cooldown_beats": cooldown, "attached": attached,
+	return {"cooldown_beats": cooldown, "attached": attached,
 			"ex": pos.x, "ey": pos.y, "range": own_reach, "grid_emit": grid != null,
 			"grid_emit_reach": grid.reach if grid else 0.0}
 
@@ -90,7 +89,7 @@ func fire(surface: WaveSurface, owner: Note, now: int, spawned: Array, overshoot
 	if surface.waves.size() + spawned.size() >= WaveSurface.MAX_WAVES:
 		surface.skipped_pulses += 1  # surface full: skip this beat, stay ready
 		return
-	var w := Wave.new(world_pos(owner), strength, owner.id, own_reach)
+	var w := Wave.new(world_pos(owner), STRENGTH, owner.id, own_reach)
 	w.r = overshoot
 	spawned.append(w)
 	ready_at = hit_at + cooldown_usec()

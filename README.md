@@ -56,13 +56,16 @@ else. Esc closes it too.
 | Empty space, in Draw | The chosen ring, set on the brush |
 
 **Quick pick:** hold right-click, aim, and release to pick and close. Releasing off the rings cancels.
-Releasing before anything is highlighted closes the ring too. Only a ring with a centre button (the
-relay's settings) opens with it highlighted, so a right-click without moving leaves that ring open.
-Left-click picks and keeps it open; a click off the rings closes it. Esc closes a ring.
+Releasing before anything is highlighted closes the ring too, so a right-click without moving
+opens and closes it. Left-click during the hold picks and keeps it open. Esc closes a ring.
+
+The relay's settings are a **dial** instead of rings: hold right-click on the diamond and move
+around it to set the cooldown, then release to keep it. A right-click without moving leaves the
+dial open: drag on it with the left button, and click off it to close it. One opening is one undo step.
 
 - **Pitch:** scale notes (outer), octave (inner). An octave change keeps the note's letter. Hovering plays each pitch if **Options → General → Play notes while hovering** is on.
 - **Sound:** 1-16.
-- **Modifier:** None, Sequence and Relay. Picking one adds or removes it, and None clears them all.
+- **Modifier:** None, Sequence, Relay and Silent. Picking one adds or removes it, and None clears them all.
 
 Edits on a selected note apply to the whole selection. A pitch pick moves the others by the same
 scale steps, so a chord keeps its shape; an octave moves them all. A note that would leave the MIDI range stays put. Relay settings also reach
@@ -121,12 +124,13 @@ Layouts Folder** goes there. Clear all, Default layout and Test layout are on th
 
 ## Modifiers
 
-A note can hold several modifiers. Each has a tab, and right-clicking a tab opens its settings.
-Removing a modifier discards its settings.
+A note can hold several modifiers. A modifier with settings has a tab, and right-clicking the tab
+opens them. Removing a modifier discards its settings.
 
-**Relay** makes a note send out its own wave when a wave hits it, at a fixed strength and at most
-once per cooldown, so waves can chain and loop. Its tab is the emitter diamond.
-- Settings: cooldown in beats (⅛ to 4, or Retrigger: no timer) on the outer ring, strength on the inner, and Sound or Silent in the centre. A new relay has Sound on, so the note still plays; Silent makes it hollow and keeps its pitch.
+**Relay** makes a note send out its own wave when a wave hits it, at 80% strength and at most
+once per cooldown, so waves can chain and loop. The note still plays; add Silent to stop that. Its tab is the emitter diamond.
+- Settings: a dial for the cooldown: Retrigger (no timer) at the start of the sweep, then ⅛ to 4 beats in eighth-beat steps. A cooldown from an older save between those steps (such as ⅓) is kept, shown as the nearest step with ≈, until the dial is turned.
+- Older saves' relay strength is ignored, and a relay saved with its Sound off loads with Silent added.
 - The diamond docks upper right of the note. Dragged out, it stays at that spot and draws under the notes, with a dashed line and a dim handle left on the note. Dropped back on the note, it docks.
 - An emitter on top of another note fires that note instantly.
 - A new wave starts from where the hit really landed, so loops and chains hold their tempo at any frame rate.
@@ -141,6 +145,10 @@ right, blue for On and grey for Off, fading out so three show each side. Its set
 sets the number of steps on the inner ring and turns steps On or Off on the outer ring, clockwise
 from the top. New steps start On. Stop returns it to step 1. Rests and Toggles in old saves load as
 the same pattern, turned to start where they started.
+
+**Silent** stops a note making any sound, but it still takes hits: a sequence on it steps on, a
+relay on it fires, and taps and bindings count. It's drawn hollow with its pitch hidden, and has no
+settings, so no tab.
 
 **Mute** isn't a modifier: a muted note ignores waves, though a sequence on it still steps on. Tapping
 it, or firing its binding, plays it anyway.
@@ -232,7 +240,7 @@ scripts/
   midi/midi_message.gd    Raw MIDI byte helpers
   midi/midi_mappings.gd   MIDI messages that run app actions
   midi/midi_in.gd         Controller notes, control changes and transport (Godot's built-in MIDI input)
-  entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier
+  entities/               note, emitter, wave, grid, modifier, relay_modifier, sequence_modifier, silent_modifier
   surface/                undo_history, selection, snapping, surface_editing, surface_drawing, surface_effects, demo_layout, named_files, collections, layouts
   tools/                  One script per tool and ring, plus tool_manager, tool_keys and object_drag
   ui/main.gd              Builds the scene and HUD

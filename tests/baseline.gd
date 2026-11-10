@@ -45,11 +45,11 @@ func _note_at(world: Vector2, pitch: int, channel: int = 0) -> int:
 	return surface.add_note_at(surface.to_screen(world), pitch, channel)
 
 
-func _relay_at(world: Vector2, pitch: int, cooldown: float, strength: float = 0.8) -> int:
+func _relay_at(world: Vector2, pitch: int, cooldown: float) -> int:
 	var id := _note_at(world, pitch, 1)
 	surface.add_modifier(id, "relay")
-	surface.set_relay_sound(id, false)
-	surface.set_pulse_params(id, strength, cooldown)
+	surface.add_modifier(id, "silent")
+	surface.set_cooldown(id, cooldown)
 	return id
 
 
@@ -100,7 +100,7 @@ func _scenarios() -> void:
 	_drag(r2, "emitter", Vector2(450, 500), true)
 	surface.trigger_note(r1)
 	_run(4.0)
-	surface.set_pulse_params(r1, 0.6, 0.0)
+	surface.set_cooldown(r1, 0.0)
 	_log("text %s" % surface.get_note(r1).hover_text())
 	_run(2.0)
 	_log("skipped %d" % surface.skipped_pulses)
@@ -200,7 +200,7 @@ func _scenarios() -> void:
 	# Copy, paste, delete, undo and redo.
 	var u := _note_at(Vector2(300, 300), 60)
 	surface.history.end_group()
-	var v := _relay_at(Vector2(500, 300), 67, 2.0, 0.5)
+	var v := _relay_at(Vector2(500, 300), 67, 2.0)
 	surface.history.end_group()
 	_drag(v, "emitter", Vector2(600, 450), true)
 	surface.history.end_group()
@@ -212,10 +212,10 @@ func _scenarios() -> void:
 	_log("pasted %d" % surface.selection.paste_at(Vector2(640, 500)))
 	surface.history.end_group()
 	_layout("pasted")
-	surface.set_relay_sound(v, true)
+	surface.remove_modifier(v, "silent")
 	surface.history.end_group()
 	_layout("sounding")
-	surface.set_relay_sound(v, false)
+	surface.add_modifier(v, "silent")
 	surface.history.end_group()
 	_layout("silent")
 	surface.set_note_pitch(u, 72)

@@ -1,7 +1,7 @@
 class_name Note
 extends RefCounted
 ## An object on the surface: it plays its pitch when a wave hits it. Modifiers change what a hit
-## does; a RelayModifier makes it fire a new wave, and can silence its sound.
+## does; a RelayModifier makes it fire a new wave, and a SilentModifier stops its sound.
 
 const RADIUS := 22.0
 
@@ -38,10 +38,9 @@ func emitter() -> Emitter:
 	return r.emitter if r else null
 
 
-## False when a relay's Sound is off.
+## False with a Silent modifier.
 func sounds() -> bool:
-	var r := relay()
-	return r == null or r.sound
+	return get_modifier("silent") == null
 
 
 ## How far this note's grid reaches: its own, else a docked relay's wave, else a beat past the
@@ -88,6 +87,8 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 			if m:
 				m.load_dict(md, p)
 				add_modifier(m)
+			if m is RelayModifier and not bool(md.get("sound", true)) and get_modifier("silent") == null:
+				add_modifier(SilentModifier.new())     # older saves: a relay with its Sound off
 		return
 	var sequence := Modifier.create(str(d.get("mod", "")))
 	if sequence:
@@ -96,10 +97,10 @@ func load_dict(d: Dictionary, p: Vector2) -> void:
 	var mode := int(d.get("mode", 0))
 	if mode == 1 or mode == 2:
 		var r := RelayModifier.new()
-		var legacy := d.duplicate()
-		legacy["sound"] = mode == 1
-		r.load_dict(legacy, p)
+		r.load_dict(d, p)
 		add_modifier(r)
+		if mode == 2:
+			add_modifier(SilentModifier.new())   # mode 2 was a relay that didn't play its note
 
 
 func to_dict() -> Dictionary:
@@ -194,7 +195,8 @@ func shows_pitch() -> bool:
 
 ## Tooltip text: pitch, channel and state.
 func hover_text() -> String:
-	var text := "%s · sound %d" % [MidiMessage.note_name(note), channel + 1] if sounds() else "relay · sound %d" % (channel + 1)
+	var text := "%s · sound %d" % [MidiMessage.note_name(note), channel + 1] if sounds() \
+			else "%s · sound %d" % ["silent relay" if relay() else "silent", channel + 1]
 	var r := relay()
 	if r and r.emitter.is_retrigger():
 		text += " · retrigger"
@@ -220,7 +222,7 @@ func bracket_half() -> float:
 	return RADIUS + (11.0 if relay() else 7.0)
 
 
-## Drawn with no fill: anything muted, or silent because of its relay.
+## Drawn with no fill: anything muted or Silent.
 func _hollow() -> bool:
 	return muted or not sounds()
 
