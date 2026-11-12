@@ -9,6 +9,11 @@ extends Node
 ##
 ## A note's `channel` value is its Sound: one of 16 numbered colours, called a slot here. Each picks
 ## a port in Options, and every message goes out on channel 1 of that port. Sounds can share a port.
+##
+## Keys: a pitch on a port is one MIDI key, however many notes play it. note_on and note_off keep a
+## count of holders per key, so the port never gets two Ons for one key or an Off that cuts another
+## note short. A Note On for a key already down retriggers it (Off, then On); the key's Note Off goes
+## only when its last holder releases. Every note_on is matched by one note_off.
 
 signal port_changed(port_name: String)
 signal message_sent(bytes: PackedByteArray)     ## as addressed to a slot, before routing
@@ -24,6 +29,7 @@ var log_when_closed := true
 var device_factory: Callable           ## makes a device; tests swap this for a fake
 var _probe: Object = null              # lists ports, and is never opened
 var _open := {}                        # port name -> open device
+var _held := {}                        # key ("port|pitch") -> holders that sent a Note On
 
 
 func _ready() -> void:
@@ -138,14 +144,41 @@ func send(bytes: PackedByteArray) -> void:
 
 
 ## The channel's volume scales the velocity; at 0 the note doesn't sound.
+## A holder takes the key. If the key is already down, it's struck again: Off, then On.
 func note_on(note: int, velocity: int = 100, channel: int = -1) -> void:
-	var scaled := Settings.channel_velocity(_resolve(channel), velocity)
-	if scaled > 0:
-		send(MidiMessage.note_on(_resolve(channel), note, scaled))
+	var ch := _resolve(channel)
+	var key := _key(ch, note)
+	var holders: int = _held.get(key, 0)
+	_held[key] = holders + 1
+	var scaled := Settings.channel_velocity(ch, velocity)
+	if scaled <= 0:
+		return                              # holds the key without sounding (volume at 0)
+	if holders > 0:
+		send(MidiMessage.note_off(ch, note))
+	send(MidiMessage.note_on(ch, note, scaled))
 
 
+## A holder lets go. The key's Note Off goes when the last one does (or for a key nobody holds).
 func note_off(note: int, channel: int = -1) -> void:
-	send(MidiMessage.note_off(_resolve(channel), note))
+	var ch := _resolve(channel)
+	var key := _key(ch, note)
+	var holders: int = _held.get(key, 0)
+	if holders > 1:
+		_held[key] = holders - 1
+		return
+	_held.erase(key)
+	send(MidiMessage.note_off(ch, note))
+
+
+## How many notes hold a pitch on a Sound's port right now.
+func holders(note: int, channel: int = -1) -> int:
+	return _held.get(_key(_resolve(channel), note), 0)
+
+
+## A key is a pitch on a port; Sounds sharing a port share keys. A Sound with no port is its own.
+func _key(channel: int, note: int) -> String:
+	var port: String = Settings.midi_slots[channel] if channel >= 0 and channel < Settings.midi_slots.size() else ""
+	return "%s|%d" % [port if port != "" else "#%d" % channel, note]
 
 
 ## Fire-and-forget note with an automatic note-off after `duration` seconds.
@@ -153,7 +186,7 @@ func play_note(note: int, velocity: int = 100, duration: float = 0.25, channel: 
 	var ch := _resolve(channel)
 	note_on(note, velocity, ch)
 	get_tree().create_timer(duration, true, false, true).timeout.connect(
-		func() -> void: send(MidiMessage.note_off(ch, note))
+		func() -> void: note_off(note, ch)
 	)
 
 
@@ -171,11 +204,16 @@ func pitch_bend(value: int, channel: int = -1) -> void:
 
 
 func all_notes_off(channel: int = -1) -> void:
+	var prefix := _key(_resolve(channel), 0).trim_suffix("0")
+	for key in _held.keys():
+		if key.begins_with(prefix):
+			_held.erase(key)
 	send(MidiMessage.control_change(_resolve(channel), MidiMessage.CC_ALL_NOTES_OFF, 0))
 
 
 ## All notes off + all sound off on every channel of every open port. Use when something sticks.
 func panic() -> void:
+	_held.clear()
 	for ch in 16:
 		for cc in [MidiMessage.CC_ALL_NOTES_OFF, MidiMessage.CC_ALL_SOUND_OFF]:
 			var bytes := MidiMessage.control_change(ch, cc, 0)

@@ -6,6 +6,7 @@ func run() -> void:
 	_held_during_cooldown()
 	_midi_controls()
 	_note_lengths()
+	_shared_keys()
 	_channel_volume()
 	_timing()
 	_slow_frame()
@@ -203,6 +204,71 @@ func _note_lengths() -> void:
 	_check(Settings.note_beats == 0.5 and Settings.channel_beats[1] == 2.5 and Settings.channel_beats[0] == 0.0, "old seconds convert and snap")
 	Settings.note_beats = was
 	Settings.channel_beats = was_channels
+
+
+## Notes on one pitch and port share one MIDI key: no double Ons, and the key's Off waits for the
+## last note holding it.
+func _shared_keys() -> void:
+	var heard: Array = []
+	var spy := func(m: PackedByteArray) -> void:
+		var kind := m[0] & 0xF0
+		if (kind == 0x90 or kind == 0x80) and m[1] == 62:
+			heard.append("on" if kind == 0x90 else "off")
+	Midi.message_sent.connect(spy)
+	Midi.panic()
+	var ports: Array = Settings.midi_slots.duplicate()
+	Settings.midi_slots[5] = "Shared"
+	Settings.midi_slots[6] = "Shared"
+	var bpm: float = Settings.bpm
+	Settings.bpm = 60.0                                       # half a beat = 0.5 s
+	var a := surface.get_note(surface.add_object(Vector2(3000, 3000), 62, 5))
+	var b := surface.get_note(surface.add_object(Vector2(3400, 3000), 62, 5))
+	var t := surface.clock_usec
+	# Half-beat notes every quarter beat, alternating: A, B, A, B.
+	a.play(surface, 1.0, t)
+	b.play(surface, 1.0, t + 250_000)
+	_check(heard == ["on", "off", "on"], "a second note on a sounding key strikes it again: Off, then On")
+	surface.clock_usec = t + 500_000
+	a.tick(0.0, surface.clock_usec)
+	_check(heard.size() == 3 and Midi.holders(62, 5) == 1, "the first note's end doesn't cut the key short")
+	a.play(surface, 1.0, t + 500_000)
+	b.tick(0.0, t + 750_000)
+	a.tick(0.0, t + 1_000_000)
+	_check(heard == ["on", "off", "on", "off", "on", "off"] and Midi.holders(62, 5) == 0, "the key's Off goes once its last note ends")
+	var ons := heard.count("on")
+	_check(ons == heard.count("off"), "every On has an Off")
+	# A lone note struck again while sounding: Off, then On, as before.
+	heard.clear()
+	a.play(surface, 1.0, t)
+	a.play(surface, 1.0, t + 100_000)
+	a.tick(0.0, t + 1_000_000)
+	_check(heard == ["on", "off", "on", "off"] and Midi.holders(62, 5) == 0, "one note retriggers as before")
+	# Sounds sharing a port share the key; Sounds on different ports don't.
+	heard.clear()
+	var c := surface.get_note(surface.add_object(Vector2(3800, 3000), 62, 6))
+	a.play(surface, 1.0, t)
+	c.play(surface, 1.0, t + 100_000)
+	_check(heard == ["on", "off", "on"] and Midi.holders(62, 5) == 2, "two Sounds on one port share the key")
+	a.silence()
+	c.silence()
+	_check(heard.back() == "off" and Midi.holders(62, 6) == 0, "silencing both releases it")
+	Settings.midi_slots[6] = "Other"
+	heard.clear()
+	a.play(surface, 1.0, t)
+	c.play(surface, 1.0, t)
+	_check(heard == ["on", "on"], "Sounds on different ports are separate keys")
+	a.silence()
+	c.silence()
+	# Panic forgets every held key.
+	a.play(surface, 1.0, t)
+	Midi.panic()
+	_check(Midi.holders(62, 5) == 0, "Panic clears the holders")
+	a.playing = false
+	for o in [a, b, c]:
+		surface.remove_note(o.id)
+	Midi.message_sent.disconnect(spy)
+	Settings.midi_slots = ports
+	Settings.bpm = bpm
 
 
 func _channel_volume() -> void:

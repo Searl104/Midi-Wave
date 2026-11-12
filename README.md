@@ -104,6 +104,12 @@ one. Picks are saved by port name. A port that isn't there stays picked and is l
 and Refresh opens it once it exists. Changing a sound's port sends a Panic first, so nothing is left
 held. Each sound has its own volume and note length.
 
+**Repeated pitches.** A pitch on a port is one MIDI key, however many notes play it, so notes on
+the same pitch and Sound (or on Sounds sharing a port) share it. A note that plays a key already
+sounding strikes it again: Note Off, then Note On. The key's Note Off waits until the last note
+holding it ends, so a chain of overlapping notes on one pitch never sends two Ons in a row or cuts
+the key short.
+
 ## Layouts
 
 **Options → Layout** saves the whole surface: notes, tempo, divisions, each sound's volume and length,
